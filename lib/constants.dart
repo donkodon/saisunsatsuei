@@ -10,25 +10,29 @@ class AppConstants {
   static const Color warningOrange = Color(0xFFFF9500); // "Draft" badge
   static const Color borderGrey = Color(0xFFE5E5EA);
 
-  static TextStyle get headerStyle => GoogleFonts.notoSansJp(
-        fontSize: 24,
-        fontWeight: FontWeight.bold,
-        color: textDark,
-      );
+  // 🚀 キャッシュされたTextStyle（パフォーマンス最適化 - 動的生成を最小化）
+  // フォントは一度だけ取得してキャッシュ
+  static final TextTheme _cachedTextTheme = GoogleFonts.notoSansJpTextTheme();
 
-  static TextStyle get subHeaderStyle => GoogleFonts.notoSansJp(
-        fontSize: 18,
-        fontWeight: FontWeight.w600,
-        color: textDark,
-      );
+  static final TextStyle headerStyle = _cachedTextTheme.headlineMedium!.copyWith(
+    fontSize: 24,
+    fontWeight: FontWeight.bold,
+    color: textDark,
+  );
 
-  static TextStyle get bodyStyle => GoogleFonts.notoSansJp(
-        fontSize: 14,
-        color: textDark,
-      );
-  
-  static TextStyle get captionStyle => GoogleFonts.notoSansJp(
-        fontSize: 12,
-        color: textGrey,
-      );
+  static final TextStyle subHeaderStyle = _cachedTextTheme.titleMedium!.copyWith(
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    color: textDark,
+  );
+
+  static final TextStyle bodyStyle = _cachedTextTheme.bodyMedium!.copyWith(
+    fontSize: 14,
+    color: textDark,
+  );
+
+  static final TextStyle captionStyle = _cachedTextTheme.bodySmall!.copyWith(
+    fontSize: 12,
+    color: textGrey,
+  );
 }

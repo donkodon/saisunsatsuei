@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/providers/inventory_provider.dart';
 import 'package:measure_master/screens/add_item_screen.dart';
 import 'package:measure_master/models/item.dart';
 
 class DashboardScreen extends StatelessWidget {
+  const DashboardScreen({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
-    final inventory = Provider.of<InventoryProvider>(context);
+    // 🚀 listen: false で不要な再描画を防止（パフォーマンス最適化）
+    // InventoryProviderは Consumer内でのみ使用
 
     return Scaffold(
       backgroundColor: AppConstants.backgroundLight,
@@ -26,34 +30,37 @@ class DashboardScreen extends StatelessWidget {
                   Row(
                     children: [
                       Icon(Icons.notifications_outlined, color: AppConstants.textDark),
-                      SizedBox(width: 16),
+                      const SizedBox(width: 16),
                       CircleAvatar(
-                        backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=32'),
+                        backgroundImage: CachedNetworkImageProvider('https://i.pravatar.cc/150?img=32'),
                         radius: 18,
                       ),
                     ],
                   ),
                 ],
               ),
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
               
               Text("こんにちは、山田さん", style: AppConstants.headerStyle),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
                 "今日の出品準備状況を確認しましょう。",
                 style: AppConstants.bodyStyle.copyWith(color: AppConstants.textGrey),
               ),
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
 
               // Stats Cards
-              Row(
-                children: [
-                  Expanded(child: _buildStatCard("Ready", inventory.readyCount.toString(), "出品待ちアイテム", AppConstants.successGreen, Icons.check_circle)),
-                  SizedBox(width: 16),
-                  Expanded(child: _buildStatCard("Draft", inventory.draftCount.toString(), "下書き保存中", AppConstants.warningOrange, Icons.edit_document)),
-                ],
+              // 🚀 Consumer で必要な部分だけ再描画
+              Consumer<InventoryProvider>(
+                builder: (context, inventory, _) => Row(
+                  children: [
+                    Expanded(child: _buildStatCard("Ready", inventory.readyCount.toString(), "出品待ちアイテム", AppConstants.successGreen, Icons.check_circle)),
+                    const SizedBox(width: 16),
+                    Expanded(child: _buildStatCard("Draft", inventory.draftCount.toString(), "下書き保存中", AppConstants.warningOrange, Icons.edit_document)),
+                  ],
+                ),
               ),
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
 
               // Big CTA
               Container(
@@ -61,35 +68,42 @@ class DashboardScreen extends StatelessWidget {
                 height: 80,
                 child: ElevatedButton(
                   onPressed: () {
+                    // 🚀 高速遷移
                     Navigator.push(
                       context, 
-                      MaterialPageRoute(builder: (context) => AddItemScreen())
+                      PageRouteBuilder(
+                        pageBuilder: (context, animation, secondaryAnimation) => AddItemScreen(),
+                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                          return FadeTransition(opacity: animation, child: child);
+                        },
+                        transitionDuration: const Duration(milliseconds: 200),
+                      ),
                     );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppConstants.primaryCyan,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     elevation: 4,
-                    shadowColor: AppConstants.primaryCyan.withOpacity(0.4),
+                    shadowColor: AppConstants.primaryCyan.withValues(alpha: 0.4),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.add_a_photo, size: 32, color: Colors.white),
-                      SizedBox(width: 16),
+                      const SizedBox(width: 16),
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text("新規アイテムを撮影", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                          Text("採寸・撮影を開始する", style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.9))),
+                          Text("採寸・撮影を開始する", style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.9))),
                         ],
                       ),
                     ],
                   ),
                 ),
               ),
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
 
               // Search Bar
               TextField(
@@ -105,7 +119,7 @@ class DashboardScreen extends StatelessWidget {
                   contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 0),
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
 
               // Filter Chips
               SingleChildScrollView(
@@ -119,7 +133,7 @@ class DashboardScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
 
               // Recent Items
               Row(
@@ -129,16 +143,18 @@ class DashboardScreen extends StatelessWidget {
                   Text("すべて見る", style: TextStyle(color: AppConstants.primaryCyan, fontWeight: FontWeight.bold)),
                 ],
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-              // List
-              ListView.builder(
-                shrinkWrap: true,
-                physics: NeverScrollableScrollPhysics(),
-                itemCount: inventory.items.length,
-                itemBuilder: (context, index) {
-                  return _buildItemCard(inventory.items[index]);
-                },
+              // 🚀 Consumer でリスト部分だけ再描画
+              Consumer<InventoryProvider>(
+                builder: (context, inventory, _) => ListView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
+                  itemCount: inventory.items.length,
+                  itemBuilder: (context, index) {
+                    return _buildItemCard(inventory.items[index]);
+                  },
+                ),
               ),
             ],
           ),
@@ -159,9 +175,16 @@ class DashboardScreen extends StatelessWidget {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: FloatingActionButton(
         onPressed: () {
+           // 🚀 高速遷移
            Navigator.push(
               context, 
-              MaterialPageRoute(builder: (context) => AddItemScreen())
+              PageRouteBuilder(
+                pageBuilder: (context, animation, secondaryAnimation) => AddItemScreen(),
+                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
+                transitionDuration: const Duration(milliseconds: 200),
+              ),
             );
         },
         backgroundColor: Color(0xFF1A2A3A), // Dark color from screenshot
@@ -188,7 +211,7 @@ class DashboardScreen extends StatelessWidget {
               Container(
                 padding: EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: color, size: 20),
@@ -196,7 +219,7 @@ class DashboardScreen extends StatelessWidget {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(badge, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
@@ -235,7 +258,7 @@ class DashboardScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppConstants.borderGrey),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: Offset(0, 2)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: Offset(0, 2)),
         ],
       ),
       child: Row(
@@ -259,7 +282,7 @@ class DashboardScreen extends StatelessWidget {
                     right: 0,
                     child: Container(
                       padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      color: Color(0xFF1A2A3A).withOpacity(0.8),
+                      color: Color(0xFF1A2A3A).withValues(alpha: 0.8),
                       child: Text("済", style: TextStyle(color: Colors.white, fontSize: 10)),
                     ),
                   ),
@@ -279,8 +302,8 @@ class DashboardScreen extends StatelessWidget {
                       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: item.status == 'Ready' 
-                            ? AppConstants.successGreen.withOpacity(0.1) 
-                            : (item.status == 'Draft' ? AppConstants.warningOrange.withOpacity(0.1) : Colors.grey[200]),
+                            ? AppConstants.successGreen.withValues(alpha: 0.1) 
+                            : (item.status == 'Draft' ? AppConstants.warningOrange.withValues(alpha: 0.1) : Colors.grey[200]),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -308,7 +331,7 @@ class DashboardScreen extends StatelessWidget {
                   item.category,
                   style: AppConstants.captionStyle,
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 if (item.hasAlert)
                   Row(
                     children: [

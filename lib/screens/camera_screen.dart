@@ -108,7 +108,7 @@ class _CameraScreenState extends State<CameraScreen> {
             left: 0,
             right: 0,
             child: Container(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
               padding: EdgeInsets.only(bottom: 30, top: 20, left: 20, right: 20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -130,27 +130,23 @@ class _CameraScreenState extends State<CameraScreen> {
                       // Shutter Button
                       GestureDetector(
                         onTap: () {
-                          // Simulate capture delay then navigate
-                          showDialog(
-                            context: context,
-                            barrierDismissible: false,
-                            builder: (context) => Center(child: CircularProgressIndicator(color: AppConstants.primaryCyan)),
-                          );
-                          Future.delayed(Duration(seconds: 2), () {
-                            Navigator.pop(context); // Close loader
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => DetailScreen(
-                                  itemName: widget.itemName,
-                                  brand: widget.brand,
-                                  category: widget.category,
-                                  condition: widget.condition,
-                                  price: widget.price,
-                                ),
+                          // 🚀 即時遷移（2秒ディレイ削除）
+                          Navigator.push(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder: (context, animation, secondaryAnimation) => DetailScreen(
+                                itemName: widget.itemName,
+                                brand: widget.brand,
+                                category: widget.category,
+                                condition: widget.condition,
+                                price: widget.price,
                               ),
-                            );
-                          });
+                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                return FadeTransition(opacity: animation, child: child);
+                              },
+                              transitionDuration: const Duration(milliseconds: 200),
+                            ),
+                          );
                         },
                         child: Container(
                           width: 80,
@@ -231,7 +227,7 @@ class _CameraScreenState extends State<CameraScreen> {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppConstants.primaryCyan : Colors.black.withOpacity(0.6),
+          color: isSelected ? AppConstants.primaryCyan : Colors.black.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -269,55 +265,56 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 }
 
+// 🚀 最適化されたGridPainter（Paintオブジェクトをキャッシュ）
 class GridPainter extends CustomPainter {
+  // Paintオブジェクトを事前に作成してキャッシュ
+  static final Paint _cachedPaint = Paint()
+    ..color = AppConstants.primaryCyan.withValues(alpha: 0.5)
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1
+    ..strokeCap = StrokeCap.round;
+
+  static const double _dashWidth = 5.0;
+  static const double _dashSpace = 5.0;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppConstants.primaryCyan.withOpacity(0.5)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1
-      ..strokeCap = StrokeCap.round;
-
-    final dashWidth = 5.0;
-    final dashSpace = 5.0;
-
     // Draw Dashed Box
     final rect = Rect.fromLTWH(20, 100, size.width - 40, size.height - 350);
-    _drawDashedRect(canvas, paint, rect, dashWidth, dashSpace);
+    _drawDashedRect(canvas, rect);
 
     // Draw Crosshair
     final centerX = size.width / 2;
     final centerY = rect.top + (rect.height / 2);
     
     // Vertical line
-    _drawDashedLine(canvas, paint, Offset(centerX, rect.top), Offset(centerX, rect.bottom), dashWidth, dashSpace);
+    _drawDashedLine(canvas, Offset(centerX, rect.top), Offset(centerX, rect.bottom));
     // Horizontal line
-    _drawDashedLine(canvas, paint, Offset(rect.left, centerY), Offset(rect.right, centerY), dashWidth, dashSpace);
+    _drawDashedLine(canvas, Offset(rect.left, centerY), Offset(rect.right, centerY));
   }
   
-  void _drawDashedRect(Canvas canvas, Paint paint, Rect rect, double dashWidth, double dashSpace) {
-    // Top
-    _drawDashedLine(canvas, paint, rect.topLeft, rect.topRight, dashWidth, dashSpace);
-    // Right
-    _drawDashedLine(canvas, paint, rect.topRight, rect.bottomRight, dashWidth, dashSpace);
-    // Bottom
-    _drawDashedLine(canvas, paint, rect.bottomRight, rect.bottomLeft, dashWidth, dashSpace);
-    // Left
-    _drawDashedLine(canvas, paint, rect.bottomLeft, rect.topLeft, dashWidth, dashSpace);
+  void _drawDashedRect(Canvas canvas, Rect rect) {
+    _drawDashedLine(canvas, rect.topLeft, rect.topRight);
+    _drawDashedLine(canvas, rect.topRight, rect.bottomRight);
+    _drawDashedLine(canvas, rect.bottomRight, rect.bottomLeft);
+    _drawDashedLine(canvas, rect.bottomLeft, rect.topLeft);
   }
 
-  void _drawDashedLine(Canvas canvas, Paint paint, Offset start, Offset end, double dashWidth, double dashSpace) {
-    double distance = (end - start).distance;
-    double currentDistance = 0;
-    Offset direction = (end - start) / distance;
+  void _drawDashedLine(Canvas canvas, Offset start, Offset end) {
+    final distance = (end - start).distance;
+    if (distance == 0) return;
+    
+    final direction = (end - start) / distance;
+    var currentDistance = 0.0;
     
     while (currentDistance < distance) {
+      final endDistance = (currentDistance + _dashWidth).clamp(0.0, distance);
       canvas.drawLine(
         start + direction * currentDistance,
-        start + direction * (currentDistance + dashWidth > distance ? distance : currentDistance + dashWidth),
-        paint,
+        start + direction * endDistance,
+        _cachedPaint,
       );
-      currentDistance += dashWidth + dashSpace;
+      currentDistance += _dashWidth + _dashSpace;
     }
   }
 

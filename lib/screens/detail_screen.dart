@@ -29,6 +29,26 @@ class _DetailScreenState extends State<DetailScreen> {
   String _selectedMaterial = 'コットン 100%';
   String _selectedColor = 'ホワイト';
   Color _colorPreview = Colors.white;
+  final TextEditingController _descriptionController = TextEditingController();
+
+  // 🚀 文字数カウンター用のValueNotifier（setState不要で効率的）
+  final ValueNotifier<int> _charCount = ValueNotifier<int>(0);
+
+  @override
+  void initState() {
+    super.initState();
+    // 🚀 ValueNotifierで文字数のみ更新（画面全体の再描画を防止）
+    _descriptionController.addListener(() {
+      _charCount.value = _descriptionController.text.length;
+    });
+  }
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    _charCount.dispose();
+    super.dispose();
+  }
 
   // Material options
   final List<String> _materials = [
@@ -245,16 +265,40 @@ class _DetailScreenState extends State<DetailScreen> {
             Text("商品の説明", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             SizedBox(height: 12),
             Container(
-              height: 120,
-              padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey[300]!),
+                border: Border.all(color: Colors.grey[300]!, width: 1),
               ),
-              child: Text(
-                "傷や汚れ、特徴などを入力してください...",
-                style: TextStyle(color: AppConstants.textGrey),
+              child: TextField(
+                controller: _descriptionController,
+                maxLines: 6,
+                minLines: 6,
+                maxLength: 1000,
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
+                decoration: InputDecoration(
+                  hintText: "傷や汚れ、特徴などを入力してください...\n\n例：\n・着用回数：3回程度\n・目立った傷や汚れなし\n・サイズ感：普通\n・素材感：柔らかめ",
+                  hintStyle: TextStyle(color: AppConstants.textGrey, fontSize: 14),
+                  border: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.all(16),
+                  counterText: '',
+                ),
+                style: TextStyle(fontSize: 14, color: AppConstants.textDark, height: 1.5),
+              ),
+            ),
+            SizedBox(height: 8),
+            // 🚀 ValueListenableBuilderで文字数部分のみ再描画
+            Align(
+              alignment: Alignment.centerRight,
+              child: ValueListenableBuilder<int>(
+                valueListenable: _charCount,
+                builder: (context, count, _) => Text(
+                  '$count/1000',
+                  style: TextStyle(fontSize: 12, color: AppConstants.textGrey),
+                ),
               ),
             ),
             SizedBox(height: 30),
@@ -277,9 +321,16 @@ class _DetailScreenState extends State<DetailScreen> {
                  
                 Provider.of<InventoryProvider>(context, listen: false).addItem(newItem);
                  
+                // 🚀 高速遷移
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (context) => DashboardScreen()),
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) => const DashboardScreen(),
+                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                      return FadeTransition(opacity: animation, child: child);
+                    },
+                    transitionDuration: const Duration(milliseconds: 200),
+                  ),
                   (route) => false,
                 );
               }

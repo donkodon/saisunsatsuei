@@ -239,16 +239,21 @@ class _AddItemScreenState extends State<AddItemScreen> {
                   );
                   return;
                 }
+                // 🚀 高速遷移
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => CameraScreen(
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) => CameraScreen(
                       itemName: _nameController.text,
                       brand: _brandController.text,
                       category: _selectedCategory,
                       condition: _selectedCondition,
                       price: _priceController.text,
                     ),
+                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                      return FadeTransition(opacity: animation, child: child);
+                    },
+                    transitionDuration: const Duration(milliseconds: 200),
                   ),
                 );
               },

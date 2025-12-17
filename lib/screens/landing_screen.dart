@@ -4,6 +4,8 @@ import 'package:measure_master/screens/dashboard_screen.dart';
 import 'package:measure_master/widgets/custom_button.dart';
 
 class LandingScreen extends StatelessWidget {
+  const LandingScreen({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -43,7 +45,7 @@ class LandingScreen extends StatelessWidget {
                     child: Container(
                       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
@@ -110,9 +112,16 @@ class LandingScreen extends StatelessWidget {
                     CustomButton(
                       text: "今すぐ始める",
                       onPressed: () {
+                        // 🚀 高速遷移（PageRouteBuilder使用）
                         Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (context) => DashboardScreen()),
+                          PageRouteBuilder(
+                            pageBuilder: (context, animation, secondaryAnimation) => const DashboardScreen(),
+                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                              return FadeTransition(opacity: animation, child: child);
+                            },
+                            transitionDuration: const Duration(milliseconds: 200),
+                          ),
                         );
                       },
                     ),
@@ -142,9 +151,9 @@ class LandingScreen extends StatelessWidget {
             shape: BoxShape.circle,
             boxShadow: isActive ? [
               BoxShadow(
-                color: AppConstants.primaryCyan.withOpacity(0.3),
+                color: AppConstants.primaryCyan.withValues(alpha: 0.3),
                 blurRadius: 10,
-                offset: Offset(0, 4),
+                offset: const Offset(0, 4),
               )
             ] : [],
           ),
@@ -154,10 +163,10 @@ class LandingScreen extends StatelessWidget {
             size: 30,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Text(
           step,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.bold,
             color: AppConstants.textGrey,
@@ -165,7 +174,7 @@ class LandingScreen extends StatelessWidget {
         ),
         Text(
           label,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
             color: AppConstants.textDark,
