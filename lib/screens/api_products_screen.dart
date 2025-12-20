@@ -19,10 +19,26 @@ class _ApiProductsScreenState extends State<ApiProductsScreen> {
   @override
   void initState() {
     super.initState();
-    // 🚀 スマートフェッチ: キャッシュがあれば即座に表示、なければAPI呼び出し
+    // 🔐 ログインベース: キャッシュがあれば即座に表示、なければAPI呼び出し
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<ApiProductProvider>(context, listen: false).fetchProducts();
     });
+  }
+
+  /// 最終更新時刻をユーザーフレンドリーにフォーマット
+  String _formatLastUpdate(DateTime lastUpdate) {
+    final now = DateTime.now();
+    final difference = now.difference(lastUpdate);
+
+    if (difference.inMinutes < 1) {
+      return '最終更新: たった今';
+    } else if (difference.inMinutes < 60) {
+      return '最終更新: ${difference.inMinutes}分前';
+    } else if (difference.inHours < 24) {
+      return '最終更新: ${difference.inHours}時間前';
+    } else {
+      return '最終更新: ${difference.inDays}日前';
+    }
   }
 
   Future<void> _refreshProducts() async {
@@ -216,18 +232,18 @@ class _ApiProductsScreenState extends State<ApiProductsScreen> {
                         ),
                       ],
                     ),
-                    // キャッシュ情報表示
-                    if (apiProvider.isCacheValid) ...[
+                    // 最終更新時刻表示
+                    if (apiProvider.lastFetchTime != null) ...[
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Icon(Icons.cached, size: 14, color: AppConstants.successGreen),
+                          Icon(Icons.update, size: 14, color: AppConstants.textGrey),
                           const SizedBox(width: 4),
                           Text(
-                            'キャッシュ有効 (残り${apiProvider.cacheRemainingTime?.inSeconds}秒)',
+                            _formatLastUpdate(apiProvider.lastFetchTime!),
                             style: TextStyle(
                               fontSize: 11,
-                              color: AppConstants.successGreen,
+                              color: AppConstants.textGrey,
                             ),
                           ),
                         ],

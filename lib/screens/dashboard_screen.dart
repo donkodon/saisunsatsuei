@@ -145,7 +145,7 @@ class DashboardScreen extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            "外部システムと連携",
+                            "ログイン時に自動更新",
                             style: TextStyle(
                               fontSize: 11,
                               color: AppConstants.textGrey,

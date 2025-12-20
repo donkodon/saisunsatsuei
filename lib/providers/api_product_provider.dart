@@ -12,8 +12,9 @@ class ApiProductProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   
-  // キャッシュ有効期間 (5分)
-  static const Duration _cacheValidDuration = Duration(minutes: 5);
+  // 🔐 ログインベースキャッシュ: セッション中は無期限に有効
+  // ログイン時のみAPIを呼び出し、セッション中はキャッシュを使用
+  static const Duration _cacheValidDuration = Duration(days: 365); // 実質無期限
   
   // Getters
   List<ApiProduct> get products => _products;
@@ -39,40 +40,53 @@ class ApiProductProvider with ChangeNotifier {
     return remaining.isNegative ? null : remaining;
   }
   
-  /// スマートフェッチ: キャッシュの状態に応じて適切な処理を実行
+  /// 🔐 ログインベース フェッチ: セッション中はキャッシュのみ使用
   /// 
-  /// - キャッシュなし → API呼び出し
-  /// - キャッシュ有効 (5分以内) → キャッシュ返却 (API呼び出しなし)
-  /// - キャッシュ期限切れ → バックグラウンド更新 + キャッシュ返却
+  /// **ログイン戦略:**
+  /// - ログイン時: 必ず最新データ取得 (forceRefresh: true)
+  /// - セッション中: キャッシュのみ返却 (API呼び出しなし)
+  /// - 手動更新: ユーザー操作時のみAPI呼び出し
+  /// 
+  /// **API呼び出し頻度:** 1回/日 (ログイン時のみ)
   Future<List<ApiProduct>> fetchProducts({bool forceRefresh = false}) async {
-    // 強制更新の場合
+    // 🔐 強制更新 (ログイン時など)
     if (forceRefresh) {
+      if (kDebugMode) {
+        print('🔐 ログイン更新: API呼び出し');
+      }
       return await _fetchFromApi();
     }
     
-    // キャッシュが有効な場合はキャッシュを返す
-    if (isCacheValid && _products.isNotEmpty) {
+    // ✅ キャッシュがある場合は必ず返す (セッション中は無期限有効)
+    if (_products.isNotEmpty) {
       if (kDebugMode) {
-        print('✅ キャッシュを使用 (残り時間: ${cacheRemainingTime?.inSeconds}秒)');
+        final lastUpdate = _lastFetchTime != null 
+          ? DateTime.now().difference(_lastFetchTime!).inMinutes
+          : 0;
+        print('✅ セッションキャッシュを使用 (最終更新: ${lastUpdate}分前)');
       }
       return _products;
     }
     
-    // キャッシュがあるが期限切れの場合 → バックグラウンド更新
-    if (_products.isNotEmpty && !isCacheValid) {
-      if (kDebugMode) {
-        print('🔄 バックグラウンド更新を開始...');
-      }
-      // 古いキャッシュを即座に返しつつ、バックグラウンドで更新
-      _fetchFromApiSilently();
-      return _products;
-    }
-    
-    // キャッシュなし → API呼び出し
+    // 🌐 初回アクセス (キャッシュなし) → API呼び出し
     if (kDebugMode) {
       print('🌐 初回API呼び出し');
     }
     return await _fetchFromApi();
+  }
+  
+  /// 🔐 ログイン時に呼び出す: 必ず最新データを取得
+  /// 
+  /// 使用例:
+  /// ```dart
+  /// // ログイン成功後
+  /// await Provider.of<ApiProductProvider>(context, listen: false).fetchOnLogin();
+  /// ```
+  Future<List<ApiProduct>> fetchOnLogin() async {
+    if (kDebugMode) {
+      print('🔐 ログイン時のデータ更新');
+    }
+    return await fetchProducts(forceRefresh: true);
   }
   
   /// APIから商品データを取得 (UIに反映)
@@ -102,26 +116,6 @@ class ApiProductProvider with ChangeNotifier {
     }
   }
   
-  /// バックグラウンドでAPIから商品データを取得 (サイレント更新)
-  Future<void> _fetchFromApiSilently() async {
-    try {
-      final response = await _apiService.fetchProducts();
-      _products = response.products;
-      _lastFetchTime = DateTime.now();
-      _error = null;
-      
-      if (kDebugMode) {
-        print('🔄 バックグラウンド更新完了: ${_products.length}件');
-      }
-      
-      notifyListeners();
-    } catch (e) {
-      if (kDebugMode) {
-        print('⚠️ バックグラウンド更新失敗: $e');
-      }
-      // エラーは無視 (古いキャッシュを継続使用)
-    }
-  }
   
   /// 手動リフレッシュ (ユーザー操作)
   Future<List<ApiProduct>> refresh() async {
