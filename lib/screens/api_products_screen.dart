@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/models/api_product.dart';
-import 'package:measure_master/services/api_service.dart';
 import 'package:provider/provider.dart';
 import 'package:measure_master/providers/inventory_provider.dart';
+import 'package:measure_master/providers/api_product_provider.dart';
 import 'package:measure_master/models/item.dart';
 
 class ApiProductsScreen extends StatefulWidget {
@@ -14,21 +14,22 @@ class ApiProductsScreen extends StatefulWidget {
 }
 
 class _ApiProductsScreenState extends State<ApiProductsScreen> {
-  final ApiService _apiService = ApiService();
-  late Future<ApiProductResponse> _productsFuture;
   Set<int> _selectedProductIds = {};
 
   @override
   void initState() {
     super.initState();
-    _productsFuture = _apiService.fetchProducts();
+    // 🚀 スマートフェッチ: キャッシュがあれば即座に表示、なければAPI呼び出し
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<ApiProductProvider>(context, listen: false).fetchProducts();
+    });
   }
 
-  void _refreshProducts() {
+  Future<void> _refreshProducts() async {
     setState(() {
-      _productsFuture = _apiService.fetchProducts();
       _selectedProductIds.clear();
     });
+    await Provider.of<ApiProductProvider>(context, listen: false).refresh();
   }
 
   void _importSelectedProducts(List<ApiProduct> allProducts) {
@@ -43,7 +44,6 @@ class _ApiProductsScreenState extends State<ApiProductsScreen> {
       return;
     }
 
-    // 選択した商品をInventoryProviderに追加
     final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
     
     for (var product in selectedProducts) {
@@ -52,7 +52,7 @@ class _ApiProductsScreenState extends State<ApiProductsScreen> {
         name: product.name,
         brand: product.brand ?? '未設定',
         imageUrl: "assets/images/tshirt_hanger.jpg",
-        category: "トップス", // デフォルトカテゴリ
+        category: "トップス",
         status: "Draft",
         date: DateTime.now(),
         length: 0,
@@ -67,7 +67,10 @@ class _ApiProductsScreenState extends State<ApiProductsScreen> {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${selectedProducts.length}件の商品を取り込みました')),
+      SnackBar(
+        content: Text('${selectedProducts.length}件の商品を取り込みました'),
+        backgroundColor: AppConstants.successGreen,
+      ),
     );
 
     Navigator.pop(context);
@@ -84,7 +87,10 @@ class _ApiProductsScreenState extends State<ApiProductsScreen> {
           icon: Icon(Icons.arrow_back, color: AppConstants.textDark),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text("API商品データ", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        title: const Text(
+          "API商品データ",
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
         actions: [
           IconButton(
@@ -93,10 +99,10 @@ class _ApiProductsScreenState extends State<ApiProductsScreen> {
           ),
         ],
       ),
-      body: FutureBuilder<ApiProductResponse>(
-        future: _productsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      body: Consumer<ApiProductProvider>(
+        builder: (context, apiProvider, child) {
+          // ローディング中
+          if (apiProvider.isLoading && !apiProvider.hasData) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -104,12 +110,20 @@ class _ApiProductsScreenState extends State<ApiProductsScreen> {
                   CircularProgressIndicator(color: AppConstants.primaryCyan),
                   const SizedBox(height: 16),
                   const Text('商品データを取得中...'),
+                  if (apiProvider.lastFetchTime != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'キャッシュを更新しています...',
+                      style: AppConstants.captionStyle,
+                    ),
+                  ],
                 ],
               ),
             );
           }
 
-          if (snapshot.hasError) {
+          // エラー発生
+          if (apiProvider.error != null && !apiProvider.hasData) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -118,10 +132,13 @@ class _ApiProductsScreenState extends State<ApiProductsScreen> {
                   const SizedBox(height: 16),
                   Text('エラーが発生しました', style: AppConstants.subHeaderStyle),
                   const SizedBox(height: 8),
-                  Text(
-                    snapshot.error.toString(),
-                    style: AppConstants.captionStyle,
-                    textAlign: TextAlign.center,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      apiProvider.error!,
+                      style: AppConstants.captionStyle,
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
@@ -137,7 +154,8 @@ class _ApiProductsScreenState extends State<ApiProductsScreen> {
             );
           }
 
-          if (!snapshot.hasData || snapshot.data!.products.isEmpty) {
+          // データなし
+          if (!apiProvider.hasData) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -145,13 +163,21 @@ class _ApiProductsScreenState extends State<ApiProductsScreen> {
                   Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   const Text('商品データがありません'),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: _refreshProducts,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('更新'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppConstants.primaryCyan,
+                    ),
+                  ),
                 ],
               ),
             );
           }
 
-          final response = snapshot.data!;
-          final products = response.products;
+          final products = apiProvider.products;
 
           return Column(
             children: [
@@ -168,9 +194,9 @@ class _ApiProductsScreenState extends State<ApiProductsScreen> {
                           children: [
                             Icon(Icons.data_usage, color: AppConstants.primaryCyan, size: 20),
                             const SizedBox(width: 8),
-                            Text(
-                              response.source,
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            const Text(
+                              'SmartMeasure API',
+                              style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
@@ -181,7 +207,7 @@ class _ApiProductsScreenState extends State<ApiProductsScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            '${response.count}件',
+                            '${products.length}件',
                             style: TextStyle(
                               color: AppConstants.primaryCyan,
                               fontWeight: FontWeight.bold,
@@ -190,6 +216,23 @@ class _ApiProductsScreenState extends State<ApiProductsScreen> {
                         ),
                       ],
                     ),
+                    // キャッシュ情報表示
+                    if (apiProvider.isCacheValid) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.cached, size: 14, color: AppConstants.successGreen),
+                          const SizedBox(width: 4),
+                          Text(
+                            'キャッシュ有効 (残り${apiProvider.cacheRemainingTime?.inSeconds}秒)',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppConstants.successGreen,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     if (_selectedProductIds.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Container(
@@ -349,9 +392,9 @@ class _ApiProductsScreenState extends State<ApiProductsScreen> {
                 ],
               ),
               child: ElevatedButton(
-                onPressed: () async {
-                  final response = await _productsFuture;
-                  _importSelectedProducts(response.products);
+                onPressed: () {
+                  final apiProvider = Provider.of<ApiProductProvider>(context, listen: false);
+                  _importSelectedProducts(apiProvider.products);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppConstants.primaryCyan,
