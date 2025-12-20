@@ -273,6 +273,42 @@ class _DetailScreenState extends State<DetailScreen> {
                       ),
                     ],
                   ),
+                  SizedBox(height: 16),
+                  Divider(),
+                  SizedBox(height: 16),
+                  // カラーと販売価格
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("カラー", style: AppConstants.captionStyle),
+                            SizedBox(height: 4),
+                            Text(_selectedColor, 
+                              style: TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("販売価格", style: AppConstants.captionStyle),
+                            SizedBox(height: 4),
+                            Text(
+                              widget.price.isEmpty ? '未設定' : '¥${widget.price}', 
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: AppConstants.primaryCyan,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),

@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/providers/inventory_provider.dart';
 import 'package:measure_master/screens/add_item_screen.dart';
+import 'package:measure_master/screens/api_products_screen.dart';
 import 'package:measure_master/models/item.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -97,6 +98,59 @@ class DashboardScreen extends StatelessWidget {
                         children: [
                           Text("新規アイテムを撮影", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                           Text("採寸・撮影を開始する", style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.9))),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              
+              // API連携ボタン
+              Container(
+                width: double.infinity,
+                height: 60,
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      PageRouteBuilder(
+                        pageBuilder: (context, animation, secondaryAnimation) => const ApiProductsScreen(),
+                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                          return FadeTransition(opacity: animation, child: child);
+                        },
+                        transitionDuration: const Duration(milliseconds: 200),
+                      ),
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: AppConstants.primaryCyan, width: 2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.cloud_download, size: 28, color: AppConstants.primaryCyan),
+                      const SizedBox(width: 12),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "API商品データを取り込む",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppConstants.primaryCyan,
+                            ),
+                          ),
+                          Text(
+                            "外部システムと連携",
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppConstants.textGrey,
+                            ),
+                          ),
                         ],
                       ),
                     ],

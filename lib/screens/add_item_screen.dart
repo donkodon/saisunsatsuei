@@ -632,6 +632,58 @@ class _AddItemScreenState extends State<AddItemScreen> {
     );
   }
 
+  void _showRankPicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(height: 16),
+              Text("商品ランクを選択", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              SizedBox(height: 8),
+              Text("L列のデータに対応", style: TextStyle(fontSize: 12, color: AppConstants.textGrey)),
+              SizedBox(height: 16),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _ranks.length,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      title: Text(_ranks[index]),
+                      trailing: _selectedRank == _ranks[index]
+                          ? Icon(Icons.check, color: AppConstants.primaryCyan)
+                          : null,
+                      onTap: () {
+                        setState(() {
+                          _selectedRank = _ranks[index];
+                        });
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _showConditionPicker() {
     showModalBottomSheet(
       context: context,
@@ -668,109 +720,6 @@ class _AddItemScreenState extends State<AddItemScreen> {
                       onTap: () {
                         setState(() {
                           _selectedCondition = _conditions[index];
-                        });
-                        Navigator.pop(context);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-  
-  void _showRankPicker() {
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              SizedBox(height: 16),
-              Text("商品ランクを選択", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              SizedBox(height: 8),
-              Text(
-                "S: 最高品質 / A: 優良 / B: 良好 / C: 普通 / D: やや劣る / E: 劣る / N: 新品",
-                style: TextStyle(fontSize: 12, color: AppConstants.textGrey),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 16),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _ranks.length,
-                  itemBuilder: (context, index) {
-                    final rank = _ranks[index];
-                    String description = '';
-                    switch (rank) {
-                      case 'S':
-                        description = '最高品質';
-                        break;
-                      case 'A':
-                        description = '優良';
-                        break;
-                      case 'B':
-                        description = '良好';
-                        break;
-                      case 'C':
-                        description = '普通';
-                        break;
-                      case 'D':
-                        description = 'やや劣る';
-                        break;
-                      case 'E':
-                        description = '劣る';
-                        break;
-                      case 'N':
-                        description = '新品';
-                        break;
-                    }
-                    return ListTile(
-                      title: Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: AppConstants.primaryCyan.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              rank,
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: AppConstants.primaryCyan,
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Text(description),
-                        ],
-                      ),
-                      trailing: _selectedRank == rank
-                          ? Icon(Icons.check, color: AppConstants.primaryCyan)
-                          : null,
-                      onTap: () {
-                        setState(() {
-                          _selectedRank = rank;
                         });
                         Navigator.pop(context);
                       },
