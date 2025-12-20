@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 class InventoryItem {
   final String id;
   final String name;
@@ -12,6 +10,13 @@ class InventoryItem {
   final double? width; // cm
   final String? size; // e.g. M, L
   final bool hasAlert; // e.g. "Photo missing"
+  
+  // 🆕 API連携用の追加フィールド
+  final String? barcode;      // A列: バーコード
+  final String? sku;          // B列: SKU（商品管理ID）
+  final String? color;        // G列: カラー
+  final String? productRank;  // L列: 商品ランク
+  final int? salePrice;       // Y列: 現状売価（販売価格）
 
   InventoryItem({
     required this.id,
@@ -25,5 +30,11 @@ class InventoryItem {
     this.width,
     this.size,
     this.hasAlert = false,
+    // 新しいフィールド
+    this.barcode,
+    this.sku,
+    this.color,
+    this.productRank,
+    this.salePrice,
   });
 }

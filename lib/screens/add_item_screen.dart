@@ -18,8 +18,18 @@ class _AddItemScreenState extends State<AddItemScreen> {
   final TextEditingController _brandController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   
+  // 🆕 API連携用の追加コントローラー
+  final TextEditingController _barcodeController = TextEditingController();
+  final TextEditingController _skuController = TextEditingController();
+  final TextEditingController _sizeController = TextEditingController();
+  final TextEditingController _colorController = TextEditingController();
+  
   String _selectedCategory = 'ジャケット/アウター';
   String _selectedCondition = '選択してください';
+  String _selectedRank = '選択してください'; // 🆕 商品ランク
+  
+  // 🆕 商品ランクのオプション (S, A, B, C, D, E, N)
+  final List<String> _ranks = ['S', 'A', 'B', 'C', 'D', 'E', 'N'];
   
   // Category options
   final List<String> _categories = [
@@ -83,6 +93,10 @@ class _AddItemScreenState extends State<AddItemScreen> {
     _nameController.dispose();
     _brandController.dispose();
     _priceController.dispose();
+    _barcodeController.dispose();
+    _skuController.dispose();
+    _sizeController.dispose();
+    _colorController.dispose();
     super.dispose();
   }
 
@@ -162,9 +176,20 @@ class _AddItemScreenState extends State<AddItemScreen> {
                     padding: EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        _buildInputField("商品名", _nameController, "商品名を入力してください"),
+                        _buildInputField("バーコード", _barcodeController, "バーコードを入力してください"),
+                        Divider(),
+                        _buildInputField("SKU (商品管理ID)", _skuController, "SKUを入力してください"),
                         Divider(),
                         _buildBrandField(),
+                        Divider(),
+                        _buildInputField("商品名", _nameController, "商品名を入力してください"),
+                        Divider(),
+                        _buildInputField("サイズ", _sizeController, "サイズを入力してください (例: M, L, XL)"),
+                        Divider(),
+                        _buildInputField("カラー", _colorController, "カラーを入力してください"),
+                        Divider(),
+                        _buildSelectTile("商品ランク", _selectedRank, () => _showRankPicker(), 
+                          isPlaceholder: _selectedRank == '選択してください'),
                       ],
                     ),
                   ),
@@ -249,6 +274,11 @@ class _AddItemScreenState extends State<AddItemScreen> {
                       category: _selectedCategory,
                       condition: _selectedCondition,
                       price: _priceController.text,
+                      barcode: _barcodeController.text,
+                      sku: _skuController.text,
+                      size: _sizeController.text,
+                      color: _colorController.text,
+                      productRank: _selectedRank,
                     ),
                     transitionsBuilder: (context, animation, secondaryAnimation, child) {
                       return FadeTransition(opacity: animation, child: child);
@@ -638,6 +668,109 @@ class _AddItemScreenState extends State<AddItemScreen> {
                       onTap: () {
                         setState(() {
                           _selectedCondition = _conditions[index];
+                        });
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+  
+  void _showRankPicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(height: 16),
+              Text("商品ランクを選択", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              SizedBox(height: 8),
+              Text(
+                "S: 最高品質 / A: 優良 / B: 良好 / C: 普通 / D: やや劣る / E: 劣る / N: 新品",
+                style: TextStyle(fontSize: 12, color: AppConstants.textGrey),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 16),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _ranks.length,
+                  itemBuilder: (context, index) {
+                    final rank = _ranks[index];
+                    String description = '';
+                    switch (rank) {
+                      case 'S':
+                        description = '最高品質';
+                        break;
+                      case 'A':
+                        description = '優良';
+                        break;
+                      case 'B':
+                        description = '良好';
+                        break;
+                      case 'C':
+                        description = '普通';
+                        break;
+                      case 'D':
+                        description = 'やや劣る';
+                        break;
+                      case 'E':
+                        description = '劣る';
+                        break;
+                      case 'N':
+                        description = '新品';
+                        break;
+                    }
+                    return ListTile(
+                      title: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: AppConstants.primaryCyan.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              rank,
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: AppConstants.primaryCyan,
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Text(description),
+                        ],
+                      ),
+                      trailing: _selectedRank == rank
+                          ? Icon(Icons.check, color: AppConstants.primaryCyan)
+                          : null,
+                      onTap: () {
+                        setState(() {
+                          _selectedRank = rank;
                         });
                         Navigator.pop(context);
                       },

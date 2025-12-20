@@ -12,6 +12,11 @@ class DetailScreen extends StatefulWidget {
   final String category;
   final String condition;
   final String price;
+  final String barcode;
+  final String sku;
+  final String size;
+  final String color;
+  final String productRank;
 
   DetailScreen({
     required this.itemName,
@@ -19,6 +24,11 @@ class DetailScreen extends StatefulWidget {
     required this.category,
     required this.condition,
     required this.price,
+    required this.barcode,
+    required this.sku,
+    required this.size,
+    required this.color,
+    required this.productRank,
   });
 
   @override
@@ -27,9 +37,12 @@ class DetailScreen extends StatefulWidget {
 
 class _DetailScreenState extends State<DetailScreen> {
   String _selectedMaterial = 'コットン 100%';
-  String _selectedColor = 'ホワイト';
+  late String _selectedColor;
   Color _colorPreview = Colors.white;
   final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _barcodeController = TextEditingController();
+  final TextEditingController _skuController = TextEditingController();
+  final TextEditingController _sizeController = TextEditingController();
 
   // 🚀 文字数カウンター用のValueNotifier（setState不要で効率的）
   final ValueNotifier<int> _charCount = ValueNotifier<int>(0);
@@ -37,6 +50,12 @@ class _DetailScreenState extends State<DetailScreen> {
   @override
   void initState() {
     super.initState();
+    // 初期値を設定
+    _selectedColor = widget.color.isNotEmpty ? widget.color : 'ホワイト';
+    _barcodeController.text = widget.barcode;
+    _skuController.text = widget.sku;
+    _sizeController.text = widget.size;
+    
     // 🚀 ValueNotifierで文字数のみ更新（画面全体の再描画を防止）
     _descriptionController.addListener(() {
       _charCount.value = _descriptionController.text.length;
@@ -46,6 +65,9 @@ class _DetailScreenState extends State<DetailScreen> {
   @override
   void dispose() {
     _descriptionController.dispose();
+    _barcodeController.dispose();
+    _skuController.dispose();
+    _sizeController.dispose();
     _charCount.dispose();
     super.dispose();
   }
@@ -147,6 +169,7 @@ class _DetailScreenState extends State<DetailScreen> {
                   SizedBox(height: 16),
                   Divider(),
                   SizedBox(height: 16),
+                  // カテゴリーとブランド
                   Row(
                     children: [
                       Expanded(
@@ -166,6 +189,85 @@ class _DetailScreenState extends State<DetailScreen> {
                             Text("ブランド", style: AppConstants.captionStyle),
                             SizedBox(height: 4),
                             Text(widget.brand.isEmpty ? '未設定' : widget.brand, style: TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 16),
+                  Divider(),
+                  SizedBox(height: 16),
+                  // バーコードとSKU
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("バーコード", style: AppConstants.captionStyle),
+                            SizedBox(height: 4),
+                            Text(_barcodeController.text.isEmpty ? '未設定' : _barcodeController.text, 
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("SKU", style: AppConstants.captionStyle),
+                            SizedBox(height: 4),
+                            Text(_skuController.text.isEmpty ? '未設定' : _skuController.text, 
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 16),
+                  Divider(),
+                  SizedBox(height: 16),
+                  // 商品ランクとサイズ
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("商品ランク", style: AppConstants.captionStyle),
+                            SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: AppConstants.primaryCyan.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    widget.productRank == '選択してください' ? '-' : widget.productRank,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppConstants.primaryCyan,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("サイズ", style: AppConstants.captionStyle),
+                            SizedBox(height: 4),
+                            Text(_sizeController.text.isEmpty ? '未設定' : _sizeController.text, 
+                              style: TextStyle(fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
@@ -316,7 +418,10 @@ class _DetailScreenState extends State<DetailScreen> {
                   date: DateTime.now(),
                   length: 68,
                   width: 52,
-                  size: "M",
+                  size: _sizeController.text.isEmpty ? "M" : _sizeController.text,
+                  barcode: _barcodeController.text,
+                  sku: _skuController.text,
+                  productRank: widget.productRank == '選択してください' ? '' : widget.productRank,
                 );
                  
                 Provider.of<InventoryProvider>(context, listen: false).addItem(newItem);

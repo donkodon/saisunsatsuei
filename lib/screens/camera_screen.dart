@@ -8,6 +8,11 @@ class CameraScreen extends StatefulWidget {
   final String category;
   final String condition;
   final String price;
+  final String barcode;
+  final String sku;
+  final String size;
+  final String color;
+  final String productRank;
 
   CameraScreen({
     required this.itemName,
@@ -15,6 +20,11 @@ class CameraScreen extends StatefulWidget {
     required this.category,
     required this.condition,
     required this.price,
+    required this.barcode,
+    required this.sku,
+    required this.size,
+    required this.color,
+    required this.productRank,
   });
 
   @override
@@ -140,6 +150,11 @@ class _CameraScreenState extends State<CameraScreen> {
                                 category: widget.category,
                                 condition: widget.condition,
                                 price: widget.price,
+                                barcode: widget.barcode,
+                                sku: widget.sku,
+                                size: widget.size,
+                                color: widget.color,
+                                productRank: widget.productRank,
                               ),
                               transitionsBuilder: (context, animation, secondaryAnimation, child) {
                                 return FadeTransition(opacity: animation, child: child);
