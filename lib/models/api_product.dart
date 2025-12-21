@@ -9,6 +9,8 @@ class ApiProduct {
   final int? stockQuantity;
   final String? status;
   final DateTime createdAt;
+  final String? barcode;      // A列: バーコード
+  final String? productRank;  // L列: 商品ランク (S/A/B/C/D/E/N)
 
   ApiProduct({
     required this.id,
@@ -21,6 +23,8 @@ class ApiProduct {
     this.stockQuantity,
     this.status,
     required this.createdAt,
+    this.barcode,
+    this.productRank,
   });
 
   factory ApiProduct.fromJson(Map<String, dynamic> json) {
@@ -35,6 +39,8 @@ class ApiProduct {
       stockQuantity: json['stock_quantity'] as int?,
       status: json['status'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
+      barcode: json['barcode'] as String?,           // A列: バーコード
+      productRank: json['product_rank'] as String?,  // L列: 商品ランク
     );
   }
 
@@ -50,6 +56,8 @@ class ApiProduct {
       'stock_quantity': stockQuantity,
       'status': status,
       'created_at': createdAt.toIso8601String(),
+      'barcode': barcode,
+      'product_rank': productRank,
     };
   }
 }

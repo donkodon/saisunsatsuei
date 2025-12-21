@@ -55,7 +55,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
       
       // 基本情報を自動入力
       _skuController.text = product.sku;
-      _nameController.text = product.name;
+      _nameController.text = product.name; // E列: 品名 → 商品名
       
       if (product.brand != null && product.brand!.isNotEmpty) {
         _brandController.text = product.brand!;
@@ -69,8 +69,22 @@ class _AddItemScreenState extends State<AddItemScreen> {
         _colorController.text = product.color!;
       }
       
+      // Y列: 現状売価 → 販売価格
       if (product.priceSale != null && product.priceSale! > 0) {
         _priceController.text = product.priceSale.toString();
+      }
+      
+      // A列: バーコード → バーコード
+      if (product.barcode != null && product.barcode!.isNotEmpty) {
+        _barcodeController.text = product.barcode!;
+      }
+      
+      // L列: 商品ランク → 商品ランク
+      if (product.productRank != null && product.productRank!.isNotEmpty) {
+        // 商品ランクが有効な値(S/A/B/C/D/E/N)であれば設定
+        if (_ranks.contains(product.productRank!.toUpperCase())) {
+          _selectedRank = product.productRank!.toUpperCase();
+        }
       }
     });
   }
