@@ -118,8 +118,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Icon(Icons.notifications_outlined, color: AppConstants.textDark),
                       const SizedBox(width: 16),
                       CircleAvatar(
-                        backgroundImage: CachedNetworkImageProvider('https://i.pravatar.cc/150?img=32'),
+                        backgroundColor: AppConstants.primaryCyan,
                         radius: 18,
+                        child: Icon(Icons.person, color: Colors.white, size: 20),
                       ),
                     ],
                   ),

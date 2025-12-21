@@ -40,7 +40,7 @@ class ApiProduct {
       status: json['status'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       barcode: json['barcode'] as String?,           // A列: バーコード
-      productRank: json['product_rank'] as String?,  // L列: 商品ランク
+      productRank: json['rank'] as String?,          // L列: 商品ランク (APIフィールド名: "rank")
     );
   }
 
