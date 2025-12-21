@@ -38,4 +38,40 @@ class ApiService {
       return null;
     }
   }
+  
+  /// 🔍 バーコードまたはSKU(商品ID)で商品を検索
+  /// 
+  /// 検索対象:
+  /// - SKU (商品管理ID)
+  /// - バーコード (将来対応)
+  /// 
+  /// 使用例:
+  /// ```dart
+  /// final product = await apiService.searchByIdOrBarcode('1025L190003');
+  /// if (product != null) {
+  ///   // 商品が見つかった
+  /// }
+  /// ```
+  Future<ApiProduct?> searchByIdOrBarcode(String query) async {
+    if (query.trim().isEmpty) {
+      return null;
+    }
+    
+    try {
+      final response = await fetchProducts();
+      
+      // SKUで検索
+      try {
+        return response.products.firstWhere(
+          (product) => product.sku.toLowerCase() == query.toLowerCase().trim(),
+        );
+      } catch (_) {
+        // SKUで見つからない場合、将来的にバーコードで検索
+        // 現在のAPIにはバーコードフィールドがないため、SKUのみ
+        return null;
+      }
+    } catch (e) {
+      throw Exception('商品検索エラー: $e');
+    }
+  }
 }

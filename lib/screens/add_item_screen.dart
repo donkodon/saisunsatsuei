@@ -3,8 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/screens/camera_screen.dart';
 import 'package:measure_master/widgets/custom_button.dart';
+import 'package:measure_master/models/api_product.dart';
 
 class AddItemScreen extends StatefulWidget {
+  final ApiProduct? prefillData; // 🔍 検索結果からの自動入力データ
+  
+  const AddItemScreen({Key? key, this.prefillData}) : super(key: key);
+  
   @override
   _AddItemScreenState createState() => _AddItemScreenState();
 }
@@ -14,7 +19,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
   bool _aiBgRemove = true;
   
   // Form controllers
-  final TextEditingController _nameController = TextEditingController(text: 'Vintage Denim Jacket');
+  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _brandController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   
@@ -30,6 +35,45 @@ class _AddItemScreenState extends State<AddItemScreen> {
   
   // 🆕 商品ランクのオプション (S, A, B, C, D, E, N)
   final List<String> _ranks = ['S', 'A', 'B', 'C', 'D', 'E', 'N'];
+  
+  // 🔍 自動入力フラグ
+  bool _isAutofilled = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    // 🔍 検索結果から自動入力
+    if (widget.prefillData != null) {
+      _autofillFromApiProduct(widget.prefillData!);
+    }
+  }
+  
+  /// 🔍 API商品データから自動入力
+  void _autofillFromApiProduct(ApiProduct product) {
+    setState(() {
+      _isAutofilled = true;
+      
+      // 基本情報を自動入力
+      _skuController.text = product.sku;
+      _nameController.text = product.name;
+      
+      if (product.brand != null && product.brand!.isNotEmpty) {
+        _brandController.text = product.brand!;
+      }
+      
+      if (product.size != null && product.size!.isNotEmpty) {
+        _sizeController.text = product.size!;
+      }
+      
+      if (product.color != null && product.color!.isNotEmpty) {
+        _colorController.text = product.color!;
+      }
+      
+      if (product.priceSale != null && product.priceSale! > 0) {
+        _priceController.text = product.priceSale.toString();
+      }
+    });
+  }
   
   // Category options
   final List<String> _categories = [
@@ -126,6 +170,29 @@ class _AddItemScreenState extends State<AddItemScreen> {
       ),
       body: Column(
         children: [
+          // 🔍 自動入力バッジ
+          if (_isAutofilled)
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              color: AppConstants.successGreen.withValues(alpha: 0.1),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, color: AppConstants.successGreen, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '商品情報が自動入力されました。必要に応じて修正してください。',
+                      style: TextStyle(
+                        color: AppConstants.successGreen,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(16),

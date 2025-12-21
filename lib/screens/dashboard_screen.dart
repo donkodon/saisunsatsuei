@@ -6,9 +6,94 @@ import 'package:measure_master/providers/inventory_provider.dart';
 import 'package:measure_master/screens/add_item_screen.dart';
 import 'package:measure_master/screens/api_products_screen.dart';
 import 'package:measure_master/models/item.dart';
+import 'package:measure_master/services/api_service.dart';
+import 'package:measure_master/models/api_product.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
+
+  @override
+  _DashboardScreenState createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  final ApiService _apiService = ApiService();
+  bool _isSearching = false;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  /// 🔍 商品を検索してAddItemScreenに遷移
+  Future<void> _searchProduct(String query) async {
+    if (query.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('商品IDまたはバーコードを入力してください')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+    });
+
+    try {
+      final product = await _apiService.searchByIdOrBarcode(query);
+
+      setState(() {
+        _isSearching = false;
+      });
+
+      if (product != null) {
+        // 🎉 商品が見つかった
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('商品が見つかりました: ${product.name}'),
+            backgroundColor: AppConstants.successGreen,
+          ),
+        );
+
+        // 自動入力データと共にAddItemScreenへ遷移
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => AddItemScreen(
+              prefillData: product,
+            ),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 200),
+          ),
+        );
+
+        // 検索窓をクリア
+        _searchController.clear();
+      } else {
+        // 商品が見つからない
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('商品が見つかりませんでした (ID: $query)'),
+            backgroundColor: AppConstants.warningOrange,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isSearching = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('検索エラー: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -159,11 +244,36 @@ class DashboardScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // Search Bar
+              // 🔍 Search Bar (商品ID/バーコード検索)
               TextField(
+                controller: _searchController,
+                onSubmitted: _searchProduct,
+                enabled: !_isSearching,
                 decoration: InputDecoration(
-                  hintText: "商品名、ブランド、サイズで検索...",
-                  prefixIcon: Icon(Icons.search, color: AppConstants.textGrey),
+                  hintText: "商品ID/バーコードで検索... (例: 1025L190003)",
+                  prefixIcon: _isSearching
+                      ? Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppConstants.primaryCyan,
+                            ),
+                          ),
+                        )
+                      : Icon(Icons.search, color: AppConstants.textGrey),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(Icons.clear, color: AppConstants.textGrey),
+                          onPressed: () {
+                            setState(() {
+                              _searchController.clear();
+                            });
+                          },
+                        )
+                      : null,
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
