@@ -458,6 +458,10 @@ class _DetailScreenState extends State<DetailScreen> {
                   barcode: _barcodeController.text,
                   sku: _skuController.text,
                   productRank: widget.productRank == '選択してください' ? '' : widget.productRank,
+                  condition: widget.condition,  // 商品の状態を保存
+                  description: _descriptionController.text,  // 商品の説明を保存
+                  color: _selectedColor,  // カラーを保存
+                  salePrice: widget.price.isNotEmpty ? int.tryParse(widget.price) : null,  // 販売価格を保存
                 );
                  
                 Provider.of<InventoryProvider>(context, listen: false).addItem(newItem);

@@ -17,6 +17,10 @@ class InventoryItem {
   final String? color;        // G列: カラー
   final String? productRank;  // L列: 商品ランク
   final int? salePrice;       // Y列: 現状売価（販売価格）
+  
+  // 商品詳細情報
+  final String? condition;    // 商品の状態
+  final String? description;  // 商品の説明
 
   InventoryItem({
     required this.id,
@@ -36,5 +40,7 @@ class InventoryItem {
     this.color,
     this.productRank,
     this.salePrice,
+    this.condition,
+    this.description,
   });
 }
