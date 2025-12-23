@@ -547,6 +547,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   item.category,
                   style: AppConstants.captionStyle,
                 ),
+                // 🔍 商品の状態を表示
+                if (item.condition != null && item.condition!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      "状態: ${item.condition}",
+                      style: TextStyle(fontSize: 11, color: AppConstants.textGrey),
+                    ),
+                  ),
+                // 🔍 商品の説明を表示（最初の30文字）
+                if (item.description != null && item.description!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      item.description!.length > 30 
+                          ? "${item.description!.substring(0, 30)}..." 
+                          : item.description!,
+                      style: TextStyle(fontSize: 11, color: AppConstants.textGrey),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 const SizedBox(height: 8),
                 if (item.hasAlert)
                   Row(
