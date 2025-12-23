@@ -41,6 +41,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
 
     try {
+      // 🔍 ステップ1: ローカル保存データを検索
+      final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
+      final savedItem = inventoryProvider.findBySku(query);
+      
+      if (savedItem != null) {
+        // 💾 保存済み商品が見つかった
+        setState(() {
+          _isSearching = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('保存済み商品: ${savedItem.name}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // 保存済みデータからApiProductに変換して表示
+        final apiProduct = ApiProduct(
+          id: 0,
+          sku: savedItem.sku ?? '',
+          name: savedItem.name,
+          brand: savedItem.brand,
+          size: savedItem.size,
+          color: savedItem.color,
+          priceSale: savedItem.salePrice,
+          stockQuantity: 0,
+          status: savedItem.status,
+          createdAt: savedItem.date,
+          barcode: savedItem.barcode,
+          productRank: savedItem.productRank,
+        );
+        
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => AddItemScreen(
+              prefillData: apiProduct,
+            ),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 200),
+          ),
+        );
+        
+        _searchController.clear();
+        return;
+      }
+      
+      // 🌐 ステップ2: APIから検索
       final product = await _apiService.searchByIdOrBarcode(query);
 
       setState(() {
@@ -48,10 +99,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       });
 
       if (product != null) {
-        // 🎉 商品が見つかった
+        // 🎉 API商品が見つかった
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('商品が見つかりました: ${product.name}'),
+            content: Text('API商品: ${product.name}'),
             backgroundColor: AppConstants.successGreen,
           ),
         );

@@ -443,7 +443,7 @@ class _DetailScreenState extends State<DetailScreen> {
             
             CustomButton(
               text: "出品プレビュー", 
-              onPressed: () {
+              onPressed: () async {
                 final newItem = InventoryItem(
                   id: DateTime.now().toString(),
                   name: widget.itemName,
@@ -464,7 +464,7 @@ class _DetailScreenState extends State<DetailScreen> {
                   salePrice: widget.price.isNotEmpty ? int.tryParse(widget.price) : null,  // 販売価格を保存
                 );
                  
-                Provider.of<InventoryProvider>(context, listen: false).addItem(newItem);
+                await Provider.of<InventoryProvider>(context, listen: false).addItem(newItem);
                  
                 // 🚀 高速遷移
                 Navigator.pushAndRemoveUntil(

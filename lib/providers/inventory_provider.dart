@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:measure_master/models/item.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class InventoryProvider with ChangeNotifier {
+  static const String _boxName = 'inventory_items';
+  Box<InventoryItem>? _box;
+  
   List<InventoryItem> _items = [
     InventoryItem(
       id: '1',
@@ -38,13 +42,42 @@ class InventoryProvider with ChangeNotifier {
     ),
   ];
 
+  // 🔄 Hive初期化
+  Future<void> initialize() async {
+    _box = await Hive.openBox<InventoryItem>(_boxName);
+    _loadItemsFromBox();
+  }
+  
+  // 📦 Hiveから商品データを読み込み
+  void _loadItemsFromBox() {
+    if (_box != null && _box!.isNotEmpty) {
+      _items = _box!.values.toList();
+    }
+    notifyListeners();
+  }
+  
   List<InventoryItem> get items => _items;
   
   int get readyCount => _items.where((i) => i.status == 'Ready').length;
   int get draftCount => _items.where((i) => i.status == 'Draft').length;
 
-  void addItem(InventoryItem item) {
+  // 💾 商品を追加してHiveに保存
+  Future<void> addItem(InventoryItem item) async {
     _items.insert(0, item);
+    if (_box != null) {
+      await _box!.put(item.sku ?? item.id, item); // SKUまたはIDをキーとして保存
+    }
     notifyListeners();
+  }
+  
+  // 🔍 SKUまたはバーコードで商品を検索
+  InventoryItem? findBySku(String sku) {
+    try {
+      return _items.firstWhere(
+        (item) => item.sku == sku || item.barcode == sku,
+      );
+    } catch (e) {
+      return null;
+    }
   }
 }
