@@ -444,6 +444,10 @@ class _DetailScreenState extends State<DetailScreen> {
             CustomButton(
               text: "出品プレビュー", 
               onPressed: () async {
+                print('🔵 出品プレビューボタン押下');
+                print('📝 商品の状態: ${widget.condition}');
+                print('📝 商品の説明: ${_descriptionController.text}');
+                
                 final newItem = InventoryItem(
                   id: DateTime.now().toString(),
                   name: widget.itemName,
@@ -463,6 +467,10 @@ class _DetailScreenState extends State<DetailScreen> {
                   color: _selectedColor,  // カラーを保存
                   salePrice: widget.price.isNotEmpty ? int.tryParse(widget.price) : null,  // 販売価格を保存
                 );
+                
+                print('📦 作成したInventoryItem:');
+                print('   condition: ${newItem.condition}');
+                print('   description: ${newItem.description}');
                  
                 await Provider.of<InventoryProvider>(context, listen: false).addItem(newItem);
                  
