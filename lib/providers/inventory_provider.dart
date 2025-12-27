@@ -56,6 +56,8 @@ class InventoryProvider with ChangeNotifier {
     notifyListeners();
   }
   
+
+  
   List<InventoryItem> get items => _items;
   
   int get readyCount => _items.where((i) => i.status == 'Ready').length;
@@ -64,9 +66,14 @@ class InventoryProvider with ChangeNotifier {
   // 💾 商品を追加してHiveに保存
   Future<void> addItem(InventoryItem item) async {
     _items.insert(0, item);
+    
+    // ローカル保存 (Hive)
     if (_box != null) {
-      await _box!.put(item.sku ?? item.id, item); // SKUまたはIDをキーとして保存
+      await _box!.put(item.sku ?? item.id, item);
+      print('✅ Hiveに保存成功: ${item.sku ?? item.id}');
+      print('📦 保存データ: condition=${item.condition}, description=${item.description}');
     }
+    
     notifyListeners();
   }
   
