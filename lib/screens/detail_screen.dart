@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/widgets/custom_button.dart';
 import 'package:measure_master/screens/dashboard_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:measure_master/providers/inventory_provider.dart';
 import 'package:measure_master/models/item.dart';
-import 'dart:io';
+import 'dart:io' show File;
 
 class DetailScreen extends StatefulWidget {
   final String itemName;
@@ -544,21 +545,28 @@ class _DetailScreenState extends State<DetailScreen> {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: Image.file(
-            File(imagePath), 
-            width: 100, 
-            height: 120, 
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              // エラー時はデフォルト画像を表示
-              return Image.asset(
-                'assets/images/tshirt_hanger.jpg', 
+          child: kIsWeb
+            ? Image.asset(
+                'assets/images/tshirt_hanger.jpg',
+                width: 100,
+                height: 120,
+                fit: BoxFit.cover,
+              )
+            : Image.file(
+                File(imagePath), 
                 width: 100, 
                 height: 120, 
                 fit: BoxFit.cover,
-              );
-            },
-          ),
+                errorBuilder: (context, error, stackTrace) {
+                  // エラー時はデフォルト画像を表示
+                  return Image.asset(
+                    'assets/images/tshirt_hanger.jpg', 
+                    width: 100, 
+                    height: 120, 
+                    fit: BoxFit.cover,
+                  );
+                },
+              ),
         ),
         if (isMain)
           Positioned(

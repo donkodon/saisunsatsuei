@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:measure_master/constants.dart';
@@ -8,6 +9,7 @@ import 'package:measure_master/screens/api_products_screen.dart';
 import 'package:measure_master/models/item.dart';
 import 'package:measure_master/services/api_service.dart';
 import 'package:measure_master/models/api_product.dart';
+import 'dart:io' show File, Platform;
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -489,13 +491,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             borderRadius: BorderRadius.circular(8),
             child: Stack(
               children: [
-                Image.asset(
-                  item.imageUrl,
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
-                  errorBuilder: (c, o, s) => Container(width: 80, height: 80, color: Colors.grey[300]),
-                ),
+                _buildItemImage(item.imageUrl),  // 📸 ファイルパスとアセットパスの両方に対応
                 if (item.status == 'Ready')
                   Positioned(
                     bottom: 0,
@@ -607,5 +603,64 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       child: Text(text, style: TextStyle(fontSize: 12, color: AppConstants.textGrey)),
     );
+  }
+
+  // 📸 ファイルパスとアセットパスの両方に対応した画像表示
+  Widget _buildItemImage(String imageUrl) {
+    // ファイルパス（/data/user/0/...）の場合
+    if (imageUrl.startsWith('/')) {
+      // Web環境ではファイルシステムアクセスができないため、アセット画像を使用
+      if (kIsWeb) {
+        return Image.asset(
+          'assets/images/tshirt_hanger.jpg',
+          width: 80,
+          height: 80,
+          fit: BoxFit.cover,
+          errorBuilder: (c, o, s) => Container(
+            width: 80, 
+            height: 80, 
+            color: Colors.grey[300],
+            child: Icon(Icons.camera_alt, color: Colors.grey[600]),
+          ),
+        );
+      }
+      
+      // モバイル環境ではファイル画像を表示
+      return Image.file(
+        File(imageUrl),
+        width: 80,
+        height: 80,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          // エラー時はアセット画像を表示
+          return Image.asset(
+            'assets/images/tshirt_hanger.jpg',
+            width: 80,
+            height: 80,
+            fit: BoxFit.cover,
+            errorBuilder: (c, o, s) => Container(
+              width: 80, 
+              height: 80, 
+              color: Colors.grey[300],
+              child: Icon(Icons.image_not_supported, color: Colors.grey[600]),
+            ),
+          );
+        },
+      );
+    } else {
+      // アセットパス（assets/...）の場合
+      return Image.asset(
+        imageUrl,
+        width: 80,
+        height: 80,
+        fit: BoxFit.cover,
+        errorBuilder: (c, o, s) => Container(
+          width: 80, 
+          height: 80, 
+          color: Colors.grey[300],
+          child: Icon(Icons.image_not_supported, color: Colors.grey[600]),
+        ),
+      );
+    }
   }
 }
