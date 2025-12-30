@@ -77,13 +77,35 @@ class InventoryProvider with ChangeNotifier {
   int get readyCount => _items.where((i) => i.status == 'Ready').length;
   int get draftCount => _items.where((i) => i.status == 'Draft').length;
 
-  // 💾 商品を追加してHiveに保存
+  // 💾 商品を追加してHiveに保存（SKUベースの上書き保存）
   Future<void> addItem(InventoryItem item) async {
-    // 🔍 重複チェック: 同じIDの商品が既に存在する場合は削除
-    _items.removeWhere((existingItem) => existingItem.id == item.id);
+    // 🔍 SKUで既存アイテムを検索
+    final existingIndex = _items.indexWhere((existingItem) => 
+      existingItem.sku != null && 
+      existingItem.sku!.isNotEmpty && 
+      existingItem.sku == item.sku
+    );
     
-    // リストの先頭に追加
-    _items.insert(0, item);
+    if (existingIndex != -1) {
+      // 🔄 既存アイテムを更新（SKUが同じ場合）
+      print('🔄 既存のSKU (${item.sku}) を更新します');
+      final oldItem = _items[existingIndex];
+      
+      // 古いIDのHiveデータを削除
+      if (_box != null) {
+        await _box!.delete(oldItem.id);
+      }
+      
+      // リストから削除
+      _items.removeAt(existingIndex);
+      
+      // 新しいアイテムを先頭に追加
+      _items.insert(0, item);
+    } else {
+      // ✨ 新規アイテムとしてリストの先頭に追加
+      print('✨ 新規アイテムとして追加します（SKU: ${item.sku}）');
+      _items.insert(0, item);
+    }
     
     // ローカル保存 (Hive) - IDをキーとして使用
     if (_box != null) {
@@ -96,6 +118,7 @@ class InventoryProvider with ChangeNotifier {
       print('   - 説明: ${item.description}');
       print('   - SKU: ${item.sku}');
       print('   - バーコード: ${item.barcode}');
+      print('   - 画像URL: ${item.imageUrl}');
     }
     
     notifyListeners();

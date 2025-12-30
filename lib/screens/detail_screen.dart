@@ -5,6 +5,7 @@ import 'package:measure_master/screens/dashboard_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:measure_master/providers/inventory_provider.dart';
 import 'package:measure_master/models/item.dart';
+import 'dart:io';
 
 class DetailScreen extends StatefulWidget {
   final String itemName;
@@ -19,6 +20,7 @@ class DetailScreen extends StatefulWidget {
   final String productRank;
   final String material;
   final String description;
+  final String? capturedImagePath;  // 📸 撮影した画像のパス（オプション）
 
   DetailScreen({
     required this.itemName,
@@ -33,6 +35,7 @@ class DetailScreen extends StatefulWidget {
     required this.productRank,
     required this.material,
     required this.description,
+    this.capturedImagePath,  // オプション
   });
 
   @override
@@ -149,7 +152,10 @@ class _DetailScreenState extends State<DetailScreen> {
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: [
-                  _buildImageThumbnail('assets/images/tshirt_hanger.jpg', isMain: true),
+                  // メイン画像（撮影画像 or デフォルト画像）
+                  widget.capturedImagePath != null
+                    ? _buildCapturedImageThumbnail(widget.capturedImagePath!, isMain: true)
+                    : _buildImageThumbnail('assets/images/tshirt_hanger.jpg', isMain: true),
                   SizedBox(width: 12),
                   _buildImageThumbnail('assets/images/landing_hero.jpg'),
                   SizedBox(width: 12),
@@ -457,11 +463,14 @@ class _DetailScreenState extends State<DetailScreen> {
                 // 🔑 ユニークなID生成: タイムスタンプ + マイクロ秒
                 final uniqueId = '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
                 
+                // 📸 画像URL（撮影画像パスまたはデフォルト画像）
+                final imageUrl = widget.capturedImagePath ?? "assets/images/tshirt_hanger.jpg";
+                
                 final newItem = InventoryItem(
                   id: uniqueId,
                   name: widget.itemName,
                   brand: widget.brand,
-                  imageUrl: "assets/images/tshirt_hanger.jpg",
+                  imageUrl: imageUrl,  // 撮影した画像パスを保存
                   category: widget.category,
                   status: "Ready",
                   date: DateTime.now(),
@@ -511,6 +520,45 @@ class _DetailScreenState extends State<DetailScreen> {
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: Image.asset(path, width: 100, height: 120, fit: BoxFit.cover),
+        ),
+        if (isMain)
+          Positioned(
+            bottom: 8,
+            left: 8,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppConstants.primaryCyan,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text("メイン", style: TextStyle(color: Colors.white, fontSize: 10)),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // 📸 撮影した画像のサムネイルを表示
+  Widget _buildCapturedImageThumbnail(String imagePath, {bool isMain = false}) {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.file(
+            File(imagePath), 
+            width: 100, 
+            height: 120, 
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              // エラー時はデフォルト画像を表示
+              return Image.asset(
+                'assets/images/tshirt_hanger.jpg', 
+                width: 100, 
+                height: 120, 
+                fit: BoxFit.cover,
+              );
+            },
+          ),
         ),
         if (isMain)
           Positioned(

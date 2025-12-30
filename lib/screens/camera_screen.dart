@@ -137,7 +137,7 @@ class _CameraScreenState extends State<CameraScreen> {
         // 1秒待ってから詳細画面へ遷移
         await Future.delayed(Duration(seconds: 1));
 
-        // 詳細画面へ遷移
+        // 詳細画面へ遷移（撮影した画像パスを渡す）
         if (mounted) {
           Navigator.push(
             context,
@@ -155,6 +155,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 productRank: widget.productRank,
                 material: widget.material,
                 description: widget.description,
+                capturedImagePath: _capturedImagePath,  // 📸 撮影した画像パスを渡す
               ),
               transitionsBuilder: (context, animation, secondaryAnimation, child) {
                 return FadeTransition(opacity: animation, child: child);
