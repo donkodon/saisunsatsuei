@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/widgets/custom_button.dart';
 import 'package:measure_master/screens/dashboard_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:measure_master/providers/inventory_provider.dart';
 import 'package:measure_master/models/item.dart';
+import 'package:measure_master/services/cloudflare_storage_service.dart';
+import 'package:measure_master/services/image_cache_service.dart';
+import 'package:http/http.dart' as http;
+import 'dart:typed_data';
 import 'dart:io' show File;
 
 class DetailScreen extends StatefulWidget {
@@ -153,14 +157,10 @@ class _DetailScreenState extends State<DetailScreen> {
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: [
-                  // メイン画像（撮影画像 or デフォルト画像）
+                  // メイン画像（撮影画像のみ表示、なければプレースホルダー）
                   widget.capturedImagePath != null
                     ? _buildCapturedImageThumbnail(widget.capturedImagePath!, isMain: true)
-                    : _buildImageThumbnail('assets/images/tshirt_hanger.jpg', isMain: true),
-                  SizedBox(width: 12),
-                  _buildImageThumbnail('assets/images/landing_hero.jpg'),
-                  SizedBox(width: 12),
-                  _buildImageThumbnail('assets/images/jeans_folded.jpg'),
+                    : _buildPlaceholder(isMain: true),
                 ],
               ),
             ),
@@ -457,6 +457,119 @@ class _DetailScreenState extends State<DetailScreen> {
             CustomButton(
               text: "出品プレビュー", 
               onPressed: () async {
+                // 📸 画像が撮影されていない場合は警告
+                if (widget.capturedImagePath == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(Icons.warning, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text('商品画像を撮影してください'),
+                        ],
+                      ),
+                      backgroundColor: AppConstants.warningOrange,
+                    ),
+                  );
+                  return;
+                }
+
+                // Show Loading
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => Center(child: CircularProgressIndicator()),
+                );
+
+                String imageUrl = widget.capturedImagePath!;  // デフォルトは受け取ったURL
+                
+                // 📸 既にCloudflare URLの場合はアップロードをスキップ
+                if (!imageUrl.startsWith('https://pub-300562464768499b8fcaee903d0f9861.r2.dev')) {
+                  // 📸 Cloudflare Workers経由で画像をアップロード
+                  try {
+                    Uint8List imageBytes;
+                    
+                    if (kIsWeb) {
+                      // Web環境：blob: URLから画像データを取得
+                      if (kDebugMode) {
+                        debugPrint('🌐 Web環境：blob URLから画像を読み込み: $imageUrl');
+                      }
+                      
+                      // blob: URLからHTTPリクエストで画像データを取得
+                      final response = await http.get(Uri.parse(widget.capturedImagePath!));
+                      if (response.statusCode == 200) {
+                        imageBytes = response.bodyBytes;
+                        if (kDebugMode) {
+                          debugPrint('✅ blob画像読み込み成功: ${imageBytes.length} bytes');
+                        }
+                      } else {
+                        throw Exception('blob画像の読み込みに失敗しました: ${response.statusCode}');
+                      }
+                    } else {
+                      // モバイル環境：ファイルパスから画像を読み込み
+                      final imageFile = File(widget.capturedImagePath!);
+                      imageBytes = await imageFile.readAsBytes();
+                      if (kDebugMode) {
+                        debugPrint('📱 モバイル環境：ファイル読み込み成功: ${imageBytes.length} bytes');
+                      }
+                    }
+                    
+                    // ユニークなアイテムIDを生成
+                    final uniqueId = '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
+                    
+                    // Workers経由でアップロード
+                    final uploadedUrl = await CloudflareWorkersStorageService.uploadImage(
+                      imageBytes,
+                      uniqueId,
+                    );
+                    
+                    imageUrl = uploadedUrl;
+                    
+                    // 📸 アップロード成功時に画像をローカルキャッシュに保存（CORS対策）
+                    await ImageCacheService.cacheImage(uploadedUrl, imageBytes);
+                    
+                    if (kDebugMode) {
+                      debugPrint('✅ Cloudflare Workers Upload complete: $imageUrl');
+                      debugPrint('✅ 画像キャッシュ保存完了');
+                    }
+                    
+                  } catch (e) {
+                  // アップロード失敗時はローカルパスを使用（モバイルのみ有効）
+                  if (kDebugMode) {
+                    debugPrint('❌ Cloudflare Upload error: $e');
+                    debugPrint('📁 Using local path: $imageUrl');
+                  }
+                  
+                  // エラーメッセージを表示
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(Icons.warning, color: Colors.white),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(kIsWeb 
+                              ? '画像アップロードに失敗しました。もう一度お試しください。' 
+                              : '画像アップロードに失敗しました。ローカルに保存します。'),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: AppConstants.warningOrange,
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                  
+                  // Web環境でアップロード失敗した場合は、保存処理を中断
+                  if (kIsWeb) {
+                    Navigator.pop(context);  // ローディングを閉じる
+                    return;
+                  }
+                  }
+                }
+
+                // Hide Loading
+                Navigator.pop(context);
+
                 print('🔵 出品プレビューボタン押下');
                 print('📝 商品の状態: ${widget.condition}');
                 print('📝 商品の説明: ${_descriptionController.text}');
@@ -464,14 +577,11 @@ class _DetailScreenState extends State<DetailScreen> {
                 // 🔑 ユニークなID生成: タイムスタンプ + マイクロ秒
                 final uniqueId = '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
                 
-                // 📸 画像URL（撮影画像パスまたはデフォルト画像）
-                final imageUrl = widget.capturedImagePath ?? "assets/images/tshirt_hanger.jpg";
-                
                 final newItem = InventoryItem(
                   id: uniqueId,
                   name: widget.itemName,
                   brand: widget.brand,
-                  imageUrl: imageUrl,  // 撮影した画像パスを保存
+                  imageUrl: imageUrl,  // Uploaded URL or Local Path
                   category: widget.category,
                   status: "Ready",
                   date: DateTime.now(),
@@ -546,11 +656,22 @@ class _DetailScreenState extends State<DetailScreen> {
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: kIsWeb
-            ? Image.asset(
-                'assets/images/tshirt_hanger.jpg',
-                width: 100,
-                height: 120,
+            ? Image.network(
+                imagePath,  // Web環境では blob: URL をそのまま使用
+                width: 100, 
+                height: 120, 
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  if (kDebugMode) {
+                    debugPrint('❌ Web画像読み込みエラー: $error');
+                  }
+                  return Container(
+                    width: 100,
+                    height: 120,
+                    color: Colors.grey[200],
+                    child: Icon(Icons.image, size: 40, color: Colors.grey[400]),
+                  );
+                },
               )
             : Image.file(
                 File(imagePath), 
@@ -558,12 +679,12 @@ class _DetailScreenState extends State<DetailScreen> {
                 height: 120, 
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
-                  // エラー時はデフォルト画像を表示
-                  return Image.asset(
-                    'assets/images/tshirt_hanger.jpg', 
-                    width: 100, 
-                    height: 120, 
-                    fit: BoxFit.cover,
+                  // エラー時はプレースホルダーを表示
+                  return Container(
+                    width: 100,
+                    height: 120,
+                    color: Colors.grey[200],
+                    child: Icon(Icons.image, size: 40, color: Colors.grey[400]),
                   );
                 },
               ),
@@ -576,6 +697,50 @@ class _DetailScreenState extends State<DetailScreen> {
               padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
                 color: AppConstants.primaryCyan,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text("メイン", style: TextStyle(color: Colors.white, fontSize: 10)),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // 🖼️ 画像がない場合のプレースホルダー
+  Widget _buildPlaceholder({bool isMain = false}) {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            width: 100,
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              border: Border.all(color: Colors.grey[300]!, width: 2, strokeAlign: BorderSide.strokeAlignInside),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_a_photo, size: 32, color: Colors.grey[400]),
+                SizedBox(height: 4),
+                Text(
+                  '写真を追加',
+                  style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (isMain)
+          Positioned(
+            bottom: 8,
+            left: 8,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.grey[400],
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text("メイン", style: TextStyle(color: Colors.white, fontSize: 10)),

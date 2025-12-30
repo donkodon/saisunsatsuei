@@ -6,6 +6,7 @@ import 'package:measure_master/providers/inventory_provider.dart';
 import 'package:measure_master/providers/api_product_provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:measure_master/models/item.dart';
+import 'package:measure_master/services/image_cache_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +16,9 @@ void main() async {
   
   // 📦 TypeAdapterを登録
   Hive.registerAdapter(InventoryItemAdapter());
+  
+  // 📸 画像キャッシュサービスを初期化
+  await ImageCacheService.initialize();
   
   runApp(MyApp());
 }

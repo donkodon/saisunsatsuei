@@ -96,8 +96,9 @@ class CloudflareStorageService {
 /// 📦 簡易版: Cloudflare Workers経由でアップロード
 /// Workers経由なら、APIトークンを公開せずに安全にアップロード可能
 class CloudflareWorkersStorageService {
-  // Workers APIエンドポイント
-  static const String workerUrl = 'https://image-upload-api.jinkedon2.workers.dev/upload';
+  // Workers APIエンドポイント（スクリーンショットの設定から）
+  static const String workerBaseUrl = 'https://image-upload-api.jinkedon2.workers.dev';
+  static const String uploadEndpoint = '$workerBaseUrl/upload';  // ✅ /upload パスを追加
   
   /// 📸 Workers経由で画像をアップロード
   /// [imageBytes] - 画像のバイトデータ
@@ -107,8 +108,12 @@ class CloudflareWorkersStorageService {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final fileName = '${itemId}_$timestamp.jpg';
       
+      debugPrint('📤 Uploading to Cloudflare Workers: $uploadEndpoint');
+      debugPrint('📦 File name: $fileName');
+      debugPrint('📊 File size: ${imageBytes.length} bytes');
+      
       // Multipartリクエストを作成
-      final request = http.MultipartRequest('POST', Uri.parse(workerUrl));
+      final request = http.MultipartRequest('POST', Uri.parse(uploadEndpoint));
       request.files.add(
         http.MultipartFile.fromBytes(
           'file',
@@ -117,9 +122,18 @@ class CloudflareWorkersStorageService {
         ),
       );
       
-      // アップロード
-      final streamedResponse = await request.send();
+      // タイムアウトを設定（30秒）
+      final streamedResponse = await request.send().timeout(
+        Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('アップロードがタイムアウトしました（30秒）');
+        },
+      );
+      
       final response = await http.Response.fromStream(streamedResponse);
+      
+      debugPrint('📨 Response status: ${response.statusCode}');
+      debugPrint('📨 Response body: ${response.body}');
       
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
@@ -127,7 +141,7 @@ class CloudflareWorkersStorageService {
         debugPrint('✅ Workers経由でアップロード成功: $imageUrl');
         return imageUrl;
       } else {
-        throw Exception('アップロードに失敗しました: ${response.statusCode}');
+        throw Exception('アップロードに失敗しました: ${response.statusCode} - ${response.body}');
       }
       
     } catch (e) {

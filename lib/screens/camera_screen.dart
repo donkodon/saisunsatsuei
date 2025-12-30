@@ -3,6 +3,11 @@ import 'package:camera/camera.dart';
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/screens/detail_screen.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
+import 'package:http/http.dart' as http;
+import 'package:measure_master/services/cloudflare_storage_service.dart';
+import 'package:measure_master/services/image_cache_service.dart';
 
 class CameraScreen extends StatefulWidget {
   final String itemName;
@@ -114,11 +119,6 @@ class _CameraScreenState extends State<CameraScreen> {
       final image = await _controller!.takePicture();
       
       if (mounted) {
-        setState(() {
-          _capturedImagePath = image.path;
-          _isCapturing = false;
-        });
-
         // 撮影成功のフィードバック
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -126,18 +126,107 @@ class _CameraScreenState extends State<CameraScreen> {
               children: [
                 Icon(Icons.check_circle, color: Colors.white),
                 SizedBox(width: 8),
-                Text('撮影完了'),
+                Text('撮影完了 - アップロード中...'),
               ],
             ),
             backgroundColor: AppConstants.successGreen,
-            duration: Duration(seconds: 1),
+            duration: Duration(seconds: 2),
           ),
         );
+
+        // 📸 画像を即座にアップロード
+        String? uploadedImageUrl;
+        try {
+          Uint8List imageBytes;
+          
+          if (kIsWeb) {
+            // Web環境：blob: URLから画像データを取得
+            if (kDebugMode) {
+              debugPrint('🌐 Web環境：blob URLから画像を読み込み: ${image.path}');
+            }
+            
+            final response = await http.get(Uri.parse(image.path));
+            if (response.statusCode == 200) {
+              imageBytes = response.bodyBytes;
+              if (kDebugMode) {
+                debugPrint('✅ blob画像読み込み成功: ${imageBytes.length} bytes');
+              }
+            } else {
+              throw Exception('blob画像の読み込みに失敗しました');
+            }
+          } else {
+            // モバイル環境：ファイルパスから画像を読み込み
+            final imageFile = File(image.path);
+            imageBytes = await imageFile.readAsBytes();
+            if (kDebugMode) {
+              debugPrint('📱 モバイル環境：ファイル読み込み成功: ${imageBytes.length} bytes');
+            }
+          }
+          
+          // ユニークなアイテムIDを生成
+          final uniqueId = '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
+          
+          // Workers経由でアップロード
+          uploadedImageUrl = await CloudflareWorkersStorageService.uploadImage(
+            imageBytes,
+            uniqueId,
+          );
+          
+          // 📸 アップロード成功時に画像をローカルキャッシュに保存
+          await ImageCacheService.cacheImage(uploadedImageUrl, imageBytes);
+          
+          if (kDebugMode) {
+            debugPrint('✅ 画像アップロード完了: $uploadedImageUrl');
+          }
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.cloud_done, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text('アップロード完了!'),
+                  ],
+                ),
+                backgroundColor: AppConstants.successGreen,
+                duration: Duration(seconds: 1),
+              ),
+            );
+          }
+        } catch (uploadError) {
+          if (kDebugMode) {
+            debugPrint('❌ アップロードエラー: $uploadError');
+          }
+          // アップロード失敗時はローカルパスを使用
+          uploadedImageUrl = image.path;
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.warning, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text('オフラインモード（ローカル保存）'),
+                  ],
+                ),
+                backgroundColor: AppConstants.warningOrange,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        }
+
+        setState(() {
+          _capturedImagePath = uploadedImageUrl;
+          _isCapturing = false;
+        });
 
         // 1秒待ってから詳細画面へ遷移
         await Future.delayed(Duration(seconds: 1));
 
-        // 詳細画面へ遷移（撮影した画像パスを渡す）
+        // 詳細画面へ遷移（アップロード済み画像URLを渡す）
         if (mounted) {
           Navigator.push(
             context,
@@ -155,7 +244,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 productRank: widget.productRank,
                 material: widget.material,
                 description: widget.description,
-                capturedImagePath: _capturedImagePath,  // 📸 撮影した画像パスを渡す
+                capturedImagePath: _capturedImagePath,  // 📸 アップロード済みURLを渡す
               ),
               transitionsBuilder: (context, animation, secondaryAnimation, child) {
                 return FadeTransition(opacity: animation, child: child);

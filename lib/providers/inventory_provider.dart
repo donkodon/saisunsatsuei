@@ -6,41 +6,7 @@ class InventoryProvider with ChangeNotifier {
   static const String _boxName = 'inventory_items';
   Box<InventoryItem>? _box;
   
-  List<InventoryItem> _items = [
-    InventoryItem(
-      id: '1',
-      name: "Levi's 501 Original Fit",
-      category: "Men / Denim / W32",
-      brand: "Levi's",
-      imageUrl: 'assets/images/jeans_folded.jpg',
-      status: 'Ready',
-      date: DateTime.now(),
-      width: 82,
-      length: 76,
-      size: 'W32',
-    ),
-    InventoryItem(
-      id: '2',
-      name: "Uniqlo U Crew Neck T",
-      category: "Ladies / Tops / M",
-      brand: "Uniqlo",
-      imageUrl: 'assets/images/tshirt_hanger.jpg',
-      status: 'Draft',
-      date: DateTime.now().subtract(Duration(days: 1)),
-      hasAlert: true,
-      size: 'M',
-    ),
-    InventoryItem(
-      id: '3',
-      name: "Nike Air Max 90",
-      category: "Shoes / 27.5cm",
-      brand: "Nike",
-      imageUrl: 'assets/images/sneakers.jpg',
-      status: 'Sold',
-      date: DateTime(2023, 10, 24),
-      size: '27.5',
-    ),
-  ];
+  List<InventoryItem> _items = [];
 
   // 🔄 Hive初期化
   Future<void> initialize() async {
@@ -80,24 +46,39 @@ class InventoryProvider with ChangeNotifier {
   // 💾 商品を追加してHiveに保存（SKUベースの上書き保存）
   Future<void> addItem(InventoryItem item) async {
     // 🔍 SKUで既存アイテムを検索
-    final existingIndex = _items.indexWhere((existingItem) => 
-      existingItem.sku != null && 
-      existingItem.sku!.isNotEmpty && 
-      existingItem.sku == item.sku
+    final existingItem = _items.cast<InventoryItem?>().firstWhere(
+      (existingItem) => 
+        existingItem != null &&
+        existingItem.sku != null && 
+        existingItem.sku!.isNotEmpty && 
+        existingItem.sku == item.sku,
+      orElse: () => null,
     );
     
-    if (existingIndex != -1) {
+    if (existingItem != null) {
       // 🔄 既存アイテムを更新（SKUが同じ場合）
       print('🔄 既存のSKU (${item.sku}) を更新します');
-      final oldItem = _items[existingIndex];
+      print('   古いID: ${existingItem.id}');
+      print('   新しいデータで上書きします');
       
-      // 古いIDのHiveデータを削除
+      // Hiveから古いエントリをすべて削除（念のため全検索）
       if (_box != null) {
-        await _box!.delete(oldItem.id);
+        final keysToDelete = <dynamic>[];
+        for (var key in _box!.keys) {
+          final boxItem = _box!.get(key);
+          if (boxItem != null && boxItem.sku == item.sku) {
+            keysToDelete.add(key);
+          }
+        }
+        
+        for (var key in keysToDelete) {
+          await _box!.delete(key);
+          print('🗑️ 古いHiveエントリを削除: $key');
+        }
       }
       
-      // リストから削除
-      _items.removeAt(existingIndex);
+      // リストから古いアイテムを削除
+      _items.removeWhere((i) => i.sku == item.sku);
       
       // 新しいアイテムを先頭に追加
       _items.insert(0, item);

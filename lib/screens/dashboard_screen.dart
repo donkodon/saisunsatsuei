@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode, debugPrint;
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:measure_master/constants.dart';
@@ -9,6 +9,7 @@ import 'package:measure_master/screens/api_products_screen.dart';
 import 'package:measure_master/models/item.dart';
 import 'package:measure_master/services/api_service.dart';
 import 'package:measure_master/models/api_product.dart';
+import 'package:measure_master/services/image_cache_service.dart';
 import 'dart:io' show File, Platform;
 
 class DashboardScreen extends StatefulWidget {
@@ -607,60 +608,89 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // 📸 ファイルパスとアセットパスの両方に対応した画像表示
   Widget _buildItemImage(String imageUrl) {
-    // ファイルパス（/data/user/0/...）の場合
-    if (imageUrl.startsWith('/')) {
-      // Web環境ではファイルシステムアクセスができないため、アセット画像を使用
-      if (kIsWeb) {
-        return Image.asset(
-          'assets/images/tshirt_hanger.jpg',
-          width: 80,
-          height: 80,
-          fit: BoxFit.cover,
-          errorBuilder: (c, o, s) => Container(
-            width: 80, 
-            height: 80, 
-            color: Colors.grey[300],
-            child: Icon(Icons.camera_alt, color: Colors.grey[600]),
+    // 📸 まずローカルキャッシュをチェック（CORS回避）
+    if (imageUrl.contains('.r2.dev') || imageUrl.contains('workers.dev')) {
+      final cachedBytes = ImageCacheService.getCachedImage(imageUrl);
+      if (cachedBytes != null) {
+        if (kDebugMode) {
+          debugPrint('✅ キャッシュから画像表示: $imageUrl');
+        }
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.memory(
+            cachedBytes,
+            width: 80,
+            height: 80,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return _buildPlaceholderImage(Icons.broken_image);
+            },
           ),
         );
       }
       
+      if (kDebugMode) {
+        debugPrint('⚠️ キャッシュなし、ネットワーク画像を試行: $imageUrl');
+      }
+    }
+    
+    // ファイルパス（/data/user/0/...）の場合
+    if (imageUrl.startsWith('/')) {
+      // Web環境ではファイルシステムアクセスができないため、プレースホルダーを表示
+      if (kIsWeb) {
+        return _buildPlaceholderImage(Icons.image);
+      }
+      
       // モバイル環境ではファイル画像を表示
-      return Image.file(
-        File(imageUrl),
-        width: 80,
-        height: 80,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          // エラー時はアセット画像を表示
-          return Image.asset(
-            'assets/images/tshirt_hanger.jpg',
-            width: 80,
-            height: 80,
-            fit: BoxFit.cover,
-            errorBuilder: (c, o, s) => Container(
-              width: 80, 
-              height: 80, 
-              color: Colors.grey[300],
-              child: Icon(Icons.image_not_supported, color: Colors.grey[600]),
-            ),
-          );
-        },
-      );
-    } else {
-      // アセットパス（assets/...）の場合
-      return Image.asset(
-        imageUrl,
-        width: 80,
-        height: 80,
-        fit: BoxFit.cover,
-        errorBuilder: (c, o, s) => Container(
-          width: 80, 
-          height: 80, 
-          color: Colors.grey[300],
-          child: Icon(Icons.image_not_supported, color: Colors.grey[600]),
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.file(
+          File(imageUrl),
+          width: 80,
+          height: 80,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildPlaceholderImage(Icons.image_not_supported);
+          },
         ),
       );
+    } else if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      // URL画像の場合 - CORSエラーの可能性あり
+      // キャッシュがない場合はプレースホルダーを表示（CORSエラー回避）
+      if (imageUrl.contains('.r2.dev')) {
+        if (kDebugMode) {
+          debugPrint('⚠️ R2直URLはCORSエラーのためプレースホルダー表示');
+        }
+        return _buildPlaceholderImage(Icons.cloud_off);
+      }
+      
+      // その他のHTTP URLはネットワーク画像として試行
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          imageUrl,
+          width: 80,
+          height: 80,
+          fit: BoxFit.cover,
+          errorBuilder: (c, o, s) => _buildPlaceholderImage(Icons.cloud_off),
+        ),
+      );
+    } else {
+      // その他の場合はプレースホルダー
+      return _buildPlaceholderImage(Icons.image);
     }
+  }
+  
+  // 🖼️ プレースホルダー画像を生成
+  Widget _buildPlaceholderImage(IconData icon) {
+    return Container(
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(icon, size: 32, color: Colors.grey[400]),
+    );
   }
 }

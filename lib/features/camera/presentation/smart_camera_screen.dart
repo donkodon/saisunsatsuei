@@ -108,7 +108,7 @@ class SmartCameraScreen extends ConsumerWidget {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 4),
-                            color: mode == CameraMode.measure ? Colors.blueAccent.withOpacity(0.8) : Colors.white,
+                            color: mode == CameraMode.measure ? Colors.blueAccent.withValues(alpha: 0.8) : Colors.white,
                           ),
                           child: mode == CameraMode.measure
                               ? const Icon(Icons.check, color: Colors.white, size: 32)
@@ -158,12 +158,12 @@ class _StandardCameraView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.camera_alt_outlined, size: 80, color: Colors.white.withOpacity(0.3)),
+            Icon(Icons.camera_alt_outlined, size: 80, color: Colors.white.withValues(alpha: 0.3)),
             const SizedBox(height: 16),
             Text(
               "標準カメラモード\n(エビデンス撮影)",
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white.withOpacity(0.5)),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
             ),
           ],
         ),
