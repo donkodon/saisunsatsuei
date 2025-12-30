@@ -35,13 +35,14 @@ class InventoryItemAdapter extends TypeAdapter<InventoryItem> {
       salePrice: fields[15] as int?,
       condition: fields[16] as String?,
       description: fields[17] as String?,
+      material: fields[18] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, InventoryItem obj) {
     writer
-      ..writeByte(18)
+      ..writeByte(19)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -77,7 +78,9 @@ class InventoryItemAdapter extends TypeAdapter<InventoryItem> {
       ..writeByte(16)
       ..write(obj.condition)
       ..writeByte(17)
-      ..write(obj.description);
+      ..write(obj.description)
+      ..writeByte(18)
+      ..write(obj.material);
   }
 
   @override

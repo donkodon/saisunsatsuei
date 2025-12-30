@@ -63,20 +63,27 @@ class _ApiProductsScreenState extends State<ApiProductsScreen> {
     final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
     
     for (var product in selectedProducts) {
+      // 🔑 ユニークなID生成
+      final uniqueId = '${DateTime.now().millisecondsSinceEpoch}_${product.id}';
+      
       final newItem = InventoryItem(
-        id: DateTime.now().millisecondsSinceEpoch.toString() + product.id.toString(),
+        id: uniqueId,
         name: product.name,
         brand: product.brand ?? '未設定',
         imageUrl: "assets/images/tshirt_hanger.jpg",
-        category: "トップス",
+        category: product.category ?? 'その他',  // ✅ API商品のカテゴリを使用
         status: "Draft",
         date: DateTime.now(),
         length: 0,
         width: 0,
         size: product.size ?? '',
-        barcode: '',
+        barcode: product.barcode ?? '',          // ✅ バーコードを保存
         sku: product.sku,
-        productRank: '',
+        productRank: product.productRank ?? '',  // ✅ 商品ランクを保存
+        color: product.color,                    // ✅ カラーを保存
+        condition: product.condition,            // ✅ 商品の状態を保存
+        description: product.description,        // ✅ 商品の説明を保存
+        material: product.material,              // ✅ 素材を保存
       );
       
       inventoryProvider.addItem(newItem);

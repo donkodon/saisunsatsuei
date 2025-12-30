@@ -11,6 +11,10 @@ class ApiProduct {
   final DateTime createdAt;
   final String? barcode;      // A列: バーコード
   final String? productRank;  // L列: 商品ランク (S/A/B/C/D/E/N)
+  final String? category;     // カテゴリ
+  final String? condition;    // 商品の状態
+  final String? description;  // 商品の説明
+  final String? material;     // 素材
 
   ApiProduct({
     required this.id,
@@ -25,6 +29,10 @@ class ApiProduct {
     required this.createdAt,
     this.barcode,
     this.productRank,
+    this.category,
+    this.condition,
+    this.description,
+    this.material,
   });
 
   factory ApiProduct.fromJson(Map<String, dynamic> json) {
@@ -41,6 +49,10 @@ class ApiProduct {
       createdAt: DateTime.parse(json['created_at'] as String),
       barcode: json['barcode'] as String?,           // A列: バーコード
       productRank: json['rank'] as String?,          // L列: 商品ランク (APIフィールド名: "rank")
+      category: json['category'] as String?,
+      condition: json['condition'] as String?,
+      description: json['description'] as String?,
+      material: json['material'] as String?,
     );
   }
 
@@ -58,6 +70,10 @@ class ApiProduct {
       'created_at': createdAt.toIso8601String(),
       'barcode': barcode,
       'product_rank': productRank,
+      'category': category,
+      'condition': condition,
+      'description': description,
+      'material': material,
     };
   }
 }

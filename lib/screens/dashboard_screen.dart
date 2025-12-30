@@ -72,6 +72,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           createdAt: savedItem.date,
           barcode: savedItem.barcode,
           productRank: savedItem.productRank,
+          category: savedItem.category,
+          condition: savedItem.condition,
+          description: savedItem.description,
+          material: savedItem.material,
         );
         
         Navigator.push(

@@ -59,6 +59,9 @@ class InventoryItem {
   
   @HiveField(17)
   final String? description;  // 商品の説明
+  
+  @HiveField(18)
+  final String? material;     // 素材
 
   InventoryItem({
     required this.id,
@@ -80,5 +83,6 @@ class InventoryItem {
     this.salePrice,
     this.condition,
     this.description,
+    this.material,
   });
 }

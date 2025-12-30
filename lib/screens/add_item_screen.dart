@@ -22,19 +22,59 @@ class _AddItemScreenState extends State<AddItemScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _brandController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController(); // 🆕 商品の説明
   
   // 🆕 API連携用の追加コントローラー
   final TextEditingController _barcodeController = TextEditingController();
   final TextEditingController _skuController = TextEditingController();
   final TextEditingController _sizeController = TextEditingController();
-  final TextEditingController _colorController = TextEditingController();
   
   String _selectedCategory = 'ジャケット/アウター';
   String _selectedCondition = '選択してください';
   String _selectedRank = '選択してください'; // 🆕 商品ランク
+  String _selectedMaterial = 'コットン 100%'; // 🆕 素材
+  String _selectedColor = 'ホワイト'; // 🆕 カラー
+  Color _colorPreview = Colors.white; // 🆕 カラープレビュー
   
   // 🆕 商品ランクのオプション (S, A, B, C, D, E, N)
   final List<String> _ranks = ['S', 'A', 'B', 'C', 'D', 'E', 'N'];
+  
+  // 🆕 素材のオプション
+  final List<String> _materials = [
+    'コットン 100%',
+    'ポリエステル 100%',
+    'コットン 80% / ポリエステル 20%',
+    'ウール 100%',
+    'ナイロン 100%',
+    'レザー',
+    'デニム',
+    'リネン 100%',
+    'シルク 100%',
+    'その他',
+  ];
+  
+  // 🆕 カラーオプション
+  final Map<String, Color> _colorOptions = {
+    'ホワイト': Colors.white,
+    'ブラック': Colors.black,
+    'グレー': Colors.grey,
+    'ネイビー': Color(0xFF001f3f),
+    'ブルー': Colors.blue,
+    'レッド': Colors.red,
+    'ピンク': Colors.pink,
+    'イエロー': Colors.yellow,
+    'グリーン': Colors.green,
+    'ブラウン': Colors.brown,
+    'ベージュ': Color(0xFFF5F5DC),
+    'オレンジ': Colors.orange,
+    'パープル': Colors.purple,
+    'カーキ': Color(0xFF7C7C54),
+    'ボルドー': Color(0xFF800020),
+    'その他': Colors.grey[400]!,
+  };
+  
+  // 🚀 文字数カウンター用のValueNotifier(setState不要で効率的)
+  final ValueNotifier<int> _charCount = ValueNotifier<int>(0);
   
   // 🔍 自動入力フラグ
   bool _isAutofilled = false;
@@ -46,6 +86,11 @@ class _AddItemScreenState extends State<AddItemScreen> {
     if (widget.prefillData != null) {
       _autofillFromApiProduct(widget.prefillData!);
     }
+    
+    // 🚀 ValueNotifierで文字数のみ更新(画面全体の再描画を防止)
+    _descriptionController.addListener(() {
+      _charCount.value = _descriptionController.text.length;
+    });
   }
   
   /// 🔍 API商品データから自動入力
@@ -65,10 +110,6 @@ class _AddItemScreenState extends State<AddItemScreen> {
         _sizeController.text = product.size!;
       }
       
-      if (product.color != null && product.color!.isNotEmpty) {
-        _colorController.text = product.color!;
-      }
-      
       // Y列: 現状売価 → 販売価格
       if (product.priceSale != null && product.priceSale! > 0) {
         _priceController.text = product.priceSale.toString();
@@ -85,6 +126,41 @@ class _AddItemScreenState extends State<AddItemScreen> {
         if (_ranks.contains(product.productRank!.toUpperCase())) {
           _selectedRank = product.productRank!.toUpperCase();
         }
+      }
+      
+      // 🆕 カテゴリを自動入力
+      if (product.category != null && product.category!.isNotEmpty) {
+        if (_categories.contains(product.category!)) {
+          _selectedCategory = product.category!;
+        }
+      }
+      
+      // 🆕 商品の状態を自動入力
+      if (product.condition != null && product.condition!.isNotEmpty) {
+        if (_conditions.contains(product.condition!)) {
+          _selectedCondition = product.condition!;
+        }
+      }
+      
+      // 🆕 素材を自動入力
+      if (product.material != null && product.material!.isNotEmpty) {
+        if (_materials.contains(product.material!)) {
+          _selectedMaterial = product.material!;
+        }
+      }
+      
+      // 🆕 カラーを自動入力（colorControllerではなく_selectedColorを使用）
+      if (product.color != null && product.color!.isNotEmpty) {
+        _selectedColor = product.color!;
+        // カラーオプションに存在する場合はプレビューも設定
+        if (_colorOptions.containsKey(product.color!)) {
+          _colorPreview = _colorOptions[product.color!]!;
+        }
+      }
+      
+      // 🆕 商品の説明を自動入力
+      if (product.description != null && product.description!.isNotEmpty) {
+        _descriptionController.text = product.description!;
       }
     });
   }
@@ -154,7 +230,8 @@ class _AddItemScreenState extends State<AddItemScreen> {
     _barcodeController.dispose();
     _skuController.dispose();
     _sizeController.dispose();
-    _colorController.dispose();
+    _descriptionController.dispose();
+    _charCount.dispose();
     super.dispose();
   }
 
@@ -267,8 +344,6 @@ class _AddItemScreenState extends State<AddItemScreen> {
                         Divider(),
                         _buildInputField("サイズ", _sizeController, "サイズを入力してください (例: M, L, XL)"),
                         Divider(),
-                        _buildInputField("カラー", _colorController, "カラーを入力してください"),
-                        Divider(),
                         _buildSelectTile("商品ランク", _selectedRank, () => _showRankPicker(), 
                           isPlaceholder: _selectedRank == '選択してください'),
                       ],
@@ -292,10 +367,56 @@ class _AddItemScreenState extends State<AddItemScreen> {
                         _buildSelectTile("商品の状態", _selectedCondition, () => _showConditionPicker(), 
                           isPlaceholder: _selectedCondition == '選択してください'),
                         Divider(),
+                        _buildSelectTile("素材", _selectedMaterial, () => _showMaterialPicker()),
+                        Divider(),
+                        _buildColorSelectTile(),
+                        Divider(),
                         _buildSwitchTile("AI自動採寸", "撮影時に自動でサイズを計測します", _aiMeasure, (v) => setState(() => _aiMeasure = v)),
                         Divider(),
                         _buildSwitchTile("AI自動白抜き", "撮影時に自動で背景を削除します", _aiBgRemove, (v) => setState(() => _aiBgRemove = v)),
                       ],
+                    ),
+                  ),
+                  SizedBox(height: 24),
+                  
+                  // Description
+                  Text("商品の説明", style: TextStyle(fontWeight: FontWeight.bold, color: AppConstants.textGrey)),
+                  SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey[300]!, width: 1),
+                    ),
+                    child: TextField(
+                      controller: _descriptionController,
+                      maxLines: 6,
+                      minLines: 6,
+                      maxLength: 1000,
+                      keyboardType: TextInputType.multiline,
+                      textInputAction: TextInputAction.newline,
+                      decoration: InputDecoration(
+                        hintText: "傷や汚れ、特徴などを入力してください...\n\n例：\n・着用回数：3回程度\n・目立った傷や汚れなし\n・サイズ感：普通\n・素材感：柔らかめ",
+                        hintStyle: TextStyle(color: AppConstants.textGrey, fontSize: 14),
+                        border: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        contentPadding: EdgeInsets.all(16),
+                        counterText: '',
+                      ),
+                      style: TextStyle(fontSize: 14, color: AppConstants.textDark, height: 1.5),
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  // 🚀 ValueListenableBuilderで文字数部分のみ再描画
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ValueListenableBuilder<int>(
+                      valueListenable: _charCount,
+                      builder: (context, count, _) => Text(
+                        '$count/1000',
+                        style: TextStyle(fontSize: 12, color: AppConstants.textGrey),
+                      ),
                     ),
                   ),
                   SizedBox(height: 24),
@@ -358,8 +479,10 @@ class _AddItemScreenState extends State<AddItemScreen> {
                       barcode: _barcodeController.text,
                       sku: _skuController.text,
                       size: _sizeController.text,
-                      color: _colorController.text,
+                      color: _selectedColor,
                       productRank: _selectedRank,
+                      material: _selectedMaterial,
+                      description: _descriptionController.text,
                     ),
                     transitionsBuilder: (context, animation, secondaryAnimation, child) {
                       return FadeTransition(opacity: animation, child: child);
@@ -810,6 +933,234 @@ class _AddItemScreenState extends State<AddItemScreen> {
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+  
+  // 🆕 カラー選択タイル(カラープレビュー付き)
+  Widget _buildColorSelectTile() {
+    return InkWell(
+      onTap: () => _showColorPicker(),
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text("カラー", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Row(
+              children: [
+                Text(
+                  _selectedColor,
+                  style: TextStyle(
+                    color: AppConstants.primaryCyan,
+                    fontSize: 16,
+                  ),
+                ),
+                SizedBox(width: 8),
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: _colorPreview,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                ),
+                SizedBox(width: 8),
+                Icon(Icons.chevron_right, color: AppConstants.textGrey),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  // 🆕 素材ピッカー
+  void _showMaterialPicker() {
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              SizedBox(height: 16),
+              Text("素材を選択", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              SizedBox(height: 16),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _materials.length,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      title: Text(_materials[index]),
+                      trailing: _selectedMaterial == _materials[index]
+                          ? Icon(Icons.check, color: AppConstants.primaryCyan)
+                          : null,
+                      onTap: () {
+                        setState(() {
+                          _selectedMaterial = _materials[index];
+                        });
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+  
+  // 🆕 カラーピッカー
+  void _showColorPicker() {
+    String searchQuery = '';
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final filteredColors = searchQuery.isEmpty
+                ? _colorOptions.entries.toList()
+                : _colorOptions.entries
+                    .where((entry) => entry.key.toLowerCase().contains(searchQuery.toLowerCase()))
+                    .toList();
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.7,
+              padding: EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Text("カラーを選択", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 16),
+                  // Search field
+                  TextField(
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'カラー名で検索 or 自由入力...',
+                      prefixIcon: Icon(Icons.search, color: AppConstants.primaryCyan),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: AppConstants.borderGrey),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: AppConstants.primaryCyan, width: 2),
+                      ),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    onChanged: (value) {
+                      setModalState(() {
+                        searchQuery = value;
+                      });
+                    },
+                    onSubmitted: (value) {
+                      // Free input - use custom color
+                      if (value.isNotEmpty && !_colorOptions.containsKey(value)) {
+                        setState(() {
+                          _selectedColor = value;
+                          _colorPreview = Colors.grey[400]!; // Default color for custom input
+                        });
+                        Navigator.pop(context);
+                      }
+                    },
+                  ),
+                  SizedBox(height: 16),
+                  // Show free input option if search doesn't match
+                  if (searchQuery.isNotEmpty && filteredColors.isEmpty)
+                    Container(
+                      padding: EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppConstants.primaryCyan.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.add_circle_outline, color: AppConstants.primaryCyan),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '"$searchQuery" として追加',
+                                  style: TextStyle(fontWeight: FontWeight.bold, color: AppConstants.primaryCyan),
+                                ),
+                                Text(
+                                  'タップまたはEnterで確定',
+                                  style: TextStyle(fontSize: 12, color: AppConstants.textGrey),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  SizedBox(height: 16),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: filteredColors.length,
+                      itemBuilder: (context, index) {
+                        final entry = filteredColors[index];
+                        return ListTile(
+                          leading: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: entry.value,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.grey[300]!, width: 2),
+                            ),
+                          ),
+                          title: Text(entry.key),
+                          trailing: _selectedColor == entry.key
+                              ? Icon(Icons.check, color: AppConstants.primaryCyan)
+                              : null,
+                          onTap: () {
+                            setState(() {
+                              _selectedColor = entry.key;
+                              _colorPreview = entry.value;
+                            });
+                            Navigator.pop(context);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );

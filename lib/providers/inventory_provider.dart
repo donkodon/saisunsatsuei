@@ -51,7 +51,21 @@ class InventoryProvider with ChangeNotifier {
   // 📦 Hiveから商品データを読み込み
   void _loadItemsFromBox() {
     if (_box != null && _box!.isNotEmpty) {
-      _items = _box!.values.toList();
+      // Hiveからすべてのアイテムを取得
+      final loadedItems = _box!.values.toList();
+      
+      // 🔍 重複排除: IDでユニークなアイテムのみを保持
+      final uniqueItems = <String, InventoryItem>{};
+      for (var item in loadedItems) {
+        uniqueItems[item.id] = item;
+      }
+      
+      _items = uniqueItems.values.toList();
+      
+      // 日付順にソート（新しい順）
+      _items.sort((a, b) => b.date.compareTo(a.date));
+      
+      print('📦 Hiveから読み込み完了: ${_items.length}件');
     }
     notifyListeners();
   }
@@ -65,13 +79,23 @@ class InventoryProvider with ChangeNotifier {
 
   // 💾 商品を追加してHiveに保存
   Future<void> addItem(InventoryItem item) async {
+    // 🔍 重複チェック: 同じIDの商品が既に存在する場合は削除
+    _items.removeWhere((existingItem) => existingItem.id == item.id);
+    
+    // リストの先頭に追加
     _items.insert(0, item);
     
-    // ローカル保存 (Hive)
+    // ローカル保存 (Hive) - IDをキーとして使用
     if (_box != null) {
-      await _box!.put(item.sku ?? item.id, item);
-      print('✅ Hiveに保存成功: ${item.sku ?? item.id}');
-      print('📦 保存データ: condition=${item.condition}, description=${item.description}');
+      await _box!.put(item.id, item);
+      print('✅ Hiveに保存成功: ID=${item.id}');
+      print('📦 保存データ:');
+      print('   - 商品名: ${item.name}');
+      print('   - カテゴリ: ${item.category}');
+      print('   - 商品の状態: ${item.condition}');
+      print('   - 説明: ${item.description}');
+      print('   - SKU: ${item.sku}');
+      print('   - バーコード: ${item.barcode}');
     }
     
     notifyListeners();

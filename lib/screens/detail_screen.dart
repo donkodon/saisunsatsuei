@@ -17,6 +17,8 @@ class DetailScreen extends StatefulWidget {
   final String size;
   final String color;
   final String productRank;
+  final String material;
+  final String description;
 
   DetailScreen({
     required this.itemName,
@@ -29,6 +31,8 @@ class DetailScreen extends StatefulWidget {
     required this.size,
     required this.color,
     required this.productRank,
+    required this.material,
+    required this.description,
   });
 
   @override
@@ -36,7 +40,7 @@ class DetailScreen extends StatefulWidget {
 }
 
 class _DetailScreenState extends State<DetailScreen> {
-  String _selectedMaterial = 'コットン 100%';
+  late String _selectedMaterial;
   late String _selectedColor;
   Color _colorPreview = Colors.white;
   final TextEditingController _descriptionController = TextEditingController();
@@ -51,10 +55,12 @@ class _DetailScreenState extends State<DetailScreen> {
   void initState() {
     super.initState();
     // 初期値を設定
+    _selectedMaterial = widget.material.isNotEmpty ? widget.material : 'コットン 100%';
     _selectedColor = widget.color.isNotEmpty ? widget.color : 'ホワイト';
     _barcodeController.text = widget.barcode;
     _skuController.text = widget.sku;
     _sizeController.text = widget.size;
+    _descriptionController.text = widget.description;
     
     // 🚀 ValueNotifierで文字数のみ更新（画面全体の再描画を防止）
     _descriptionController.addListener(() {
@@ -448,8 +454,11 @@ class _DetailScreenState extends State<DetailScreen> {
                 print('📝 商品の状態: ${widget.condition}');
                 print('📝 商品の説明: ${_descriptionController.text}');
                 
+                // 🔑 ユニークなID生成: タイムスタンプ + マイクロ秒
+                final uniqueId = '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
+                
                 final newItem = InventoryItem(
-                  id: DateTime.now().toString(),
+                  id: uniqueId,
                   name: widget.itemName,
                   brand: widget.brand,
                   imageUrl: "assets/images/tshirt_hanger.jpg",
@@ -465,6 +474,7 @@ class _DetailScreenState extends State<DetailScreen> {
                   condition: widget.condition,  // 商品の状態を保存
                   description: _descriptionController.text,  // 商品の説明を保存
                   color: _selectedColor,  // カラーを保存
+                  material: _selectedMaterial,  // 素材を保存
                   salePrice: widget.price.isNotEmpty ? int.tryParse(widget.price) : null,  // 販売価格を保存
                 );
                 
