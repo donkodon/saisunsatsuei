@@ -47,8 +47,9 @@ class _CameraScreenState extends State<CameraScreen> {
   Future<void>? _initializeControllerFuture;
   int _selectedMode = 0; // 0: Tops, 1: Pants, 2: Bags
   bool _isCameraInitialized = false;
-  String? _capturedImagePath;
+  List<String> _capturedImages = []; // 📸 複数の撮影画像を保存
   bool _isCapturing = false;
+  int _selectedImageIndex = 0; // 選択中の画像インデックス
 
   @override
   void initState() {
@@ -103,6 +104,14 @@ class _CameraScreenState extends State<CameraScreen> {
   void dispose() {
     _controller?.dispose();
     super.dispose();
+  }
+
+  // 📸 保存ボタン押下時：撮影画像を持って元の画面に戻る
+  void _goToDetailScreen() {
+    if (_capturedImages.isEmpty) return;
+    
+    // 📸 撮影した画像リストを持って元の画面（AddItemScreen）に戻る
+    Navigator.pop(context, _capturedImages);
   }
 
   Future<void> _takePicture() async {
@@ -218,41 +227,14 @@ class _CameraScreenState extends State<CameraScreen> {
           }
         }
 
+        // 📸 撮影した画像をリストに追加（連続撮影対応）
         setState(() {
-          _capturedImagePath = uploadedImageUrl;
+          _capturedImages.add(uploadedImageUrl!);
+          _selectedImageIndex = _capturedImages.length - 1; // 最新の画像を選択
           _isCapturing = false;
         });
-
-        // 1秒待ってから詳細画面へ遷移
-        await Future.delayed(Duration(seconds: 1));
-
-        // 詳細画面へ遷移（アップロード済み画像URLを渡す）
-        if (mounted) {
-          Navigator.push(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => DetailScreen(
-                itemName: widget.itemName,
-                brand: widget.brand,
-                category: widget.category,
-                condition: widget.condition,
-                price: widget.price,
-                barcode: widget.barcode,
-                sku: widget.sku,
-                size: widget.size,
-                color: widget.color,
-                productRank: widget.productRank,
-                material: widget.material,
-                description: widget.description,
-                capturedImagePath: _capturedImagePath,  // 📸 アップロード済みURLを渡す
-              ),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                return FadeTransition(opacity: animation, child: child);
-              },
-              transitionDuration: const Duration(milliseconds: 200),
-            ),
-          );
-        }
+        
+        // 📸 連続撮影のため、遷移はしない（完了ボタンで遷移）
       }
     } catch (e) {
       print('❌ 撮影エラー: $e');
@@ -319,11 +301,13 @@ class _CameraScreenState extends State<CameraScreen> {
                       ),
                     ),
                     TextButton(
-                      onPressed: () {},
+                      onPressed: _capturedImages.isEmpty ? null : _goToDetailScreen,
                       child: Text(
                         "保存", 
                         style: TextStyle(
-                          color: AppConstants.primaryCyan, 
+                          color: _capturedImages.isEmpty 
+                            ? Colors.grey 
+                            : AppConstants.primaryCyan, 
                           fontWeight: FontWeight.bold,
                           shadows: [Shadow(blurRadius: 4, color: Colors.black)],
                         ),
@@ -382,10 +366,118 @@ class _CameraScreenState extends State<CameraScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // 📸 撮影済み画像のサムネイルプレビュー（横スクロール）
+                  if (_capturedImages.isNotEmpty)
+                    Container(
+                      height: 80,
+                      margin: EdgeInsets.only(bottom: 16),
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _capturedImages.length,
+                        itemBuilder: (context, index) {
+                          final isSelected = index == _selectedImageIndex;
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedImageIndex = index;
+                              });
+                            },
+                            child: Container(
+                              width: 80,
+                              height: 80,
+                              margin: EdgeInsets.only(right: 12),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected ? AppConstants.primaryCyan : Colors.white54,
+                                  width: isSelected ? 3 : 2,
+                                ),
+                              ),
+                              child: Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: kIsWeb
+                                      ? Image.network(
+                                          _capturedImages[index],
+                                          width: 80,
+                                          height: 80,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Image.file(
+                                          File(_capturedImages[index]),
+                                          width: 80,
+                                          height: 80,
+                                          fit: BoxFit.cover,
+                                        ),
+                                  ),
+                                  if (isSelected)
+                                    Positioned(
+                                      top: 4,
+                                      right: 4,
+                                      child: Container(
+                                        padding: EdgeInsets.all(2),
+                                        decoration: BoxDecoration(
+                                          color: AppConstants.primaryCyan,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          Icons.check,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ),
+                                  // 🗑️ 削除ボタン
+                                  Positioned(
+                                    bottom: 4,
+                                    right: 4,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _capturedImages.removeAt(index);
+                                          // 削除後のインデックス調整
+                                          if (_selectedImageIndex >= _capturedImages.length) {
+                                            _selectedImageIndex = _capturedImages.length - 1;
+                                          }
+                                          if (_selectedImageIndex < 0) {
+                                            _selectedImageIndex = 0;
+                                          }
+                                        });
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('画像を削除しました'),
+                                            duration: Duration(seconds: 1),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      },
+                                      child: Container(
+                                        padding: EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          Icons.close,
+                                          color: Colors.white,
+                                          size: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // ギャラリーボタン
+                      // ギャラリーボタン（撮影枚数を表示）
                       Container(
                         width: 50,
                         height: 50,
@@ -394,7 +486,31 @@ class _CameraScreenState extends State<CameraScreen> {
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Colors.white54),
                         ),
-                        child: Icon(Icons.image, color: Colors.white),
+                        child: Stack(
+                          children: [
+                            Center(child: Icon(Icons.image, color: Colors.white)),
+                            if (_capturedImages.isNotEmpty)
+                              Positioned(
+                                top: 4,
+                                right: 4,
+                                child: Container(
+                                  padding: EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: AppConstants.primaryCyan,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    '${_capturedImages.length}',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                       
                       // シャッターボタン

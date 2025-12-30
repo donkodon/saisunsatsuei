@@ -25,7 +25,8 @@ class DetailScreen extends StatefulWidget {
   final String productRank;
   final String material;
   final String description;
-  final String? capturedImagePath;  // 📸 撮影した画像のパス（オプション）
+  final String? capturedImagePath;  // 📸 撮影した画像のパス（オプション・後方互換性）
+  final List<String>? capturedImages;  // 📸 複数の撮影画像（新機能）
 
   DetailScreen({
     required this.itemName,
@@ -40,7 +41,8 @@ class DetailScreen extends StatefulWidget {
     required this.productRank,
     required this.material,
     required this.description,
-    this.capturedImagePath,  // オプション
+    this.capturedImagePath,  // オプション（後方互換性）
+    this.capturedImages,  // オプション（複数画像）
   });
 
   @override
@@ -151,16 +153,28 @@ class _DetailScreenState extends State<DetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image Carousel
+            // Image Carousel（複数画像対応）
             Container(
               height: 120,
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: [
-                  // メイン画像（撮影画像のみ表示、なければプレースホルダー）
-                  widget.capturedImagePath != null
-                    ? _buildCapturedImageThumbnail(widget.capturedImagePath!, isMain: true)
-                    : _buildPlaceholder(isMain: true),
+                  // 📸 複数画像がある場合はすべて表示
+                  if (widget.capturedImages != null && widget.capturedImages!.isNotEmpty)
+                    ...widget.capturedImages!.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final imagePath = entry.value;
+                      return _buildCapturedImageThumbnail(
+                        imagePath, 
+                        isMain: index == 0,  // 最初の画像をメインとする
+                      );
+                    }).toList()
+                  // 📸 単一画像の場合（後方互換性）
+                  else if (widget.capturedImagePath != null)
+                    _buildCapturedImageThumbnail(widget.capturedImagePath!, isMain: true)
+                  // プレースホルダー
+                  else
+                    _buildPlaceholder(isMain: true),
                 ],
               ),
             ),
@@ -455,10 +469,12 @@ class _DetailScreenState extends State<DetailScreen> {
             SizedBox(height: 30),
             
             CustomButton(
-              text: "出品プレビュー", 
+              text: "商品確定", 
               onPressed: () async {
                 // 📸 画像が撮影されていない場合は警告
-                if (widget.capturedImagePath == null) {
+                final hasImages = (widget.capturedImages != null && widget.capturedImages!.isNotEmpty) 
+                                  || widget.capturedImagePath != null;
+                if (!hasImages) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Row(
@@ -473,6 +489,11 @@ class _DetailScreenState extends State<DetailScreen> {
                   );
                   return;
                 }
+                
+                // 📸 すべての画像を取得
+                final allImagePaths = widget.capturedImages != null && widget.capturedImages!.isNotEmpty
+                  ? widget.capturedImages!
+                  : (widget.capturedImagePath != null ? [widget.capturedImagePath!] : <String>[]);
 
                 // Show Loading
                 showDialog(
@@ -481,7 +502,9 @@ class _DetailScreenState extends State<DetailScreen> {
                   builder: (context) => Center(child: CircularProgressIndicator()),
                 );
 
-                String imageUrl = widget.capturedImagePath!;  // デフォルトは受け取ったURL
+                // 📸 すべての画像をアップロード
+                List<String> uploadedImageUrls = [];
+                String imageUrl = allImagePaths.first;  // 最初の画像をメイン画像として使用
                 
                 // 📸 既にCloudflare URLの場合はアップロードをスキップ
                 if (!imageUrl.startsWith('https://pub-300562464768499b8fcaee903d0f9861.r2.dev')) {
@@ -496,7 +519,7 @@ class _DetailScreenState extends State<DetailScreen> {
                       }
                       
                       // blob: URLからHTTPリクエストで画像データを取得
-                      final response = await http.get(Uri.parse(widget.capturedImagePath!));
+                      final response = await http.get(Uri.parse(imageUrl));
                       if (response.statusCode == 200) {
                         imageBytes = response.bodyBytes;
                         if (kDebugMode) {
@@ -507,7 +530,7 @@ class _DetailScreenState extends State<DetailScreen> {
                       }
                     } else {
                       // モバイル環境：ファイルパスから画像を読み込み
-                      final imageFile = File(widget.capturedImagePath!);
+                      final imageFile = File(imageUrl);
                       imageBytes = await imageFile.readAsBytes();
                       if (kDebugMode) {
                         debugPrint('📱 モバイル環境：ファイル読み込み成功: ${imageBytes.length} bytes');
@@ -570,18 +593,21 @@ class _DetailScreenState extends State<DetailScreen> {
                 // Hide Loading
                 Navigator.pop(context);
 
-                print('🔵 出品プレビューボタン押下');
+                print('🔵 商品確定ボタン押下');
                 print('📝 商品の状態: ${widget.condition}');
                 print('📝 商品の説明: ${_descriptionController.text}');
                 
                 // 🔑 ユニークなID生成: タイムスタンプ + マイクロ秒
                 final uniqueId = '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
                 
+                // 📸 すべての画像URLを保存（アップロード済みまたはローカルパス）
+                uploadedImageUrls = List.from(allImagePaths);
+                
                 final newItem = InventoryItem(
                   id: uniqueId,
                   name: widget.itemName,
                   brand: widget.brand,
-                  imageUrl: imageUrl,  // Uploaded URL or Local Path
+                  imageUrl: imageUrl,  // Uploaded URL or Local Path (メイン画像)
                   category: widget.category,
                   status: "Ready",
                   date: DateTime.now(),
@@ -596,6 +622,7 @@ class _DetailScreenState extends State<DetailScreen> {
                   color: _selectedColor,  // カラーを保存
                   material: _selectedMaterial,  // 素材を保存
                   salePrice: widget.price.isNotEmpty ? int.tryParse(widget.price) : null,  // 販売価格を保存
+                  imageUrls: uploadedImageUrls,  // 📸 すべての画像URLを保存
                 );
                 
                 print('📦 作成したInventoryItem:');

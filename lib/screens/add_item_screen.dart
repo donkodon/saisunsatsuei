@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:io';
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/screens/camera_screen.dart';
+import 'package:measure_master/screens/detail_screen.dart';
 import 'package:measure_master/widgets/custom_button.dart';
 import 'package:measure_master/models/api_product.dart';
+import 'package:measure_master/models/item.dart';
 
 class AddItemScreen extends StatefulWidget {
   final ApiProduct? prefillData; // 🔍 検索結果からの自動入力データ
+  final InventoryItem? existingItem; // 📝 既存商品データ（編集用）
   
-  const AddItemScreen({Key? key, this.prefillData}) : super(key: key);
+  const AddItemScreen({Key? key, this.prefillData, this.existingItem}) : super(key: key);
   
   @override
   _AddItemScreenState createState() => _AddItemScreenState();
@@ -17,6 +22,9 @@ class AddItemScreen extends StatefulWidget {
 class _AddItemScreenState extends State<AddItemScreen> {
   bool _aiMeasure = true;
   bool _aiBgRemove = true;
+  
+  // 📸 撮影した画像のリスト
+  List<String> _capturedImages = [];
   
   // Form controllers
   final TextEditingController _nameController = TextEditingController();
@@ -82,8 +90,13 @@ class _AddItemScreenState extends State<AddItemScreen> {
   @override
   void initState() {
     super.initState();
+    
+    // 📝 既存商品データから読み込み（編集モード）
+    if (widget.existingItem != null) {
+      _loadExistingItem(widget.existingItem!);
+    }
     // 🔍 検索結果から自動入力
-    if (widget.prefillData != null) {
+    else if (widget.prefillData != null) {
       _autofillFromApiProduct(widget.prefillData!);
     }
     
@@ -162,7 +175,105 @@ class _AddItemScreenState extends State<AddItemScreen> {
       if (product.description != null && product.description!.isNotEmpty) {
         _descriptionController.text = product.description!;
       }
+      
+      // 📸 撮影画像を復元（ApiProductにimageUrlsがある場合）
+      if (product.imageUrls != null && product.imageUrls!.isNotEmpty) {
+        _capturedImages = List.from(product.imageUrls!);
+      }
     });
+  }
+  
+  /// 📝 既存商品データを読み込み（編集モード）
+  void _loadExistingItem(InventoryItem item) {
+    setState(() {
+      _isAutofilled = true;
+      
+      // 基本情報
+      _nameController.text = item.name;
+      _brandController.text = item.brand;
+      _priceController.text = item.salePrice?.toString() ?? '';
+      
+      // API連携フィールド
+      if (item.barcode != null) _barcodeController.text = item.barcode!;
+      if (item.sku != null) _skuController.text = item.sku!;
+      if (item.size != null) _sizeController.text = item.size!;
+      
+      // 選択項目
+      if (item.condition != null) _selectedCondition = item.condition!;
+      if (item.productRank != null && _ranks.contains(item.productRank)) {
+        _selectedRank = item.productRank!;
+      }
+      if (item.material != null && _materials.contains(item.material)) {
+        _selectedMaterial = item.material!;
+      }
+      if (item.color != null) {
+        _selectedColor = item.color!;
+        if (_colorOptions.containsKey(item.color!)) {
+          _colorPreview = _colorOptions[item.color!]!;
+        }
+      }
+      
+      // 商品の説明
+      if (item.description != null) {
+        _descriptionController.text = item.description!;
+      }
+      
+      // 📸 画像リストを復元
+      if (item.imageUrls != null && item.imageUrls!.isNotEmpty) {
+        _capturedImages = List.from(item.imageUrls!);
+      }
+    });
+  }
+  
+  /// 📸 カメラ画面へ遷移
+  void _goToCameraScreen() async {
+    if (_nameController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('商品名を入力してください')),
+      );
+      return;
+    }
+    
+    // カメラ画面へ遷移
+    final result = await Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => CameraScreen(
+          itemName: _nameController.text,
+          brand: _brandController.text,
+          category: _selectedCategory,
+          condition: _selectedCondition,
+          price: _priceController.text,
+          barcode: _barcodeController.text,
+          sku: _skuController.text,
+          size: _sizeController.text,
+          color: _selectedColor,
+          productRank: _selectedRank,
+          material: _selectedMaterial,
+          description: _descriptionController.text,
+        ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 200),
+      ),
+    );
+    
+    // カメラ画面から戻ってきた時の処理
+    if (result != null && result is List<String>) {
+      setState(() {
+        // 📸 既存の画像に新しい画像を追加（上書きしない）
+        _capturedImages.addAll(result);
+      });
+      
+      // 撮影完了のフィードバック
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('📸 ${result.length}枚の画像を追加しました（合計${_capturedImages.length}枚）'),
+          backgroundColor: AppConstants.successGreen,
+        ),
+      );
+    }
   }
   
   // Category options
@@ -291,32 +402,134 @@ class _AddItemScreenState extends State<AddItemScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Photo Area
-                  Stack(
-                    alignment: Alignment.center,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.asset(
-                          'assets/images/denim_jacket.jpg',
+                      // 📸 撮影した画像のサムネイル表示
+                      if (_capturedImages.isNotEmpty) ...[
+                        Container(
+                          height: 120,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _capturedImages.length,
+                            itemBuilder: (context, index) {
+                              return Container(
+                                margin: EdgeInsets.only(right: 8),
+                                child: Stack(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: kIsWeb
+                                          ? Image.network(
+                                              _capturedImages[index],
+                                              width: 100,
+                                              height: 120,
+                                              fit: BoxFit.cover,
+                                            )
+                                          : Image.file(
+                                              File(_capturedImages[index]),
+                                              width: 100,
+                                              height: 120,
+                                              fit: BoxFit.cover,
+                                            ),
+                                    ),
+                                    // 削除ボタン
+                                    Positioned(
+                                      top: 4,
+                                      right: 4,
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            _capturedImages.removeAt(index);
+                                          });
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('画像を削除しました'),
+                                              duration: Duration(seconds: 1),
+                                            ),
+                                          );
+                                        },
+                                        child: Container(
+                                          padding: EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(
+                                            Icons.close,
+                                            color: Colors.white,
+                                            size: 16,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                      ],
+                      
+                      // 写真を追加ボタン
+                      GestureDetector(
+                        onTap: _goToCameraScreen,
+                        child: Container(
                           width: double.infinity,
-                          height: 200,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.camera_alt, color: AppConstants.primaryCyan, size: 18),
-                            SizedBox(width: 8),
-                            Text("写真を変更", style: TextStyle(fontWeight: FontWeight.bold)),
-                          ],
+                          height: _capturedImages.isEmpty ? 200 : 60,
+                          decoration: BoxDecoration(
+                            color: _capturedImages.isEmpty ? Colors.transparent : Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: _capturedImages.isEmpty ? null : Border.all(color: AppConstants.primaryCyan, width: 2),
+                          ),
+                          child: _capturedImages.isEmpty
+                              ? Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.asset(
+                                        'assets/images/denim_jacket.jpg',
+                                        width: double.infinity,
+                                        height: 200,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(20),
+                                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.camera_alt, color: AppConstants.primaryCyan, size: 18),
+                                          SizedBox(width: 8),
+                                          Text("写真を追加", style: TextStyle(fontWeight: FontWeight.bold)),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Center(
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.add_a_photo, color: AppConstants.primaryCyan, size: 20),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        "さらに写真を追加",
+                                        style: TextStyle(
+                                          color: AppConstants.primaryCyan,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                         ),
                       ),
                     ],
@@ -451,8 +664,8 @@ class _AddItemScreenState extends State<AddItemScreen> {
               boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))],
             ),
             child: CustomButton(
-              text: "次へ：撮影・採寸",
-              icon: Icons.straighten,
+              text: "次へ：商品詳細",
+              icon: Icons.arrow_forward,
               onPressed: () {
                 if (_nameController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -466,11 +679,11 @@ class _AddItemScreenState extends State<AddItemScreen> {
                   );
                   return;
                 }
-                // 🚀 高速遷移
+                // 🚀 商品詳細画面へ直接遷移
                 Navigator.push(
                   context,
                   PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) => CameraScreen(
+                    pageBuilder: (context, animation, secondaryAnimation) => DetailScreen(
                       itemName: _nameController.text,
                       brand: _brandController.text,
                       category: _selectedCategory,
@@ -483,6 +696,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                       productRank: _selectedRank,
                       material: _selectedMaterial,
                       description: _descriptionController.text,
+                      capturedImages: _capturedImages.isEmpty ? null : _capturedImages,  // 📸 撮影した画像を渡す
                     ),
                     transitionsBuilder: (context, animation, secondaryAnimation, child) {
                       return FadeTransition(opacity: animation, child: child);

@@ -61,31 +61,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         );
         
-        // 保存済みデータからApiProductに変換して表示
-        final apiProduct = ApiProduct(
-          id: 0,
-          sku: savedItem.sku ?? '',
-          name: savedItem.name,
-          brand: savedItem.brand,
-          size: savedItem.size,
-          color: savedItem.color,
-          priceSale: savedItem.salePrice,
-          stockQuantity: 0,
-          status: savedItem.status,
-          createdAt: savedItem.date,
-          barcode: savedItem.barcode,
-          productRank: savedItem.productRank,
-          category: savedItem.category,
-          condition: savedItem.condition,
-          description: savedItem.description,
-          material: savedItem.material,
-        );
-        
+        // 🔧 修正: 保存済み商品は existingItem として渡す（撮影データを保持）
+        // ※ prefillData（ApiProduct）では imageUrls が渡せないため
         Navigator.push(
           context,
           PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) => AddItemScreen(
-              prefillData: apiProduct,
+              existingItem: savedItem,  // 📸 撮影データ（imageUrls）を含む完全なデータを渡す
             ),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
@@ -473,18 +455,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildItemCard(InventoryItem item) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 16),
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppConstants.borderGrey),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: Offset(0, 2)),
-        ],
-      ),
-      child: Row(
+    return GestureDetector(
+      onTap: () {
+        // 📝 商品をタップしたら編集モードでAddItemScreenを開く
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => AddItemScreen(
+              existingItem: item,  // 既存商品データを渡す
+            ),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 200),
+          ),
+        );
+      },
+      child: Container(
+        margin: EdgeInsets.only(bottom: 16),
+        padding: EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppConstants.borderGrey),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: Offset(0, 2)),
+          ],
+        ),
+        child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Image
@@ -591,6 +589,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

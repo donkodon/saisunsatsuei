@@ -62,6 +62,9 @@ class InventoryItem {
   
   @HiveField(18)
   final String? material;     // 素材
+  
+  @HiveField(19)
+  final List<String>? imageUrls;  // 📸 複数画像のURL
 
   InventoryItem({
     required this.id,
@@ -84,5 +87,6 @@ class InventoryItem {
     this.condition,
     this.description,
     this.material,
+    this.imageUrls,  // 📸 複数画像
   });
 }

@@ -15,6 +15,7 @@ class ApiProduct {
   final String? condition;    // 商品の状態
   final String? description;  // 商品の説明
   final String? material;     // 素材
+  final List<String>? imageUrls;  // 📸 撮影画像のURL（保存済み商品データ復元用）
 
   ApiProduct({
     required this.id,
@@ -33,6 +34,7 @@ class ApiProduct {
     this.condition,
     this.description,
     this.material,
+    this.imageUrls,  // 📸 撮影画像
   });
 
   factory ApiProduct.fromJson(Map<String, dynamic> json) {
@@ -53,6 +55,7 @@ class ApiProduct {
       condition: json['condition'] as String?,
       description: json['description'] as String?,
       material: json['material'] as String?,
+      imageUrls: (json['image_urls'] as List<dynamic>?)?.cast<String>(),  // 📸 撮影画像
     );
   }
 
@@ -74,6 +77,7 @@ class ApiProduct {
       'condition': condition,
       'description': description,
       'material': material,
+      'image_urls': imageUrls,  // 📸 撮影画像
     };
   }
 }
