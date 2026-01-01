@@ -8,6 +8,8 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:measure_master/services/cloudflare_storage_service.dart';
 import 'package:measure_master/services/image_cache_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 
 class CameraScreen extends StatefulWidget {
   final String itemName;
@@ -22,6 +24,7 @@ class CameraScreen extends StatefulWidget {
   final String productRank;
   final String material;
   final String description;
+  final List<String>? existingImages;  // 📸 既存の画像リスト（編集時）
 
   CameraScreen({
     required this.itemName,
@@ -36,6 +39,7 @@ class CameraScreen extends StatefulWidget {
     required this.productRank,
     required this.material,
     required this.description,
+    this.existingImages,  // オプション: 既存画像を渡す
   });
 
   @override
@@ -50,11 +54,81 @@ class _CameraScreenState extends State<CameraScreen> {
   List<String> _capturedImages = []; // 📸 複数の撮影画像を保存
   bool _isCapturing = false;
   int _selectedImageIndex = 0; // 選択中の画像インデックス
+  int _imageCounter = 1; // 🔢 画像の連番カウンター
 
   @override
   void initState() {
     super.initState();
     _initializeCamera();
+    _initializeExistingImages();  // 📸 既存画像と連番を初期化
+  }
+
+  /// 📸 既存画像と連番を初期化
+  void _initializeExistingImages() {
+    if (widget.existingImages != null && widget.existingImages!.isNotEmpty) {
+      _capturedImages = List.from(widget.existingImages!);
+      
+      // 🔢 既存画像の連番を解析して、次の連番を決定
+      _imageCounter = _calculateNextImageCounter();
+      
+      if (kDebugMode) {
+        debugPrint('📸 既存画像を読み込み: ${_capturedImages.length}枚');
+        debugPrint('📸 既存画像リスト:');
+        for (int i = 0; i < _capturedImages.length; i++) {
+          debugPrint('   [$i] ${_capturedImages[i]}');
+        }
+        debugPrint('🔢 次の連番: $_imageCounter');
+      }
+    } else {
+      if (kDebugMode) {
+        debugPrint('📸 既存画像なし、連番1から開始');
+      }
+    }
+  }
+
+  /// 🔢 既存画像から次の連番を計算
+  int _calculateNextImageCounter() {
+    if (_capturedImages.isEmpty) return 1;
+    
+    int maxCounter = 0;
+    final skuTrimmed = widget.sku.trim();
+    
+    for (final imagePath in _capturedImages) {
+      // URLからファイル名を抽出して連番を解析
+      // 例: "https://.../{SKU}_3.jpg" → 3
+      try {
+        final uri = Uri.tryParse(imagePath);
+        if (uri != null && uri.pathSegments.isNotEmpty) {
+          final fileName = uri.pathSegments.last;
+          if (kDebugMode) {
+            debugPrint('🔍 解析中: $fileName');
+          }
+          
+          // _{連番}.jpg 形式から連番を抽出（SKUの有無に関わらず）
+          final match = RegExp(r'_(\d+)\.jpg').firstMatch(fileName);
+          if (match != null) {
+            final counter = int.tryParse(match.group(1) ?? '0') ?? 0;
+            if (kDebugMode) {
+              debugPrint('   → 連番: $counter');
+            }
+            if (counter > maxCounter) {
+              maxCounter = counter;
+            }
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('⚠️ URL解析エラー: $e');
+        }
+      }
+    }
+    
+    // 既存の最大連番 + 1 を返す（最低でも既存画像数 + 1）
+    final nextCounter = (maxCounter > 0) ? maxCounter + 1 : _capturedImages.length + 1;
+    if (kDebugMode) {
+      debugPrint('🔢 最大連番: $maxCounter → 次の連番: $nextCounter');
+    }
+    return nextCounter;
   }
 
   Future<void> _initializeCamera() async {
@@ -172,13 +246,36 @@ class _CameraScreenState extends State<CameraScreen> {
             }
           }
           
-          // ユニークなアイテムIDを生成
-          final uniqueId = '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
+          // 🔑 SKUコードを使用してファイルIDを生成（ローカル連番を使用）
+          if (kDebugMode) {
+            debugPrint('🔍 widget.sku = "${widget.sku}" (isEmpty: ${widget.sku.isEmpty}, length: ${widget.sku.length})');
+            debugPrint('🔢 現在の連番カウンター: $_imageCounter');
+          }
+          
+          String fileId;
+          final skuTrimmed = widget.sku.trim();
+          if (skuTrimmed.isNotEmpty) {
+            // SKUがある場合: ローカルカウンターを使用（既存画像から計算済み）
+            final currentCounter = _imageCounter;
+            fileId = '${skuTrimmed}_$currentCounter';
+            _imageCounter++;  // 次回用に連番をインクリメント
+            
+            if (kDebugMode) {
+              debugPrint('✅ SKUベースのファイル名: $fileId (SKU: $skuTrimmed, 連番: $currentCounter)');
+              debugPrint('🔢 次回の連番: $_imageCounter');
+            }
+          } else {
+            // SKUがない場合: タイムスタンプ
+            fileId = '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
+            if (kDebugMode) {
+              debugPrint('⚠️ SKUが空のためタイムスタンプベース: $fileId');
+            }
+          }
           
           // Workers経由でアップロード
           uploadedImageUrl = await CloudflareWorkersStorageService.uploadImage(
             imageBytes,
-            uniqueId,
+            fileId,
           );
           
           // 📸 アップロード成功時に画像をローカルキャッシュに保存
@@ -253,6 +350,224 @@ class _CameraScreenState extends State<CameraScreen> {
               ],
             ),
             backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // 📁 ギャラリーから画像を選択（file_picker使用 - Web環境でより確実に動作）
+  Future<void> _pickImageFromGallery() async {
+    if (kDebugMode) {
+      debugPrint('📁 ============================================');
+      debugPrint('📁 ギャラリー選択を開始（file_picker）...');
+      debugPrint('📁 kIsWeb: $kIsWeb');
+      debugPrint('📁 ============================================');
+    }
+    
+    // 🔔 ユーザーにフィードバック（ボタンが押されたことを確認）
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              ),
+              SizedBox(width: 12),
+              Text('ファイル選択画面を開いています...'),
+            ],
+          ),
+          backgroundColor: AppConstants.primaryCyan,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+    
+    try {
+      if (kDebugMode) {
+        debugPrint('📁 FilePicker.platform.pickFiles 呼び出し中...');
+      }
+      
+      // file_picker を使用（Web環境でも確実に動作）
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+        withData: true,  // バイトデータを直接取得（Web環境で必要）
+      );
+      
+      if (kDebugMode) {
+        debugPrint('📁 FilePicker 完了: ${result != null ? "ファイル選択済み" : "キャンセル"}');
+      }
+
+      if (result == null || result.files.isEmpty) {
+        // キャンセルされた場合
+        if (kDebugMode) {
+          debugPrint('ℹ️ ギャラリー選択がキャンセルされました');
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).clearSnackBars();
+        }
+        return;
+      }
+      
+      final file = result.files.first;
+      
+      if (kDebugMode) {
+        debugPrint('📁 選択されたファイル: ${file.name}');
+        debugPrint('📁 ファイルサイズ: ${file.size} bytes');
+        debugPrint('📁 バイトデータ: ${file.bytes != null ? "${file.bytes!.length} bytes" : "null"}');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('画像を選択しました: ${file.name}'),
+              ],
+            ),
+            backgroundColor: AppConstants.successGreen,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      // 📸 画像を即座にアップロード
+      String? uploadedImageUrl;
+      try {
+        Uint8List? imageBytes;
+        
+        // file_picker の withData: true でバイトデータを取得
+        if (file.bytes != null) {
+          imageBytes = file.bytes!;
+          if (kDebugMode) {
+            debugPrint('✅ file_picker からバイトデータを取得: ${imageBytes.length} bytes');
+          }
+        } else if (file.path != null && !kIsWeb) {
+          // モバイル環境でファイルパスがある場合
+          final imageFile = File(file.path!);
+          imageBytes = await imageFile.readAsBytes();
+          if (kDebugMode) {
+            debugPrint('✅ ファイルパスから読み込み: ${imageBytes.length} bytes');
+          }
+        }
+        
+        if (imageBytes == null || imageBytes.isEmpty) {
+          throw Exception('画像データを取得できませんでした');
+        }
+        
+        if (kDebugMode) {
+          debugPrint('✅ 画像読み込み成功: ${imageBytes.length} bytes');
+        }
+        
+        // 🔑 SKUコードを使用してファイルIDを生成（ローカル連番を使用）
+        String fileId;
+        final skuTrimmed = widget.sku.trim();
+        if (skuTrimmed.isNotEmpty) {
+          // SKUがある場合: ローカルカウンターを使用（既存画像から計算済み）
+          final currentCounter = _imageCounter;
+          fileId = '${skuTrimmed}_$currentCounter';
+          _imageCounter++;  // 次回用に連番をインクリメント
+          
+          if (kDebugMode) {
+            debugPrint('✅ SKUベースのファイル名: $fileId (SKU: $skuTrimmed, 連番: $currentCounter)');
+            debugPrint('🔢 次回の連番: $_imageCounter');
+          }
+        } else {
+          // SKUがない場合: タイムスタンプ
+          fileId = '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
+          if (kDebugMode) {
+            debugPrint('⚠️ SKUが空のためタイムスタンプベース: $fileId');
+          }
+        }
+        
+        // Workers経由でアップロード
+        uploadedImageUrl = await CloudflareWorkersStorageService.uploadImage(
+          imageBytes,
+          fileId,
+        );
+        
+        // 📸 アップロード成功時に画像をローカルキャッシュに保存
+        await ImageCacheService.cacheImage(uploadedImageUrl, imageBytes);
+        
+        if (kDebugMode) {
+          debugPrint('✅ ギャラリー画像アップロード完了: $uploadedImageUrl');
+        }
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.cloud_done, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text('アップロード完了!'),
+                ],
+              ),
+              backgroundColor: AppConstants.successGreen,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('⚠️ アップロード失敗: $e');
+        }
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.warning, color: Colors.white),
+                  SizedBox(width: 8),
+                  Expanded(child: Text('アップロードに失敗しました: $e')),
+                ],
+              ),
+              backgroundColor: AppConstants.warningOrange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;  // アップロード失敗時は追加しない
+      }
+
+      // 📸 選択した画像をリストに追加
+      if (uploadedImageUrl != null) {
+        setState(() {
+          _capturedImages.add(uploadedImageUrl!);
+          _selectedImageIndex = _capturedImages.length - 1; // 最新の画像を選択
+        });
+      }
+      
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('❌ ギャラリー選択エラー: $e');
+        debugPrint('スタックトレース: $stackTrace');
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text('画像の選択に失敗しました: ${e.toString()}'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
           ),
         );
       }
@@ -433,7 +748,25 @@ class _CameraScreenState extends State<CameraScreen> {
                                     bottom: 4,
                                     right: 4,
                                     child: GestureDetector(
-                                      onTap: () {
+                                      onTap: () async {
+                                        final deletedImageUrl = _capturedImages[index];
+                                        
+                                        // 🗑️ Cloudflareからも画像を削除
+                                        if (deletedImageUrl.startsWith('http')) {
+                                          if (kDebugMode) {
+                                            debugPrint('🗑️ Cloudflareから画像を削除中: $deletedImageUrl');
+                                          }
+                                          
+                                          // バックグラウンドで削除実行
+                                          CloudflareWorkersStorageService.deleteImage(deletedImageUrl).then((success) {
+                                            if (kDebugMode) {
+                                              debugPrint(success 
+                                                ? '✅ Cloudflare削除成功: $deletedImageUrl' 
+                                                : '⚠️ Cloudflare削除失敗: $deletedImageUrl');
+                                            }
+                                          });
+                                        }
+                                        
                                         setState(() {
                                           _capturedImages.removeAt(index);
                                           // 削除後のインデックス調整
@@ -443,11 +776,24 @@ class _CameraScreenState extends State<CameraScreen> {
                                           if (_selectedImageIndex < 0) {
                                             _selectedImageIndex = 0;
                                           }
+                                          
+                                          // 🔢 連番を再計算: 既存画像の最大連番+1から開始
+                                          _imageCounter = _calculateNextImageCounter();
+                                          
+                                          if (kDebugMode) {
+                                            debugPrint('🗑️ 画像削除後、次の連番を $_imageCounter にリセット');
+                                          }
                                         });
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text('画像を削除しました'),
-                                            duration: Duration(seconds: 1),
+                                            content: Row(
+                                              children: [
+                                                Icon(Icons.delete, color: Colors.white, size: 18),
+                                                SizedBox(width: 8),
+                                                Text('画像を削除しました（サーバーからも削除中...）'),
+                                              ],
+                                            ),
+                                            duration: Duration(seconds: 2),
                                             backgroundColor: Colors.red,
                                           ),
                                         );
@@ -477,39 +823,71 @@ class _CameraScreenState extends State<CameraScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // ギャラリーボタン（撮影枚数を表示）
-                      Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[800],
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white54),
-                        ),
-                        child: Stack(
-                          children: [
-                            Center(child: Icon(Icons.image, color: Colors.white)),
-                            if (_capturedImages.isNotEmpty)
-                              Positioned(
-                                top: 4,
-                                right: 4,
-                                child: Container(
-                                  padding: EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: AppConstants.primaryCyan,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Text(
-                                    '${_capturedImages.length}',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
+                      // 📁 ギャラリーボタン（GestureDetectorで確実にタップ検出）
+                      GestureDetector(
+                        onTap: () async {
+                          if (kDebugMode) {
+                            debugPrint('🖱️ ============================================');
+                            debugPrint('🖱️ ギャラリーボタンがタップされました');
+                            debugPrint('🖱️ ============================================');
+                          }
+                          try {
+                            await _pickImageFromGallery();
+                          } catch (e, stackTrace) {
+                            if (kDebugMode) {
+                              debugPrint('❌ ギャラリー選択でエラー: $e');
+                              debugPrint('❌ スタックトレース: $stackTrace');
+                            }
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('ギャラリーを開けませんでした: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        behavior: HitTestBehavior.opaque,  // 透明部分もタップ検出
+                        child: Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[800],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.white54),
+                          ),
+                          child: Stack(
+                            children: [
+                              Center(
+                                child: Icon(
+                                  Icons.photo_library,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                              ),
+                              if (_capturedImages.isNotEmpty)
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: Container(
+                                    padding: EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: AppConstants.primaryCyan,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Text(
+                                      '${_capturedImages.length}',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                       

@@ -115,4 +115,72 @@ class InventoryProvider with ChangeNotifier {
       return null;
     }
   }
+  
+  // 📸 商品の画像URLを更新
+  Future<void> updateItemImages(String sku, List<String> newImageUrls) async {
+    if (sku.isEmpty) return;
+    
+    // SKUで既存アイテムを検索
+    final index = _items.indexWhere((item) => item.sku == sku);
+    if (index == -1) {
+      print('⚠️ 画像更新: SKU $sku が見つかりません');
+      return;
+    }
+    
+    final existingItem = _items[index];
+    
+    // 新しいアイテムを作成（画像URLのみ更新）
+    final updatedItem = InventoryItem(
+      id: existingItem.id,
+      name: existingItem.name,
+      brand: existingItem.brand,
+      imageUrl: newImageUrls.isNotEmpty ? newImageUrls.first : existingItem.imageUrl,
+      category: existingItem.category,
+      status: existingItem.status,
+      date: existingItem.date,
+      length: existingItem.length,
+      width: existingItem.width,
+      size: existingItem.size,
+      hasAlert: existingItem.hasAlert,
+      barcode: existingItem.barcode,
+      sku: existingItem.sku,
+      color: existingItem.color,
+      productRank: existingItem.productRank,
+      salePrice: existingItem.salePrice,
+      condition: existingItem.condition,
+      description: existingItem.description,
+      material: existingItem.material,
+      imageUrls: newImageUrls,  // 📸 新しい画像リスト
+    );
+    
+    // リストを更新
+    _items[index] = updatedItem;
+    
+    // Hiveを更新
+    if (_box != null) {
+      await _box!.put(existingItem.id, updatedItem);
+      print('📸 画像URL更新完了: SKU=$sku, 画像数=${newImageUrls.length}');
+    }
+    
+    notifyListeners();
+  }
+  
+  // 🗑️ 商品から特定の画像を削除
+  Future<void> removeImageFromItem(String sku, String imageUrl) async {
+    if (sku.isEmpty) return;
+    
+    final existingItem = findBySku(sku);
+    if (existingItem == null) {
+      print('⚠️ 画像削除: SKU $sku が見つかりません');
+      return;
+    }
+    
+    // 現在の画像リストから指定の画像を削除
+    final currentImages = List<String>.from(existingItem.imageUrls ?? []);
+    currentImages.remove(imageUrl);
+    
+    // 更新
+    await updateItemImages(sku, currentImages);
+    print('🗑️ 画像を削除しました: $imageUrl');
+  }
 }

@@ -6,6 +6,8 @@ import 'package:measure_master/constants.dart';
 import 'package:measure_master/providers/inventory_provider.dart';
 import 'package:measure_master/screens/add_item_screen.dart';
 import 'package:measure_master/screens/api_products_screen.dart';
+// Web環境ではMLKitが使えないためバーコードスキャナーは無効
+// import 'package:measure_master/screens/barcode_scanner_screen.dart';
 import 'package:measure_master/models/item.dart';
 import 'package:measure_master/services/api_service.dart';
 import 'package:measure_master/models/api_product.dart';
@@ -61,13 +63,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         );
         
-        // 🔧 修正: 保存済み商品は existingItem として渡す（撮影データを保持）
-        // ※ prefillData（ApiProduct）では imageUrls が渡せないため
+        // 🔧 修正: 保存済み商品は existingItem として渡す
         Navigator.push(
           context,
           PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) => AddItemScreen(
-              existingItem: savedItem,  // 📸 撮影データ（imageUrls）を含む完全なデータを渡す
+              existingItem: savedItem,
             ),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
@@ -113,13 +114,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
         // 検索窓をクリア
         _searchController.clear();
       } else {
-        // 商品が見つからない
+        // 商品が見つからない場合は、検索したバーコード/SKUを初期値として新規作成画面へ
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('商品が見つかりませんでした (ID: $query)'),
+            content: Text('商品が見つかりませんでした。新規作成します。'),
             backgroundColor: AppConstants.warningOrange,
+            duration: const Duration(seconds: 2),
           ),
         );
+
+        // 仮のAPIプロダクトを作成して渡す（バーコード/SKUのみ入力済み）
+        final dummyProduct = ApiProduct(
+          id: 0,
+          sku: query,
+          name: '',
+          createdAt: DateTime.now(),
+          category: '',
+          priceSale: 0,
+          stockQuantity: 0,
+          barcode: query, // バーコードとしてセット
+        );
+
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => AddItemScreen(
+              prefillData: dummyProduct,
+            ),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 200),
+          ),
+        );
+        _searchController.clear();
       }
     } catch (e) {
       setState(() {
@@ -133,6 +161,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       );
     }
+  }
+
+  /// 📸 バーコードスキャン実行
+  Future<void> _scanBarcode() async {
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Web版ではバーコードスキャンはサポートされていません')),
+      );
+      return;
+    }
+
+    // Web環境ではBarcodeScannerScreenは使用不可
+    // try {
+    //   final result = await Navigator.push(
+    //     context,
+    //     MaterialPageRoute(builder: (context) => const BarcodeScannerScreen()),
+    //   );
+
+    //   if (result != null && result is String) {
+    //     // スキャン結果を使って検索を実行
+    //     _searchProduct(result);
+    //   }
+    // } catch (e) {
+    //   if (kDebugMode) {
+    //     debugPrint('⚠️ バーコードスキャンエラー: $e');
+    //   }
+    // }
   }
 
   @override
@@ -232,23 +287,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(height: 16),
               
-              // API連携ボタン
+              // API連携ボタン (バーコードスキャンに変更)
               Container(
                 width: double.infinity,
                 height: 60,
                 child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      PageRouteBuilder(
-                        pageBuilder: (context, animation, secondaryAnimation) => const ApiProductsScreen(),
-                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                          return FadeTransition(opacity: animation, child: child);
-                        },
-                        transitionDuration: const Duration(milliseconds: 200),
-                      ),
-                    );
-                  },
+                  onPressed: _scanBarcode,
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: AppConstants.primaryCyan, width: 2),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -256,14 +300,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.cloud_download, size: 28, color: AppConstants.primaryCyan),
+                      Icon(Icons.qr_code_scanner, size: 28, color: AppConstants.primaryCyan),
                       const SizedBox(width: 12),
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "API商品データを取り込む",
+                            "バーコードを読み取る",
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -271,7 +315,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ),
                           Text(
-                            "ログイン時に自動更新",
+                            "商品情報を自動取得",
                             style: TextStyle(
                               fontSize: 11,
                               color: AppConstants.textGrey,

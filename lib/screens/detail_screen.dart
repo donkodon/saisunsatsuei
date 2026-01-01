@@ -8,9 +8,11 @@ import 'package:measure_master/providers/inventory_provider.dart';
 import 'package:measure_master/models/item.dart';
 import 'package:measure_master/services/cloudflare_storage_service.dart';
 import 'package:measure_master/services/image_cache_service.dart';
+import 'package:measure_master/services/api_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 import 'dart:io' show File;
+import 'dart:convert';
 
 class DetailScreen extends StatefulWidget {
   final String itemName;
@@ -504,10 +506,24 @@ class _DetailScreenState extends State<DetailScreen> {
 
                 // 📸 すべての画像をアップロード
                 List<String> uploadedImageUrls = [];
-                String imageUrl = allImagePaths.first;  // 最初の画像をメイン画像として使用
                 
-                // 📸 既にCloudflare URLの場合はアップロードをスキップ
-                if (!imageUrl.startsWith('https://pub-300562464768499b8fcaee903d0f9861.r2.dev')) {
+                // 🔑 SKUコードを取得（ファイル名に使用）
+                final skuCode = _skuController.text.isNotEmpty ? _skuController.text : 'NOSKU';
+                
+                // 📸 各画像を順番にアップロード
+                for (int i = 0; i < allImagePaths.length; i++) {
+                  String imagePath = allImagePaths[i];
+                  
+                  // 📸 既にCloudflare URLの場合はアップロードをスキップ（過去分は諦める）
+                  if (imagePath.startsWith('https://pub-300562464768499b8fcaee903d0f9861.r2.dev') ||
+                      imagePath.startsWith('https://image-upload-api.jinkedon2.workers.dev')) {
+                    if (kDebugMode) {
+                      debugPrint('✅ 既にアップロード済み（スキップ）: $imagePath');
+                    }
+                    uploadedImageUrls.add(imagePath);
+                    continue;
+                  }
+                  
                   // 📸 Cloudflare Workers経由で画像をアップロード
                   try {
                     Uint8List imageBytes;
@@ -515,11 +531,11 @@ class _DetailScreenState extends State<DetailScreen> {
                     if (kIsWeb) {
                       // Web環境：blob: URLから画像データを取得
                       if (kDebugMode) {
-                        debugPrint('🌐 Web環境：blob URLから画像を読み込み: $imageUrl');
+                        debugPrint('🌐 Web環境：blob URLから画像を読み込み: $imagePath');
                       }
                       
                       // blob: URLからHTTPリクエストで画像データを取得
-                      final response = await http.get(Uri.parse(imageUrl));
+                      final response = await http.get(Uri.parse(imagePath));
                       if (response.statusCode == 200) {
                         imageBytes = response.bodyBytes;
                         if (kDebugMode) {
@@ -530,65 +546,88 @@ class _DetailScreenState extends State<DetailScreen> {
                       }
                     } else {
                       // モバイル環境：ファイルパスから画像を読み込み
-                      final imageFile = File(imageUrl);
+                      final imageFile = File(imagePath);
                       imageBytes = await imageFile.readAsBytes();
                       if (kDebugMode) {
                         debugPrint('📱 モバイル環境：ファイル読み込み成功: ${imageBytes.length} bytes');
                       }
                     }
                     
-                    // ユニークなアイテムIDを生成
-                    final uniqueId = '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
+                    // 🔑 SKUコード + 連番でファイルIDを生成
+                    // 注意: 撮影時に既に連番が付いているはずなので、ここでは単純にインデックスを使用
+                    String fileId;
+                    if (skuCode != 'NOSKU') {
+                      // SKUがある場合：画像インデックス+1を連番として使用
+                      final imageNumber = i + 1;
+                      fileId = '${skuCode}_$imageNumber';
+                      
+                      if (kDebugMode) {
+                        debugPrint('✅ SKUベースのファイル名: $fileId (連番: $imageNumber)');
+                      }
+                    } else {
+                      // SKUがない場合：タイムスタンプベース
+                      fileId = '${DateTime.now().millisecondsSinceEpoch}_${i + 1}';
+                    }
+                    
+                    if (kDebugMode) {
+                      debugPrint('📦 アップロード開始: $fileId (画像${i + 1}/${allImagePaths.length})');
+                    }
                     
                     // Workers経由でアップロード
                     final uploadedUrl = await CloudflareWorkersStorageService.uploadImage(
                       imageBytes,
-                      uniqueId,
+                      fileId,
                     );
                     
-                    imageUrl = uploadedUrl;
+                    uploadedImageUrls.add(uploadedUrl);
                     
                     // 📸 アップロード成功時に画像をローカルキャッシュに保存（CORS対策）
                     await ImageCacheService.cacheImage(uploadedUrl, imageBytes);
                     
                     if (kDebugMode) {
-                      debugPrint('✅ Cloudflare Workers Upload complete: $imageUrl');
+                      debugPrint('✅ Cloudflare Workers Upload complete: $uploadedUrl');
                       debugPrint('✅ 画像キャッシュ保存完了');
                     }
                     
                   } catch (e) {
-                  // アップロード失敗時はローカルパスを使用（モバイルのみ有効）
-                  if (kDebugMode) {
-                    debugPrint('❌ Cloudflare Upload error: $e');
-                    debugPrint('📁 Using local path: $imageUrl');
-                  }
-                  
-                  // エラーメッセージを表示
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Row(
-                        children: [
-                          Icon(Icons.warning, color: Colors.white),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(kIsWeb 
-                              ? '画像アップロードに失敗しました。もう一度お試しください。' 
-                              : '画像アップロードに失敗しました。ローカルに保存します。'),
-                          ),
-                        ],
+                    // アップロード失敗時はローカルパスを使用（モバイルのみ有効）
+                    if (kDebugMode) {
+                      debugPrint('❌ Cloudflare Upload error: $e');
+                      debugPrint('📁 Using local path: $imagePath');
+                    }
+                    
+                    // エラーメッセージを表示
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            Icon(Icons.warning, color: Colors.white),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(kIsWeb 
+                                ? '画像${i + 1}のアップロードに失敗しました。もう一度お試しください。' 
+                                : '画像${i + 1}のアップロードに失敗しました。ローカルに保存します。'),
+                            ),
+                          ],
+                        ),
+                        backgroundColor: AppConstants.warningOrange,
+                        duration: Duration(seconds: 3),
                       ),
-                      backgroundColor: AppConstants.warningOrange,
-                      duration: Duration(seconds: 3),
-                    ),
-                  );
-                  
-                  // Web環境でアップロード失敗した場合は、保存処理を中断
-                  if (kIsWeb) {
-                    Navigator.pop(context);  // ローディングを閉じる
-                    return;
-                  }
+                    );
+                    
+                    // Web環境でアップロード失敗した場合は、保存処理を中断
+                    if (kIsWeb) {
+                      Navigator.pop(context);  // ローディングを閉じる
+                      return;
+                    }
+                    
+                    // モバイル環境ではローカルパスを追加
+                    uploadedImageUrls.add(imagePath);
                   }
                 }
+                
+                // 📸 メイン画像URLを設定（最初の画像）
+                String imageUrl = uploadedImageUrls.isNotEmpty ? uploadedImageUrls.first : allImagePaths.first;
 
                 // Hide Loading
                 Navigator.pop(context);
@@ -599,9 +638,6 @@ class _DetailScreenState extends State<DetailScreen> {
                 
                 // 🔑 ユニークなID生成: タイムスタンプ + マイクロ秒
                 final uniqueId = '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
-                
-                // 📸 すべての画像URLを保存（アップロード済みまたはローカルパス）
-                uploadedImageUrls = List.from(allImagePaths);
                 
                 final newItem = InventoryItem(
                   id: uniqueId,
@@ -629,7 +665,44 @@ class _DetailScreenState extends State<DetailScreen> {
                 print('   condition: ${newItem.condition}');
                 print('   description: ${newItem.description}');
                  
+                // 💾 Hiveに保存 (オフラインキャッシュ)
                 await Provider.of<InventoryProvider>(context, listen: false).addItem(newItem);
+                
+                // 🌐 Cloudflare D1に保存 (オンライン同期) - 現在は無効化
+                // ⚠️ D1 APIが未設定のため、ローカル保存のみ実行
+                // TODO: D1 APIが準備できたら有効化
+                if (kDebugMode) {
+                  debugPrint('ℹ️ D1 API保存はスキップ（ローカルHiveに保存済み）');
+                }
+                /*
+                try {
+                  final itemData = {
+                    'sku': newItem.sku ?? '',
+                    'imageUrls': uploadedImageUrls,
+                    'actualMeasurements': {
+                      'length': newItem.length,
+                      'width': newItem.width,
+                    },
+                    'condition': newItem.condition ?? '',
+                    'material': newItem.material ?? '',
+                    'productRank': newItem.productRank ?? '',
+                    'inspectionNotes': newItem.description ?? '',
+                    'status': newItem.status,
+                    'photographedBy': 'mobile_app_user',
+                  };
+                  
+                  final apiService = ApiService();
+                  final saved = await apiService.saveProductItemToD1(itemData);
+                  
+                  if (saved && kDebugMode) {
+                    debugPrint('✅ D1に実物データ保存成功: ${newItem.sku}');
+                  }
+                } catch (e) {
+                  if (kDebugMode) {
+                    debugPrint('⚠️ D1保存エラー (Hiveには保存済み): $e');
+                  }
+                }
+                */
                  
                 // 🚀 高速遷移
                 Navigator.pushAndRemoveUntil(
@@ -1010,6 +1083,7 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
+  /// 🌐 外部WEBアプリに商品データを送信
   String _getConditionGrade(String condition) {
     switch (condition) {
       case '新品・未使用':

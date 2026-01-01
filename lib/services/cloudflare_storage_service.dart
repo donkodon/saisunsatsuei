@@ -99,21 +99,115 @@ class CloudflareWorkersStorageService {
   // Workers APIエンドポイント（スクリーンショットの設定から）
   static const String workerBaseUrl = 'https://image-upload-api.jinkedon2.workers.dev';
   static const String uploadEndpoint = '$workerBaseUrl/upload';  // ✅ /upload パスを追加
+  static const String checkEndpoint = '$workerBaseUrl/check';    // 🔍 ファイル存在チェック用
   
+  /// 🔍 ファイルが既に存在するかチェック
+  /// [fileName] - チェックするファイル名（例: "SKU_1.jpg"）
+  /// Returns: true = 存在する, false = 存在しない
+  static Future<bool> checkFileExists(String fileName) async {
+    try {
+      final checkUrl = Uri.parse('$checkEndpoint?filename=$fileName');
+      
+      final response = await http.get(checkUrl).timeout(
+        Duration(seconds: 10),
+        onTimeout: () => http.Response('timeout', 408),
+      );
+      
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        return jsonResponse['exists'] == true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('⚠️ ファイル存在チェックエラー: $e');
+      return false;  // エラー時は存在しないと見なす
+    }
+  }
+  
+  /// 🔢 SKUに対して使用可能な次の連番を取得
+  /// [sku] - SKUコード
+  /// [startFrom] - 検索開始の連番（デフォルト: 1）
+  /// Returns: 使用可能な連番
+  static Future<int> getNextAvailableCounter(String sku, {int startFrom = 1}) async {
+    int counter = startFrom;
+    const maxAttempts = 100;  // 無限ループ防止
+    
+    for (int attempt = 0; attempt < maxAttempts; attempt++) {
+      final fileName = '${sku}_$counter.jpg';
+      final exists = await checkFileExists(fileName);
+      
+      if (!exists) {
+        debugPrint('✅ 使用可能な連番: $counter (ファイル名: $fileName)');
+        return counter;
+      }
+      
+      debugPrint('⚠️ 連番 $counter は既に使用中、次をチェック...');
+      counter++;
+    }
+    
+    // 最大試行回数を超えた場合はタイムスタンプベースに
+    debugPrint('⚠️ 連番が見つからないため、タイムスタンプを使用');
+    return DateTime.now().millisecondsSinceEpoch;
+  }
+  
+  /// 🗑️ Workers経由で画像を削除
+  /// [imageUrl] - 削除する画像のURL
+  /// Returns: true = 削除成功, false = 削除失敗
+  static Future<bool> deleteImage(String imageUrl) async {
+    try {
+      // URLからファイル名を抽出
+      final uri = Uri.tryParse(imageUrl);
+      if (uri == null || uri.pathSegments.isEmpty) {
+        debugPrint('⚠️ 無効なURL: $imageUrl');
+        return false;
+      }
+      
+      final fileName = uri.pathSegments.last;
+      
+      // Workers削除エンドポイント
+      final deleteUrl = Uri.parse('$workerBaseUrl/delete?filename=$fileName');
+      
+      debugPrint('🗑️ Cloudflare削除リクエスト: $deleteUrl');
+      debugPrint('📁 削除するファイル: $fileName');
+      
+      final response = await http.delete(deleteUrl).timeout(
+        Duration(seconds: 15),
+        onTimeout: () => http.Response('timeout', 408),
+      );
+      
+      debugPrint('📨 削除レスポンス: ${response.statusCode}');
+      debugPrint('📨 レスポンス内容: ${response.body}');
+      
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        debugPrint('✅ 画像削除成功: $fileName');
+        return true;
+      } else {
+        debugPrint('⚠️ 画像削除失敗: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('❌ Cloudflare画像削除エラー: $e');
+      return false;
+    }
+  }
+
   /// 📸 Workers経由で画像をアップロード
   /// [imageBytes] - 画像のバイトデータ
-  /// [itemId] - 商品ID
+  /// [itemId] - ファイル名（SKU_連番形式: 例 "1025L190003_1"）
   static Future<String> uploadImage(Uint8List imageBytes, String itemId) async {
     try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = '${itemId}_$timestamp.jpg';
+      // ファイル名形式: {SKU}_{連番}.jpg
+      final fileName = '$itemId.jpg';
       
       debugPrint('📤 Uploading to Cloudflare Workers: $uploadEndpoint');
       debugPrint('📦 File name: $fileName');
       debugPrint('📊 File size: ${imageBytes.length} bytes');
       
+      // ファイル名をURLパラメータとして追加
+      final uploadUrl = Uri.parse('$uploadEndpoint?filename=$fileName');
+      
       // Multipartリクエストを作成
-      final request = http.MultipartRequest('POST', Uri.parse(uploadEndpoint));
+      final request = http.MultipartRequest('POST', uploadUrl);
       request.files.add(
         http.MultipartFile.fromBytes(
           'file',
