@@ -40,18 +40,19 @@ class _AddItemScreenState extends State<AddItemScreen> {
   final TextEditingController _skuController = TextEditingController();
   final TextEditingController _sizeController = TextEditingController();
   
-  String _selectedCategory = 'ジャケット/アウター';
+  String _selectedCategory = '選択してください';
   String _selectedCondition = '選択してください';
   String _selectedRank = '選択してください'; // 🆕 商品ランク
-  String _selectedMaterial = 'コットン 100%'; // 🆕 素材
-  String _selectedColor = 'ホワイト'; // 🆕 カラー
-  Color _colorPreview = Colors.white; // 🆕 カラープレビュー
+  String _selectedMaterial = '選択してください'; // 🆕 素材
+  String _selectedColor = '選択してください'; // 🆕 カラー
+  Color _colorPreview = Colors.grey[400]!; // 🆕 カラープレビュー（デフォルト：選択前）
   
   // 🆕 商品ランクのオプション (S, A, B, C, D, E, N)
-  final List<String> _ranks = ['S', 'A', 'B', 'C', 'D', 'E', 'N'];
+  final List<String> _ranks = ['選択してください', 'S', 'A', 'B', 'C', 'D', 'E', 'N'];
   
   // 🆕 素材のオプション
   final List<String> _materials = [
+    '選択してください',
     'コットン 100%',
     'ポリエステル 100%',
     'コットン 80% / ポリエステル 20%',
@@ -66,6 +67,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
   
   // 🆕 カラーオプション
   final Map<String, Color> _colorOptions = {
+    '選択してください': Colors.grey[400]!,
     'ホワイト': Colors.white,
     'ブラック': Colors.black,
     'グレー': Colors.grey,
@@ -201,8 +203,21 @@ class _AddItemScreenState extends State<AddItemScreen> {
       if (item.sku != null) _skuController.text = item.sku!;
       if (item.size != null) _sizeController.text = item.size!;
       
+      // 🔧 カテゴリを復元（重要！）
+      if (item.category.isNotEmpty && _categories.contains(item.category)) {
+        _selectedCategory = item.category;
+      }
+      
       // 選択項目
-      if (item.condition != null) _selectedCondition = item.condition!;
+      if (item.condition != null && item.condition!.isNotEmpty) {
+        // 🔧 条件リストに存在するか確認
+        if (_conditions.contains(item.condition!)) {
+          _selectedCondition = item.condition!;
+        } else {
+          // 存在しない場合はそのまま設定（カスタム値）
+          _selectedCondition = item.condition!;
+        }
+      }
       if (item.productRank != null && _ranks.contains(item.productRank)) {
         _selectedRank = item.productRank!;
       }
@@ -290,6 +305,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
   
   // Category options
   final List<String> _categories = [
+    '選択してください',
     'トップス',
     'ジャケット/アウター',
     'パンツ',
@@ -303,6 +319,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
   
   // Condition options
   final List<String> _conditions = [
+    '選択してください',
     '新品・未使用',
     '未使用に近い',
     '目立った傷や汚れなし',
@@ -734,18 +751,31 @@ class _AddItemScreenState extends State<AddItemScreen> {
                   PageRouteBuilder(
                     pageBuilder: (context, animation, secondaryAnimation) => DetailScreen(
                       itemName: _nameController.text,
-                      brand: _brandController.text,
-                      category: _selectedCategory,
+                      brand: _brandController.text.isEmpty ? '' : _brandController.text,
+                      category: _selectedCategory,  // 🔧 そのまま渡す（DetailScreenで判定）
                       condition: _selectedCondition,
                       price: _priceController.text,
                       barcode: _barcodeController.text,
                       sku: _skuController.text,
                       size: _sizeController.text,
-                      color: _selectedColor,
-                      productRank: _selectedRank,
-                      material: _selectedMaterial,
+                      color: _selectedColor,  // 🔧 そのまま渡す（DetailScreenで判定）
+                      productRank: _selectedRank,  // 🔧 そのまま渡す（DetailScreenで判定）
+                      material: _selectedMaterial,  // 🔧 そのまま渡す（DetailScreenで判定）
                       description: _descriptionController.text,
                       capturedImages: _capturedImages.isEmpty ? null : _capturedImages,  // 📸 撮影した画像を渡す
+                      // 🆕 product_masterから引き継ぐ追加フィールド
+                      brandKana: widget.prefillData?.brandKana,
+                      categorySub: widget.prefillData?.categorySub,
+                      priceCost: widget.prefillData?.priceCost,
+                      season: widget.prefillData?.season,
+                      releaseDate: widget.prefillData?.releaseDate,
+                      buyer: widget.prefillData?.buyer,
+                      storeName: widget.prefillData?.storeName,
+                      priceRef: widget.prefillData?.priceRef,
+                      priceSale: widget.prefillData?.priceSale,
+                      priceList: widget.prefillData?.priceList,
+                      location: widget.prefillData?.location,
+                      stockQuantity: widget.prefillData?.stockQuantity,
                     ),
                     transitionsBuilder: (context, animation, secondaryAnimation, child) {
                       return FadeTransition(opacity: animation, child: child);
@@ -865,46 +895,14 @@ class _AddItemScreenState extends State<AddItemScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text("販売価格を入力"),
-          content: TextField(
-            controller: tempController,
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            autofocus: true,
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            decoration: InputDecoration(
-              prefixText: "¥ ",
-              prefixStyle: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppConstants.textDark),
-              hintText: "0",
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: AppConstants.primaryCyan, width: 2),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: AppConstants.primaryCyan, width: 2),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text("キャンセル"),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  controller.text = tempController.text;
-                });
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppConstants.primaryCyan,
-              ),
-              child: Text("確定", style: TextStyle(color: Colors.white)),
-            ),
-          ],
+        return _PricePickerDialog(
+          controller: controller,
+          tempController: tempController,
+          onConfirm: () {
+            setState(() {
+              controller.text = tempController.text;
+            });
+          },
         );
       },
     );
@@ -1426,6 +1424,119 @@ class _AddItemScreenState extends State<AddItemScreen> {
           },
         );
       },
+    );
+  }
+}
+
+// 🔧 価格入力ダイアログ（StatefulWidget）
+class _PricePickerDialog extends StatefulWidget {
+  final TextEditingController controller;
+  final TextEditingController tempController;
+  final VoidCallback onConfirm;
+
+  const _PricePickerDialog({
+    required this.controller,
+    required this.tempController,
+    required this.onConfirm,
+  });
+
+  @override
+  _PricePickerDialogState createState() => _PricePickerDialogState();
+}
+
+class _PricePickerDialogState extends State<_PricePickerDialog> {
+  late FocusNode _focusNode;
+  bool _hasFocused = false;  // 🔧 フォーカス済みフラグ
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode();
+    
+    // 🔧 フォーカスリスナーを追加（デバッグ用）
+    _focusNode.addListener(() {
+      if (kDebugMode) {
+        debugPrint('🔍 Price TextField focus: ${_focusNode.hasFocus}');
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 🔧 ビルド後にフォーカスを設定（1回だけ）
+    if (!_hasFocused) {
+      _hasFocused = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_focusNode.hasFocus) {
+          _focusNode.requestFocus();
+          // 🔧 少し遅延させてから全選択
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (mounted && widget.tempController.text.isNotEmpty) {
+              widget.tempController.selection = TextSelection(
+                baseOffset: 0,
+                extentOffset: widget.tempController.text.length,
+              );
+            }
+          });
+        }
+      });
+    }
+    
+    return AlertDialog(
+      title: Text("販売価格を入力"),
+      content: SizedBox(
+        width: 280,  // 🔧 固定幅を設定
+        child: TextField(
+          controller: widget.tempController,
+          focusNode: _focusNode,
+          keyboardType: kIsWeb ? TextInputType.text : TextInputType.number,  // 🔧 Web環境ではtextに変更
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          autofocus: false,  // 🔧 autofocusを無効化（手動でフォーカス管理）
+          enableInteractiveSelection: true,  // 🔧 選択を有効化
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          onChanged: (value) {
+            // 🔧 入力変更をログ出力（デバッグ用）
+            if (kDebugMode) {
+              debugPrint('💰 Price input changed: $value');
+            }
+          },
+          decoration: InputDecoration(
+            prefixText: "¥ ",
+            prefixStyle: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppConstants.textDark),
+            hintText: "0",
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppConstants.primaryCyan, width: 2),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppConstants.primaryCyan, width: 2),
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text("キャンセル"),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            widget.onConfirm();
+            Navigator.pop(context);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppConstants.primaryCyan,
+          ),
+          child: Text("確定", style: TextStyle(color: Colors.white)),
+        ),
+      ],
     );
   }
 }

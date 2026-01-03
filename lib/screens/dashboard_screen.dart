@@ -81,23 +81,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return;
       }
       
-      // 🌐 ステップ2: APIから検索
-      final product = await _apiService.searchByIdOrBarcode(query);
+      // 🌐 ステップ2: 統合検索API（product_items → product_master）
+      final searchResult = await _apiService.searchByBarcodeOrSku(query);
 
       setState(() {
         _isSearching = false;
       });
 
-      if (product != null) {
-        // 🎉 API商品が見つかった
+      if (searchResult != null && searchResult['success'] == true) {
+        final source = searchResult['source'];
+        final data = searchResult['data'];
+        
+        if (kDebugMode) {
+          debugPrint('✅ 検索成功: source=$source, data=$data');
+        }
+        
+        // データソースに応じてメッセージを変更
+        String message = '';
+        if (source == 'product_items') {
+          message = '実物データ: ${data['name'] ?? data['sku']}';
+        } else if (source == 'product_master') {
+          message = 'マスタ商品: ${data['name'] ?? data['sku']}';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('API商品: ${product.name}'),
+            content: Text(message),
             backgroundColor: AppConstants.successGreen,
           ),
         );
 
-        // 自動入力データと共にAddItemScreenへ遷移
+        // ApiProduct形式に変換してAddItemScreenへ遷移
+        final product = ApiProduct(
+          id: data['id'] ?? 0,
+          sku: data['sku'] ?? query,
+          name: data['name'] ?? '',
+          brand: data['brand'],
+          category: data['category'],
+          size: data['size'],
+          color: data['color'],
+          priceSale: data['price'] ?? data['price_sale'],
+          createdAt: DateTime.now(),
+          imageUrls: data['imageUrls'],
+          barcode: data['barcode'],
+          // 🔧 product_items の情報を追加
+          condition: data['condition'],
+          material: data['material'],
+          productRank: data['product_rank'],
+          description: data['inspection_notes'],
+        );
+
         Navigator.push(
           context,
           PageRouteBuilder(

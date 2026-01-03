@@ -29,6 +29,20 @@ class DetailScreen extends StatefulWidget {
   final String description;
   final String? capturedImagePath;  // 📸 撮影した画像のパス（オプション・後方互換性）
   final List<String>? capturedImages;  // 📸 複数の撮影画像（新機能）
+  
+  // 🆕 product_masterから引き継ぐ追加フィールド
+  final String? brandKana;        // ブランドカナ
+  final String? categorySub;      // カテゴリサブ
+  final int? priceCost;           // 価格_コスト
+  final String? season;           // 季節
+  final String? releaseDate;      // 発売日
+  final String? buyer;            // 買い手
+  final String? storeName;        // 店舗名
+  final int? priceRef;            // 価格参照
+  final int? priceSale;           // 価格_セール
+  final int? priceList;           // 価格表
+  final String? location;         // 位置
+  final int? stockQuantity;       // 在庫数量
 
   DetailScreen({
     required this.itemName,
@@ -45,6 +59,19 @@ class DetailScreen extends StatefulWidget {
     required this.description,
     this.capturedImagePath,  // オプション（後方互換性）
     this.capturedImages,  // オプション（複数画像）
+    // 🆕 追加フィールド（オプション）
+    this.brandKana,
+    this.categorySub,
+    this.priceCost,
+    this.season,
+    this.releaseDate,
+    this.buyer,
+    this.storeName,
+    this.priceRef,
+    this.priceSale,
+    this.priceList,
+    this.location,
+    this.stockQuantity,
   });
 
   @override
@@ -66,9 +93,9 @@ class _DetailScreenState extends State<DetailScreen> {
   @override
   void initState() {
     super.initState();
-    // 初期値を設定
-    _selectedMaterial = widget.material.isNotEmpty ? widget.material : 'コットン 100%';
-    _selectedColor = widget.color.isNotEmpty ? widget.color : 'ホワイト';
+    // 初期値を設定（サンプルデータなし）
+    _selectedMaterial = widget.material.isNotEmpty && widget.material != '選択してください' ? widget.material : '選択してください';
+    _selectedColor = widget.color.isNotEmpty && widget.color != '選択してください' ? widget.color : '選択してください';
     _barcodeController.text = widget.barcode;
     _skuController.text = widget.sku;
     _sizeController.text = widget.size;
@@ -92,6 +119,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
   // Material options
   final List<String> _materials = [
+    '選択してください',
     'コットン 100%',
     'ポリエステル 100%',
     'コットン 80% / ポリエステル 20%',
@@ -106,6 +134,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
   // Color options with RGB values
   final Map<String, Color> _colorOptions = {
+    '選択してください': Colors.grey[400]!,
     'ホワイト': Colors.white,
     'ブラック': Colors.black,
     'グレー': Colors.grey,
@@ -473,26 +502,7 @@ class _DetailScreenState extends State<DetailScreen> {
             CustomButton(
               text: "商品確定", 
               onPressed: () async {
-                // 📸 画像が撮影されていない場合は警告
-                final hasImages = (widget.capturedImages != null && widget.capturedImages!.isNotEmpty) 
-                                  || widget.capturedImagePath != null;
-                if (!hasImages) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Row(
-                        children: [
-                          Icon(Icons.warning, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text('商品画像を撮影してください'),
-                        ],
-                      ),
-                      backgroundColor: AppConstants.warningOrange,
-                    ),
-                  );
-                  return;
-                }
-                
-                // 📸 すべての画像を取得
+                // 📸 画像は任意（撮影なしでも登録可能）
                 final allImagePaths = widget.capturedImages != null && widget.capturedImages!.isNotEmpty
                   ? widget.capturedImages!
                   : (widget.capturedImagePath != null ? [widget.capturedImagePath!] : <String>[]);
@@ -626,8 +636,10 @@ class _DetailScreenState extends State<DetailScreen> {
                   }
                 }
                 
-                // 📸 メイン画像URLを設定（最初の画像）
-                String imageUrl = uploadedImageUrls.isNotEmpty ? uploadedImageUrls.first : allImagePaths.first;
+                // 📸 メイン画像URLを設定（最初の画像、なければダミーURL）
+                String imageUrl = uploadedImageUrls.isNotEmpty 
+                  ? uploadedImageUrls.first 
+                  : (allImagePaths.isNotEmpty ? allImagePaths.first : 'https://via.placeholder.com/300x300?text=No+Image');
 
                 // Hide Loading
                 Navigator.pop(context);
@@ -644,19 +656,19 @@ class _DetailScreenState extends State<DetailScreen> {
                   name: widget.itemName,
                   brand: widget.brand,
                   imageUrl: imageUrl,  // Uploaded URL or Local Path (メイン画像)
-                  category: widget.category,
+                  category: (widget.category.isEmpty || widget.category == '選択してください') ? '' : widget.category,  // 🔧 選択してくださいを空文字に変換
                   status: "Ready",
                   date: DateTime.now(),
                   length: 68,
                   width: 52,
                   size: _sizeController.text.isEmpty ? "M" : _sizeController.text,
-                  barcode: _barcodeController.text,
-                  sku: _skuController.text,
-                  productRank: widget.productRank == '選択してください' ? '' : widget.productRank,
-                  condition: widget.condition,  // 商品の状態を保存
-                  description: _descriptionController.text,  // 商品の説明を保存
-                  color: _selectedColor,  // カラーを保存
-                  material: _selectedMaterial,  // 素材を保存
+                  barcode: _barcodeController.text.isEmpty ? null : _barcodeController.text,
+                  sku: _skuController.text.isEmpty ? null : _skuController.text,
+                  productRank: (widget.productRank.isEmpty || widget.productRank == '選択してください') ? null : widget.productRank,
+                  condition: (widget.condition.isEmpty || widget.condition == '選択してください') ? null : widget.condition,
+                  description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+                  color: (_selectedColor.isEmpty || _selectedColor == '選択してください') ? null : _selectedColor,
+                  material: (_selectedMaterial.isEmpty || _selectedMaterial == '選択してください') ? null : _selectedMaterial,
                   salePrice: widget.price.isNotEmpty ? int.tryParse(widget.price) : null,  // 販売価格を保存
                   imageUrls: uploadedImageUrls,  // 📸 すべての画像URLを保存
                 );
@@ -668,41 +680,95 @@ class _DetailScreenState extends State<DetailScreen> {
                 // 💾 Hiveに保存 (オフラインキャッシュ)
                 await Provider.of<InventoryProvider>(context, listen: false).addItem(newItem);
                 
-                // 🌐 Cloudflare D1に保存 (オンライン同期) - 現在は無効化
-                // ⚠️ D1 APIが未設定のため、ローカル保存のみ実行
-                // TODO: D1 APIが準備できたら有効化
-                if (kDebugMode) {
-                  debugPrint('ℹ️ D1 API保存はスキップ（ローカルHiveに保存済み）');
-                }
-                /*
+                // 🌐 Cloudflare D1に保存 (オンライン同期)
                 try {
-                  final itemData = {
+                  // 🔧 全21カラムをプロダクトアイテムに送信
+                  final itemCode = '${newItem.sku}_${DateTime.now().millisecondsSinceEpoch}';
+                  final itemData = <String, dynamic>{
+                    // 🔑 基本情報
                     'sku': newItem.sku ?? '',
+                    'itemCode': itemCode,
+                    'name': newItem.name ?? widget.itemName ?? '',
+                    'barcode': newItem.barcode ?? _barcodeController.text ?? '',
+                    
+                    // 📦 商品属性
+                    'brand': newItem.brand ?? widget.brand ?? '',
+                    'category': newItem.category ?? widget.category ?? '',
+                    'color': newItem.color ?? _selectedColor ?? '',
+                    'size': newItem.size ?? _sizeController.text ?? '',
+                    'material': newItem.material ?? _selectedMaterial ?? '',
+                    
+                    // 💰 価格情報
+                    'price': newItem.salePrice ?? (widget.price.isNotEmpty ? int.tryParse(widget.price) : null),
+                    
+                    // 📸 画像・実測値
                     'imageUrls': uploadedImageUrls,
                     'actualMeasurements': {
                       'length': newItem.length,
                       'width': newItem.width,
                     },
-                    'condition': newItem.condition ?? '',
-                    'material': newItem.material ?? '',
-                    'productRank': newItem.productRank ?? '',
-                    'inspectionNotes': newItem.description ?? '',
-                    'status': newItem.status,
+                    
+                    // 📋 状態・ランク
+                    'condition': newItem.condition ?? widget.condition ?? '',
+                    'productRank': newItem.productRank ?? widget.productRank ?? '',
+                    'inspectionNotes': newItem.description ?? _descriptionController.text ?? '',
+                    
+                    // 📅 撮影情報
+                    'photographedAt': DateTime.now().toIso8601String(),
                     'photographedBy': 'mobile_app_user',
+                    
+                    // 🔧 ステータス
+                    'status': 'Ready',
+                    'upsert': true,
                   };
+                  
+                  // 🔍 デバッグ: 送信前のデータを確認
+                  if (kDebugMode) {
+                    debugPrint('📤 超シンプル版 D1へ送信: $itemData');
+                  }
                   
                   final apiService = ApiService();
                   final saved = await apiService.saveProductItemToD1(itemData);
                   
-                  if (saved && kDebugMode) {
-                    debugPrint('✅ D1に実物データ保存成功: ${newItem.sku}');
+                  if (saved) {
+                    if (kDebugMode) {
+                      debugPrint('✅ D1に実物データ保存成功: ${newItem.sku}');
+                    }
+                    // ユーザーに成功を通知
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('✅ クラウドに保存しました'),
+                          backgroundColor: Colors.green,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
                   }
                 } catch (e) {
                   if (kDebugMode) {
                     debugPrint('⚠️ D1保存エラー (Hiveには保存済み): $e');
                   }
+                  // ユーザーにエラーを通知（ローカルには保存済み）
+                  if (context.mounted) {
+                    // エラーメッセージ全文を表示（最大500文字）
+                    final errorMsg = e.toString();
+                    final displayMsg = errorMsg.length > 500 ? errorMsg.substring(0, 500) : errorMsg;
+                    
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('⚠️ クラウド保存失敗（ローカルには保存済み）\n$displayMsg'),
+                        backgroundColor: Colors.orange,
+                        duration: Duration(seconds: 10),  // 10秒表示
+                        action: SnackBarAction(
+                          label: '閉じる',
+                          textColor: Colors.white,
+                          onPressed: () {},
+                        ),
+                      ),
+                    );
+                  }
                 }
-                */
                  
                 // 🚀 高速遷移
                 Navigator.pushAndRemoveUntil(

@@ -16,6 +16,18 @@ class ApiProduct {
   final String? description;  // 商品の説明
   final String? material;     // 素材
   final List<String>? imageUrls;  // 📸 撮影画像のURL（保存済み商品データ復元用）
+  
+  // 🆕 product_masterから引き継ぐ追加フィールド
+  final String? brandKana;       // ブランドカナ
+  final String? categorySub;     // カテゴリサブ
+  final int? priceCost;          // 価格_コスト
+  final String? season;          // 季節
+  final String? releaseDate;     // 発売日
+  final String? buyer;           // 買い手
+  final String? storeName;       // 店舗名
+  final int? priceRef;           // 価格参照
+  final int? priceList;          // 価格表
+  final String? location;        // 位置
 
   ApiProduct({
     required this.id,
@@ -35,6 +47,17 @@ class ApiProduct {
     this.description,
     this.material,
     this.imageUrls,  // 📸 撮影画像
+    // 🆕 追加フィールド
+    this.brandKana,
+    this.categorySub,
+    this.priceCost,
+    this.season,
+    this.releaseDate,
+    this.buyer,
+    this.storeName,
+    this.priceRef,
+    this.priceList,
+    this.location,
   });
 
   factory ApiProduct.fromJson(Map<String, dynamic> json) {
@@ -56,6 +79,17 @@ class ApiProduct {
       description: json['description'] as String?,
       material: json['material'] as String?,
       imageUrls: (json['image_urls'] as List<dynamic>?)?.cast<String>(),  // 📸 撮影画像
+      // 🆕 追加フィールド
+      brandKana: json['brand_kana'] as String?,
+      categorySub: json['category_sub'] as String?,
+      priceCost: json['price_cost'] as int?,
+      season: json['season'] as String?,
+      releaseDate: json['release_date'] as String?,
+      buyer: json['buyer'] as String?,
+      storeName: json['store_name'] as String?,
+      priceRef: json['price_ref'] as int?,
+      priceList: json['price_list'] as int?,
+      location: json['location'] as String?
     );
   }
 
@@ -78,6 +112,17 @@ class ApiProduct {
       'description': description,
       'material': material,
       'image_urls': imageUrls,  // 📸 撮影画像
+      // 🆕 追加フィールド
+      'brand_kana': brandKana,
+      'category_sub': categorySub,
+      'price_cost': priceCost,
+      'season': season,
+      'release_date': releaseDate,
+      'buyer': buyer,
+      'store_name': storeName,
+      'price_ref': priceRef,
+      'price_list': priceList,
+      'location': location
     };
   }
 }

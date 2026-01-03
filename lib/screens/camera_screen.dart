@@ -9,7 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:measure_master/services/cloudflare_storage_service.dart';
 import 'package:measure_master/services/image_cache_service.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
+import 'dart:async';
 
 class CameraScreen extends StatefulWidget {
   final String itemName;
@@ -356,72 +356,58 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
-  // 📁 ギャラリーから画像を選択（file_picker使用 - Web環境でより確実に動作）
+  // 📁 ギャラリーから画像を選択（image_picker を使用）
   Future<void> _pickImageFromGallery() async {
     if (kDebugMode) {
       debugPrint('📁 ============================================');
-      debugPrint('📁 ギャラリー選択を開始（file_picker）...');
+      debugPrint('📁 ギャラリー選択を開始（image_picker）...');
       debugPrint('📁 kIsWeb: $kIsWeb');
       debugPrint('📁 ============================================');
     }
     
-    // 🔔 ユーザーにフィードバック（ボタンが押されたことを確認）
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
-              ),
-              SizedBox(width: 12),
-              Text('ファイル選択画面を開いています...'),
-            ],
-          ),
-          backgroundColor: AppConstants.primaryCyan,
-          duration: Duration(seconds: 3),
-        ),
-      );
-    }
-    
     try {
+      // 🔧 image_picker を使用（Web/モバイル両対応）
+      final picker = ImagePicker();
+      
       if (kDebugMode) {
-        debugPrint('📁 FilePicker.platform.pickFiles 呼び出し中...');
+        debugPrint('📁 ImagePicker.pickImage 呼び出し中...');
       }
       
-      // file_picker を使用（Web環境でも確実に動作）
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        allowMultiple: false,
-        withData: true,  // バイトデータを直接取得（Web環境で必要）
+      final XFile? pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 2000,  // 画像サイズを制限
+        maxHeight: 2000,
+        imageQuality: 85,  // 品質を少し下げて安定化
       );
       
-      if (kDebugMode) {
-        debugPrint('📁 FilePicker 完了: ${result != null ? "ファイル選択済み" : "キャンセル"}');
-      }
-
-      if (result == null || result.files.isEmpty) {
-        // キャンセルされた場合
+      if (pickedFile == null) {
         if (kDebugMode) {
           debugPrint('ℹ️ ギャラリー選択がキャンセルされました');
-        }
-        if (mounted) {
-          ScaffoldMessenger.of(context).clearSnackBars();
         }
         return;
       }
       
-      final file = result.files.first;
-      
       if (kDebugMode) {
-        debugPrint('📁 選択されたファイル: ${file.name}');
-        debugPrint('📁 ファイルサイズ: ${file.size} bytes');
-        debugPrint('📁 バイトデータ: ${file.bytes != null ? "${file.bytes!.length} bytes" : "null"}');
+        debugPrint('📁 選択されたファイル: ${pickedFile.name}');
+        debugPrint('📁 ファイルパス: ${pickedFile.path}');
+      }
+
+      // 📸 画像データを読み込み
+      Uint8List imageBytes;
+      try {
+        imageBytes = await pickedFile.readAsBytes();
+        if (kDebugMode) {
+          debugPrint('✅ 画像読み込み成功: ${imageBytes.length} bytes');
+        }
+      } catch (readError) {
+        if (kDebugMode) {
+          debugPrint('❌ 画像読み込みエラー: $readError');
+        }
+        throw Exception('画像データを読み込めませんでした: $readError');
+      }
+      
+      if (imageBytes.isEmpty) {
+        throw Exception('画像データが空です');
       }
 
       if (mounted) {
@@ -431,7 +417,7 @@ class _CameraScreenState extends State<CameraScreen> {
               children: [
                 Icon(Icons.check_circle, color: Colors.white),
                 SizedBox(width: 8),
-                Text('画像を選択しました: ${file.name}'),
+                Text('画像を選択しました'),
               ],
             ),
             backgroundColor: AppConstants.successGreen,
@@ -443,31 +429,6 @@ class _CameraScreenState extends State<CameraScreen> {
       // 📸 画像を即座にアップロード
       String? uploadedImageUrl;
       try {
-        Uint8List? imageBytes;
-        
-        // file_picker の withData: true でバイトデータを取得
-        if (file.bytes != null) {
-          imageBytes = file.bytes!;
-          if (kDebugMode) {
-            debugPrint('✅ file_picker からバイトデータを取得: ${imageBytes.length} bytes');
-          }
-        } else if (file.path != null && !kIsWeb) {
-          // モバイル環境でファイルパスがある場合
-          final imageFile = File(file.path!);
-          imageBytes = await imageFile.readAsBytes();
-          if (kDebugMode) {
-            debugPrint('✅ ファイルパスから読み込み: ${imageBytes.length} bytes');
-          }
-        }
-        
-        if (imageBytes == null || imageBytes.isEmpty) {
-          throw Exception('画像データを取得できませんでした');
-        }
-        
-        if (kDebugMode) {
-          debugPrint('✅ 画像読み込み成功: ${imageBytes.length} bytes');
-        }
-        
         // 🔑 SKUコードを使用してファイルIDを生成（ローカル連番を使用）
         String fileId;
         final skuTrimmed = widget.sku.trim();
@@ -517,9 +478,9 @@ class _CameraScreenState extends State<CameraScreen> {
             ),
           );
         }
-      } catch (e) {
+      } catch (uploadError) {
         if (kDebugMode) {
-          debugPrint('⚠️ アップロード失敗: $e');
+          debugPrint('⚠️ アップロード失敗: $uploadError');
         }
         
         if (mounted) {
@@ -529,7 +490,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 children: [
                   Icon(Icons.warning, color: Colors.white),
                   SizedBox(width: 8),
-                  Expanded(child: Text('アップロードに失敗しました: $e')),
+                  Expanded(child: Text('アップロードに失敗しました: $uploadError')),
                 ],
               ),
               backgroundColor: AppConstants.warningOrange,
