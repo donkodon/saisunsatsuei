@@ -145,12 +145,28 @@ class _CameraScreenState extends State<CameraScreen> {
         return;
       }
 
-      // 最初のカメラ（通常は背面カメラ）を選択
-      final firstCamera = cameras.first;
+      // 🔧 背面カメラ（アウトカメラ）を優先的に選択
+      CameraDescription selectedCamera;
+      
+      try {
+        // 背面カメラを検索
+        selectedCamera = cameras.firstWhere(
+          (camera) => camera.lensDirection == CameraLensDirection.back,
+        );
+        if (kDebugMode) {
+          debugPrint('📸 背面カメラを選択: ${selectedCamera.name}');
+        }
+      } catch (e) {
+        // 背面カメラが見つからない場合は最初のカメラを使用
+        selectedCamera = cameras.first;
+        if (kDebugMode) {
+          debugPrint('⚠️ 背面カメラが見つかりません。最初のカメラを使用: ${selectedCamera.name}');
+        }
+      }
 
       // カメラコントローラーを初期化
       _controller = CameraController(
-        firstCamera,
+        selectedCamera,
         ResolutionPreset.high,
         enableAudio: false,
       );
