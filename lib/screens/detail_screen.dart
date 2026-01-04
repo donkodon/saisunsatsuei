@@ -583,10 +583,11 @@ class _DetailScreenState extends State<DetailScreen> {
                       debugPrint('📦 アップロード開始: $fileId (画像${i + 1}/${allImagePaths.length})');
                     }
                     
-                    // Workers経由でアップロード
+                    // Workers経由でアップロード（SKUフォルダ対応）
                     final uploadedUrl = await CloudflareWorkersStorageService.uploadImage(
                       imageBytes,
                       fileId,
+                      sku: skuCode,  // 🆕 SKU情報を渡す
                     );
                     
                     uploadedImageUrls.add(uploadedUrl);

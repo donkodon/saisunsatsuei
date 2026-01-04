@@ -191,23 +191,30 @@ class CloudflareWorkersStorageService {
     }
   }
 
-  /// 📸 Workers経由で画像をアップロード
+  /// 📸 Workers経由で画像をアップロード（SKUフォルダ対応）
   /// [imageBytes] - 画像のバイトデータ
   /// [itemId] - ファイル名（SKU_連番形式: 例 "1025L190003_1"）
-  static Future<String> uploadImage(Uint8List imageBytes, String itemId) async {
+  /// [sku] - SKUコード（フォルダ名として使用: 例 "1025L190003"）
+  static Future<String> uploadImage(Uint8List imageBytes, String itemId, {String? sku}) async {
     try {
       // ファイル名形式: {SKU}_{連番}.jpg
       final fileName = '$itemId.jpg';
       
+      // 🆕 SKU情報を取得（itemIdから抽出 or 引数から取得）
+      String skuFolder = sku ?? itemId.split('_')[0];  // デフォルト: itemIdの最初の部分をSKUとして使用
+      
       debugPrint('📤 Uploading to Cloudflare Workers: $uploadEndpoint');
+      debugPrint('📁 SKU Folder: $skuFolder');
       debugPrint('📦 File name: $fileName');
       debugPrint('📊 File size: ${imageBytes.length} bytes');
       
-      // ファイル名をURLパラメータとして追加
-      final uploadUrl = Uri.parse('$uploadEndpoint?filename=$fileName');
-      
       // Multipartリクエストを作成
-      final request = http.MultipartRequest('POST', uploadUrl);
+      final request = http.MultipartRequest('POST', Uri.parse(uploadEndpoint));
+      
+      // 🆕 SKU情報をフォームデータに追加
+      request.fields['sku'] = skuFolder;
+      request.fields['fileName'] = fileName;
+      
       request.files.add(
         http.MultipartFile.fromBytes(
           'file',
@@ -232,7 +239,7 @@ class CloudflareWorkersStorageService {
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
         final imageUrl = jsonResponse['url'] as String;
-        debugPrint('✅ Workers経由でアップロード成功: $imageUrl');
+        debugPrint('✅ Workers経由でアップロード成功（SKUフォルダ: $skuFolder）: $imageUrl');
         return imageUrl;
       } else {
         throw Exception('アップロードに失敗しました: ${response.statusCode} - ${response.body}');
