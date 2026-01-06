@@ -9,10 +9,14 @@ import 'package:measure_master/models/item.dart';
 import 'package:measure_master/services/cloudflare_storage_service.dart';
 import 'package:measure_master/services/image_cache_service.dart';
 import 'package:measure_master/services/api_service.dart';
+import 'package:measure_master/services/batch_image_upload_service.dart';
+import 'package:measure_master/models/product_image.dart';
+import 'package:measure_master/models/result.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 import 'dart:io' show File;
 import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
 
 class DetailScreen extends StatefulWidget {
   final String itemName;
@@ -28,7 +32,8 @@ class DetailScreen extends StatefulWidget {
   final String material;
   final String description;
   final String? capturedImagePath;  // 📸 撮影した画像のパス（オプション・後方互換性）
-  final List<String>? capturedImages;  // 📸 複数の撮影画像（新機能）
+  final List<String>? capturedImages;  // 📸 複数の撮影画像（既存URL）
+  final List<XFile>? capturedImageFiles;  // 📸 新規撮影ファイル（XFile）
   
   // 🆕 product_masterから引き継ぐ追加フィールド
   final String? brandKana;        // ブランドカナ
@@ -58,7 +63,8 @@ class DetailScreen extends StatefulWidget {
     required this.material,
     required this.description,
     this.capturedImagePath,  // オプション（後方互換性）
-    this.capturedImages,  // オプション（複数画像）
+    this.capturedImages,  // オプション（複数画像URL）
+    this.capturedImageFiles,  // オプション（新規撮影ファイル）
     // 🆕 追加フィールド（オプション）
     this.brandKana,
     this.categorySub,
@@ -89,10 +95,25 @@ class _DetailScreenState extends State<DetailScreen> {
 
   // 🚀 文字数カウンター用のValueNotifier（setState不要で効率的）
   final ValueNotifier<int> _charCount = ValueNotifier<int>(0);
+  
+  // ✨ 一括アップロードサービス
+  late final BatchImageUploadService _batchUploadService;
+  late final ApiService _apiService;
+  late final InventoryProvider _inventoryProvider;
+  
+  // ✨ アップロード進捗
+  int _uploadProgress = 0;
+  int _uploadTotal = 0;
 
   @override
   void initState() {
     super.initState();
+    
+    // ✨ サービス初期化
+    _batchUploadService = BatchImageUploadService();
+    _apiService = ApiService();
+    _inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
+    
     // 初期値を設定（サンプルデータなし）
     _selectedMaterial = widget.material.isNotEmpty && widget.material != '選択してください' ? widget.material : '選択してください';
     _selectedColor = widget.color.isNotEmpty && widget.color != '選択してください' ? widget.color : '選択してください';
@@ -502,293 +523,267 @@ class _DetailScreenState extends State<DetailScreen> {
             CustomButton(
               text: "商品確定", 
               onPressed: () async {
-                // 📸 画像は任意（撮影なしでも登録可能）
-                final allImagePaths = widget.capturedImages != null && widget.capturedImages!.isNotEmpty
-                  ? widget.capturedImages!
-                  : (widget.capturedImagePath != null ? [widget.capturedImagePath!] : <String>[]);
-
-                // Show Loading
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (context) => Center(child: CircularProgressIndicator()),
-                );
-
-                // 📸 すべての画像をアップロード
-                List<String> uploadedImageUrls = [];
-                
-                // 🔑 SKUコードを取得（ファイル名に使用）
-                final skuCode = _skuController.text.isNotEmpty ? _skuController.text : 'NOSKU';
-                
-                // 📸 各画像を順番にアップロード
-                for (int i = 0; i < allImagePaths.length; i++) {
-                  String imagePath = allImagePaths[i];
-                  
-                  // 📸 既にCloudflare URLの場合はアップロードをスキップ（過去分は諦める）
-                  if (imagePath.startsWith('https://pub-300562464768499b8fcaee903d0f9861.r2.dev') ||
-                      imagePath.startsWith('https://image-upload-api.jinkedon2.workers.dev')) {
-                    if (kDebugMode) {
-                      debugPrint('✅ 既にアップロード済み（スキップ）: $imagePath');
-                    }
-                    uploadedImageUrls.add(imagePath);
-                    continue;
-                  }
-                  
-                  // 📸 Cloudflare Workers経由で画像をアップロード
-                  try {
-                    Uint8List imageBytes;
-                    
-                    if (kIsWeb) {
-                      // Web環境：blob: URLから画像データを取得
-                      if (kDebugMode) {
-                        debugPrint('🌐 Web環境：blob URLから画像を読み込み: $imagePath');
-                      }
-                      
-                      // blob: URLからHTTPリクエストで画像データを取得
-                      final response = await http.get(Uri.parse(imagePath));
-                      if (response.statusCode == 200) {
-                        imageBytes = response.bodyBytes;
-                        if (kDebugMode) {
-                          debugPrint('✅ blob画像読み込み成功: ${imageBytes.length} bytes');
-                        }
-                      } else {
-                        throw Exception('blob画像の読み込みに失敗しました: ${response.statusCode}');
-                      }
-                    } else {
-                      // モバイル環境：ファイルパスから画像を読み込み
-                      final imageFile = File(imagePath);
-                      imageBytes = await imageFile.readAsBytes();
-                      if (kDebugMode) {
-                        debugPrint('📱 モバイル環境：ファイル読み込み成功: ${imageBytes.length} bytes');
-                      }
-                    }
-                    
-                    // 🔑 SKUコード + 連番でファイルIDを生成
-                    // 注意: 撮影時に既に連番が付いているはずなので、ここでは単純にインデックスを使用
-                    String fileId;
-                    if (skuCode != 'NOSKU') {
-                      // SKUがある場合：画像インデックス+1を連番として使用
-                      final imageNumber = i + 1;
-                      fileId = '${skuCode}_$imageNumber';
-                      
-                      if (kDebugMode) {
-                        debugPrint('✅ SKUベースのファイル名: $fileId (連番: $imageNumber)');
-                      }
-                    } else {
-                      // SKUがない場合：タイムスタンプベース
-                      fileId = '${DateTime.now().millisecondsSinceEpoch}_${i + 1}';
-                    }
-                    
-                    if (kDebugMode) {
-                      debugPrint('📦 アップロード開始: $fileId (画像${i + 1}/${allImagePaths.length})');
-                    }
-                    
-                    // Workers経由でアップロード（SKUフォルダ対応）
-                    final uploadedUrl = await CloudflareWorkersStorageService.uploadImage(
-                      imageBytes,
-                      fileId,
-                      sku: skuCode,  // 🆕 SKU情報を渡す
-                    );
-                    
-                    uploadedImageUrls.add(uploadedUrl);
-                    
-                    // 📸 アップロード成功時に画像をローカルキャッシュに保存（CORS対策）
-                    await ImageCacheService.cacheImage(uploadedUrl, imageBytes);
-                    
-                    if (kDebugMode) {
-                      debugPrint('✅ Cloudflare Workers Upload complete: $uploadedUrl');
-                      debugPrint('✅ 画像キャッシュ保存完了');
-                    }
-                    
-                  } catch (e) {
-                    // アップロード失敗時はローカルパスを使用（モバイルのみ有効）
-                    if (kDebugMode) {
-                      debugPrint('❌ Cloudflare Upload error: $e');
-                      debugPrint('📁 Using local path: $imagePath');
-                    }
-                    
-                    // エラーメッセージを表示
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Row(
-                          children: [
-                            Icon(Icons.warning, color: Colors.white),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(kIsWeb 
-                                ? '画像${i + 1}のアップロードに失敗しました。もう一度お試しください。' 
-                                : '画像${i + 1}のアップロードに失敗しました。ローカルに保存します。'),
-                            ),
-                          ],
-                        ),
-                        backgroundColor: AppConstants.warningOrange,
-                        duration: Duration(seconds: 3),
-                      ),
-                    );
-                    
-                    // Web環境でアップロード失敗した場合は、保存処理を中断
-                    if (kIsWeb) {
-                      Navigator.pop(context);  // ローディングを閉じる
-                      return;
-                    }
-                    
-                    // モバイル環境ではローカルパスを追加
-                    uploadedImageUrls.add(imagePath);
-                  }
-                }
-                
-                // 📸 メイン画像URLを設定（最初の画像、なければダミーURL）
-                String imageUrl = uploadedImageUrls.isNotEmpty 
-                  ? uploadedImageUrls.first 
-                  : (allImagePaths.isNotEmpty ? allImagePaths.first : 'https://via.placeholder.com/300x300?text=No+Image');
-
-                // Hide Loading
-                Navigator.pop(context);
-
-                print('🔵 商品確定ボタン押下');
-                print('📝 商品の状態: ${widget.condition}');
-                print('📝 商品の説明: ${_descriptionController.text}');
-                
-                // 🔑 ユニークなID生成: タイムスタンプ + マイクロ秒
-                final uniqueId = '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
-                
-                final newItem = InventoryItem(
-                  id: uniqueId,
-                  name: widget.itemName,
-                  brand: widget.brand,
-                  imageUrl: imageUrl,  // Uploaded URL or Local Path (メイン画像)
-                  category: (widget.category.isEmpty || widget.category == '選択してください') ? '' : widget.category,  // 🔧 選択してくださいを空文字に変換
-                  status: "Ready",
-                  date: DateTime.now(),
-                  length: 68,
-                  width: 52,
-                  size: _sizeController.text.isEmpty ? "M" : _sizeController.text,
-                  barcode: _barcodeController.text.isEmpty ? null : _barcodeController.text,
-                  sku: _skuController.text.isEmpty ? null : _skuController.text,
-                  productRank: (widget.productRank.isEmpty || widget.productRank == '選択してください') ? null : widget.productRank,
-                  condition: (widget.condition.isEmpty || widget.condition == '選択してください') ? null : widget.condition,
-                  description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
-                  color: (_selectedColor.isEmpty || _selectedColor == '選択してください') ? null : _selectedColor,
-                  material: (_selectedMaterial.isEmpty || _selectedMaterial == '選択してください') ? null : _selectedMaterial,
-                  salePrice: widget.price.isNotEmpty ? int.tryParse(widget.price) : null,  // 販売価格を保存
-                  imageUrls: uploadedImageUrls,  // 📸 すべての画像URLを保存
-                );
-                
-                print('📦 作成したInventoryItem:');
-                print('   condition: ${newItem.condition}');
-                print('   description: ${newItem.description}');
-                 
-                // 💾 Hiveに保存 (オフラインキャッシュ)
-                await Provider.of<InventoryProvider>(context, listen: false).addItem(newItem);
-                
-                // 🌐 Cloudflare D1に保存 (オンライン同期)
-                try {
-                  // 🔧 全21カラムをプロダクトアイテムに送信
-                  final itemCode = '${newItem.sku}_${DateTime.now().millisecondsSinceEpoch}';
-                  final itemData = <String, dynamic>{
-                    // 🔑 基本情報
-                    'sku': newItem.sku ?? '',
-                    'itemCode': itemCode,
-                    'name': newItem.name ?? widget.itemName ?? '',
-                    'barcode': newItem.barcode ?? _barcodeController.text ?? '',
-                    
-                    // 📦 商品属性
-                    'brand': newItem.brand ?? widget.brand ?? '',
-                    'category': newItem.category ?? widget.category ?? '',
-                    'color': newItem.color ?? _selectedColor ?? '',
-                    'size': newItem.size ?? _sizeController.text ?? '',
-                    'material': newItem.material ?? _selectedMaterial ?? '',
-                    
-                    // 💰 価格情報
-                    'price': newItem.salePrice ?? (widget.price.isNotEmpty ? int.tryParse(widget.price) : null),
-                    
-                    // 📸 画像・実測値
-                    'imageUrls': uploadedImageUrls,
-                    'actualMeasurements': {
-                      'length': newItem.length,
-                      'width': newItem.width,
-                    },
-                    
-                    // 📋 状態・ランク
-                    'condition': newItem.condition ?? widget.condition ?? '',
-                    'productRank': newItem.productRank ?? widget.productRank ?? '',
-                    'inspectionNotes': newItem.description ?? _descriptionController.text ?? '',
-                    
-                    // 📅 撮影情報
-                    'photographedAt': DateTime.now().toIso8601String(),
-                    'photographedBy': 'mobile_app_user',
-                    
-                    // 🔧 ステータス
-                    'status': 'Ready',
-                    'upsert': true,
-                  };
-                  
-                  // 🔍 デバッグ: 送信前のデータを確認
-                  if (kDebugMode) {
-                    debugPrint('📤 超シンプル版 D1へ送信: $itemData');
-                  }
-                  
-                  final apiService = ApiService();
-                  final saved = await apiService.saveProductItemToD1(itemData);
-                  
-                  if (saved) {
-                    if (kDebugMode) {
-                      debugPrint('✅ D1に実物データ保存成功: ${newItem.sku}');
-                    }
-                    // ユーザーに成功を通知
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('✅ クラウドに保存しました'),
-                          backgroundColor: Colors.green,
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    }
-                  }
-                } catch (e) {
-                  if (kDebugMode) {
-                    debugPrint('⚠️ D1保存エラー (Hiveには保存済み): $e');
-                  }
-                  // ユーザーにエラーを通知（ローカルには保存済み）
-                  if (context.mounted) {
-                    // エラーメッセージ全文を表示（最大500文字）
-                    final errorMsg = e.toString();
-                    final displayMsg = errorMsg.length > 500 ? errorMsg.substring(0, 500) : errorMsg;
-                    
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('⚠️ クラウド保存失敗（ローカルには保存済み）\n$displayMsg'),
-                        backgroundColor: Colors.orange,
-                        duration: Duration(seconds: 10),  // 10秒表示
-                        action: SnackBarAction(
-                          label: '閉じる',
-                          textColor: Colors.white,
-                          onPressed: () {},
-                        ),
-                      ),
-                    );
-                  }
-                }
-                 
-                // 🚀 高速遷移
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) => const DashboardScreen(),
-                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                      return FadeTransition(opacity: animation, child: child);
-                    },
-                    transitionDuration: const Duration(milliseconds: 200),
-                  ),
-                  (route) => false,
-                );
+                await _saveProduct();
               }
             ),
             SizedBox(height: 20),
           ],
         ),
       ),
+    );
+  }
+
+  /// ✨ 商品保存処理（BatchImageUploadService使用）
+  Future<void> _saveProduct() async {
+    try {
+      // 1) 画像データを整理
+      final existingUrls = widget.capturedImages ?? [];
+      final newFiles = widget.capturedImageFiles ?? [];
+      
+      debugPrint('📦 保存開始: 既存=${existingUrls.length}, 新規=${newFiles.length}');
+
+      // 2) プログレスダイアログ表示（StatefulBuilder使用）
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(
+                    '画像アップロード中...',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$_uploadProgress / $_uploadTotal',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      );
+
+      // 3) 画像一括アップロード
+      List<String> imageUrls = [];
+      
+      if (existingUrls.isNotEmpty || newFiles.isNotEmpty) {
+        final uploadResult = await _batchUploadService.uploadMixedImages(
+          existingUrls: existingUrls,
+          newImageFiles: newFiles,
+          sku: widget.sku.isNotEmpty ? widget.sku : 'NOSKU',
+          onProgress: (current, total) {
+            setState(() {
+              _uploadProgress = current;
+              _uploadTotal = total;
+            });
+          },
+        );
+
+        // 4) アップロード結果を処理
+        final uploadedImages = uploadResult.fold(
+          onSuccess: (images) {
+            debugPrint('✅ 画像アップロード成功: ${images.length}枚');
+            return images;
+          },
+          onFailure: (error) {
+            Navigator.pop(context); // ダイアログを閉じる
+            _showError('画像アップロード失敗: $error');
+            return <ProductImage>[];
+          },
+        );
+
+        if (uploadedImages.isEmpty && (existingUrls.isNotEmpty || newFiles.isNotEmpty)) {
+          return; // アップロード失敗時は処理中断
+        }
+
+        imageUrls = uploadedImages.map((img) => img.url).toList();
+      }
+      
+      final mainImageUrl = imageUrls.isNotEmpty 
+          ? imageUrls.first 
+          : 'https://via.placeholder.com/150';
+
+      // 5) InventoryItem作成
+      final uniqueId = '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
+      
+      final newItem = InventoryItem(
+        id: uniqueId,
+        name: widget.itemName,
+        brand: widget.brand,
+        imageUrl: mainImageUrl,
+        category: (widget.category.isEmpty || widget.category == '選択してください') ? '' : widget.category,
+        status: "Ready",
+        date: DateTime.now(),
+        length: 68,
+        width: 52,
+        size: _sizeController.text.isEmpty ? "M" : _sizeController.text,
+        barcode: _barcodeController.text.isEmpty ? null : _barcodeController.text,
+        sku: _skuController.text.isEmpty ? null : _skuController.text,
+        productRank: (widget.productRank.isEmpty || widget.productRank == '選択してください') ? null : widget.productRank,
+        condition: (widget.condition.isEmpty || widget.condition == '選択してください') ? null : widget.condition,
+        description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+        color: (_selectedColor.isEmpty || _selectedColor == '選択してください') ? null : _selectedColor,
+        material: (_selectedMaterial.isEmpty || _selectedMaterial == '選択してください') ? null : _selectedMaterial,
+        salePrice: widget.price.isNotEmpty ? int.tryParse(widget.price) : null,
+        imageUrls: imageUrls,
+      );
+
+      // 6) Hive保存（ローカル）
+      await _inventoryProvider.addItem(newItem);
+      debugPrint('✅ Hive保存完了');
+
+      // 7) D1保存（クラウド）+ リトライ機能
+      final d1Success = await _saveToD1WithRetry(
+        sku: widget.sku.isNotEmpty ? widget.sku : 'NOSKU',
+        imageUrls: imageUrls,
+        newItem: newItem,
+      );
+
+      Navigator.pop(context); // プログレスダイアログを閉じる
+
+      // 8) 結果表示
+      if (d1Success) {
+        _showSuccess('✅ 保存完了しました！');
+        Navigator.pushAndRemoveUntil(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) => const DashboardScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            transitionDuration: const Duration(milliseconds: 200),
+          ),
+          (route) => false,
+        );
+      } else {
+        _showWarningWithRetry(
+          '⚠️ ローカル保存完了。クラウド同期は後で再試行できます。',
+          newItem,
+        );
+      }
+
+    } catch (e, stackTrace) {
+      Navigator.pop(context);
+      debugPrint('❌ 保存エラー: $e');
+      debugPrint('スタックトレース: $stackTrace');
+      _showError('保存エラー: $e');
+    }
+  }
+
+  /// D1保存（リトライ機能付き）
+  Future<bool> _saveToD1WithRetry({
+    required String sku,
+    required List<String> imageUrls,
+    required InventoryItem newItem,
+  }) async {
+    const maxRetries = 3;
+    
+    for (int retryCount = 0; retryCount < maxRetries; retryCount++) {
+      try {
+        debugPrint('🌐 D1保存試行 ${retryCount + 1}/$maxRetries');
+        
+        final itemCode = '${newItem.sku}_${DateTime.now().millisecondsSinceEpoch}';
+        final itemData = <String, dynamic>{
+          'sku': newItem.sku ?? '',
+          'itemCode': itemCode,
+          'name': newItem.name,
+          'barcode': newItem.barcode ?? _barcodeController.text,
+          'brand': newItem.brand,
+          'category': newItem.category,
+          'color': newItem.color ?? _selectedColor,
+          'size': newItem.size ?? _sizeController.text,
+          'material': newItem.material ?? _selectedMaterial,
+          'price': newItem.salePrice,
+          'imageUrls': imageUrls,
+          'actualMeasurements': {
+            'length': newItem.length,
+            'width': newItem.width,
+          },
+          'condition': newItem.condition ?? widget.condition,
+          'productRank': newItem.productRank ?? widget.productRank,
+          'inspectionNotes': newItem.description ?? _descriptionController.text,
+          'photographedAt': DateTime.now().toIso8601String(),
+          'photographedBy': 'mobile_app_user',
+          'status': 'Ready',
+          'upsert': true,
+        };
+
+        final d1Result = await _apiService.saveProductItemToD1(itemData);
+
+        if (d1Result != null) {
+          debugPrint('✅ D1保存成功');
+          return true;
+        }
+        
+      } catch (e) {
+        debugPrint('❌ D1保存失敗（${retryCount + 1}/$maxRetries）: $e');
+        
+        if (retryCount < maxRetries - 1) {
+          // 指数バックオフ: 1秒 → 2秒 → 4秒
+          await Future.delayed(Duration(seconds: 1 << retryCount));
+        }
+      }
+    }
+    
+    debugPrint('❌ D1保存: 最大リトライ回数に到達');
+    return false;
+  }
+
+  /// リトライボタン付き警告表示
+  void _showWarningWithRetry(String message, InventoryItem item) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: 'リトライ',
+          textColor: Colors.white,
+          onPressed: () => _retryD1Sync(item),
+        ),
+      ),
+    );
+  }
+
+  /// D1再同期
+  Future<void> _retryD1Sync(InventoryItem item) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final success = await _saveToD1WithRetry(
+      sku: item.sku ?? 'NOSKU',
+      imageUrls: item.imageUrls ?? [],
+      newItem: item,
+    );
+
+    Navigator.pop(context);
+
+    if (success) {
+      _showSuccess('✅ クラウド同期完了');
+    } else {
+      _showError('❌ 同期失敗。後で再試行してください。');
+    }
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.green),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
@@ -816,7 +811,7 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  // 📸 撮影した画像のサムネイルを表示
+  /// 📸 撮影した画像のサムネイルを表示
   Widget _buildCapturedImageThumbnail(String imagePath, {bool isMain = false}) {
     return Stack(
       children: [
@@ -841,12 +836,14 @@ class _DetailScreenState extends State<DetailScreen> {
                 },
               )
             : Image.file(
-                File(imagePath), 
-                width: 100, 
-                height: 120, 
+                File(imagePath),
+                width: 100,
+                height: 120,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
-                  // エラー時はプレースホルダーを表示
+                  if (kDebugMode) {
+                    debugPrint('❌ 画像読み込みエラー: $error');
+                  }
                   return Container(
                     width: 100,
                     height: 120,
@@ -873,7 +870,7 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  // 🖼️ 画像がない場合のプレースホルダー
+  /// プレースホルダー画像
   Widget _buildPlaceholder({bool isMain = false}) {
     return Stack(
       children: [
@@ -917,236 +914,131 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
+  /// 採寸カード
   Widget _buildMeasureCard(String label, String value, bool isVerified) {
     return Container(
+      width: 110,
       padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isVerified ? AppConstants.primaryCyan : Colors.grey[300]!, width: isVerified ? 2 : 1),
+        border: Border.all(
+          color: isVerified ? AppConstants.primaryCyan : Colors.grey[300]!,
+          width: isVerified ? 2 : 1,
+        ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isVerified ? AppConstants.primaryCyan : AppConstants.textGrey)),
-              Icon(
-                isVerified ? Icons.check_circle : Icons.edit,
-                size: 16,
-                color: isVerified ? AppConstants.primaryCyan : Colors.grey[300],
-              ),
-            ],
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
           ),
           SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              SizedBox(width: 4),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text("cm", style: TextStyle(fontSize: 12, color: AppConstants.textGrey)),
-              ),
-            ],
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: isVerified ? AppConstants.primaryCyan : AppConstants.textDark,
+            ),
           ),
           if (isVerified) ...[
             SizedBox(height: 4),
-            Container(height: 4, width: 40, color: AppConstants.primaryCyan),
-          ] else ...[
-            SizedBox(height: 4),
-            Container(height: 4, width: 40, color: Colors.grey[300]),
+            Icon(Icons.check_circle, size: 16, color: AppConstants.primaryCyan),
           ],
         ],
       ),
     );
   }
 
+  /// 素材選択ダイアログ
   void _showMaterialPicker() {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              SizedBox(height: 16),
-              Text("素材を選択", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              SizedBox(height: 16),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _materials.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text(_materials[index]),
-                      trailing: _selectedMaterial == _materials[index]
-                          ? Icon(Icons.check, color: AppConstants.primaryCyan)
-                          : null,
-                      onTap: () {
-                        setState(() {
-                          _selectedMaterial = _materials[index];
-                        });
-                        Navigator.pop(context);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: Text('素材を選択'),
+        content: Container(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: _materials.length,
+            itemBuilder: (context, index) {
+              final material = _materials[index];
+              return ListTile(
+                title: Text(material),
+                onTap: () {
+                  setState(() {
+                    _selectedMaterial = material;
+                  });
+                  Navigator.pop(context);
+                },
+              );
+            },
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
+  /// カラー選択ダイアログ
   void _showColorPicker() {
-    String searchQuery = '';
-    
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      builder: (context) => AlertDialog(
+        title: Text('カラーを選択'),
+        content: Container(
+          width: double.maxFinite,
+          child: GridView.builder(
+            shrinkWrap: true,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+            ),
+            itemCount: _colorOptions.length,
+            itemBuilder: (context, index) {
+              final colorName = _colorOptions.keys.elementAt(index);
+              final color = _colorOptions[colorName]!;
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedColor = colorName;
+                    _colorPreview = color;
+                  });
+                  Navigator.pop(context);
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _selectedColor == colorName 
+                          ? AppConstants.primaryCyan 
+                          : Colors.grey[300]!,
+                      width: _selectedColor == colorName ? 3 : 1,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      colorName,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: color.computeLuminance() > 0.5 
+                            ? Colors.black 
+                            : Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final filteredColors = searchQuery.isEmpty
-                ? _colorOptions.entries.toList()
-                : _colorOptions.entries
-                    .where((entry) => entry.key.toLowerCase().contains(searchQuery.toLowerCase()))
-                    .toList();
-
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.7,
-              padding: EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  Text("カラーを選択", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  SizedBox(height: 16),
-                  // Search field
-                  TextField(
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      hintText: 'カラー名で検索 or 自由入力...',
-                      prefixIcon: Icon(Icons.search, color: AppConstants.primaryCyan),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: AppConstants.borderGrey),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: AppConstants.primaryCyan, width: 2),
-                      ),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    ),
-                    onChanged: (value) {
-                      setModalState(() {
-                        searchQuery = value;
-                      });
-                    },
-                    onSubmitted: (value) {
-                      // Free input - use custom color
-                      if (value.isNotEmpty && !_colorOptions.containsKey(value)) {
-                        setState(() {
-                          _selectedColor = value;
-                          _colorPreview = Colors.grey[400]!; // Default color for custom input
-                        });
-                        Navigator.pop(context);
-                      }
-                    },
-                  ),
-                  SizedBox(height: 16),
-                  // Show free input option if search doesn't match
-                  if (searchQuery.isNotEmpty && filteredColors.isEmpty)
-                    Container(
-                      padding: EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppConstants.primaryCyan.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.add_circle_outline, color: AppConstants.primaryCyan),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '"$searchQuery" として追加',
-                                  style: TextStyle(fontWeight: FontWeight.bold, color: AppConstants.primaryCyan),
-                                ),
-                                Text(
-                                  'タップまたはEnterで確定',
-                                  style: TextStyle(fontSize: 12, color: AppConstants.textGrey),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  SizedBox(height: 16),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: filteredColors.length,
-                      itemBuilder: (context, index) {
-                        final entry = filteredColors[index];
-                        return ListTile(
-                          leading: Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: entry.value,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.grey[300]!, width: 2),
-                            ),
-                          ),
-                          title: Text(entry.key),
-                          trailing: _selectedColor == entry.key
-                              ? Icon(Icons.check, color: AppConstants.primaryCyan)
-                              : null,
-                          onTap: () {
-                            setState(() {
-                              _selectedColor = entry.key;
-                              _colorPreview = entry.value;
-                            });
-                            Navigator.pop(context);
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
     );
   }
 

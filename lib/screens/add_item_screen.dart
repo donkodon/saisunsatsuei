@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'package:measure_master/constants.dart';
-import 'package:measure_master/screens/camera_screen.dart';
+import 'package:measure_master/screens/camera_screen_v2.dart';
 import 'package:measure_master/screens/detail_screen.dart';
 import 'package:measure_master/widgets/custom_button.dart';
 import 'package:measure_master/models/api_product.dart';
@@ -11,6 +11,7 @@ import 'package:measure_master/models/item.dart';
 import 'package:measure_master/providers/inventory_provider.dart';
 import 'package:measure_master/services/cloudflare_storage_service.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 
 class AddItemScreen extends StatefulWidget {
   final ApiProduct? prefillData; // 🔍 検索結果からの自動入力データ
@@ -26,8 +27,11 @@ class _AddItemScreenState extends State<AddItemScreen> {
   bool _aiMeasure = true;
   bool _aiBgRemove = true;
   
-  // 📸 撮影した画像のリスト
+  // 📸 撮影した画像のリスト（既存URL）
   List<String> _capturedImages = [];
+  
+  // 📸 新規撮影ファイル（XFile）
+  List<XFile> _capturedImageFiles = [];
   
   // Form controllers
   final TextEditingController _nameController = TextEditingController();
@@ -252,11 +256,11 @@ class _AddItemScreenState extends State<AddItemScreen> {
       return;
     }
     
-    // カメラ画面へ遷移（📸 既存画像も渡す）
-    final result = await Navigator.push(
+    // ✨ CameraScreenV2へ遷移（ローカル保存のみ）
+    final result = await Navigator.push<List<XFile>>(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => CameraScreen(
+        pageBuilder: (context, animation, secondaryAnimation) => CameraScreenV2(
           itemName: _nameController.text,
           brand: _brandController.text,
           category: _selectedCategory,
@@ -269,7 +273,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
           productRank: _selectedRank,
           material: _selectedMaterial,
           description: _descriptionController.text,
-          existingImages: _capturedImages.isNotEmpty ? _capturedImages : null,  // 📸 既存画像を渡す
+          existingImageFiles: _capturedImageFiles.isNotEmpty ? _capturedImageFiles : null,  // 既存ファイル
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
@@ -278,21 +282,14 @@ class _AddItemScreenState extends State<AddItemScreen> {
       ),
     );
     
-    // カメラ画面から戻ってきた時の処理
-    if (result != null && result is List<String>) {
-      // 📸 カメラ画面の全画像リストで置き換え（削除された画像も反映）
-      final previousCount = _capturedImages.length;
-      final newCount = result.length;
-      
+    // ✨ カメラ画面から戻ってきた時の処理（XFileリスト）
+    if (result != null && result.isNotEmpty) {
       setState(() {
-        _capturedImages = List.from(result);
+        _capturedImageFiles = result;  // ✨ XFileリストを保存
       });
       
       // 撮影完了のフィードバック
-      final addedCount = newCount - previousCount;
-      final message = addedCount > 0 
-          ? '📸 ${addedCount}枚の画像を追加しました（合計${newCount}枚）'
-          : '📸 画像リストを更新しました（${newCount}枚）';
+      final message = '📸 ${result.length}枚の画像を追加しました';
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -762,7 +759,8 @@ class _AddItemScreenState extends State<AddItemScreen> {
                       productRank: _selectedRank,  // 🔧 そのまま渡す（DetailScreenで判定）
                       material: _selectedMaterial,  // 🔧 そのまま渡す（DetailScreenで判定）
                       description: _descriptionController.text,
-                      capturedImages: _capturedImages.isEmpty ? null : _capturedImages,  // 📸 撮影した画像を渡す
+                      capturedImages: _capturedImages.isEmpty ? null : _capturedImages,  // 📸 既存URL
+                      capturedImageFiles: _capturedImageFiles.isEmpty ? null : _capturedImageFiles,  // ✨ 新規ファイル
                       // 🆕 product_masterから引き継ぐ追加フィールド
                       brandKana: widget.prefillData?.brandKana,
                       categorySub: widget.prefillData?.categorySub,

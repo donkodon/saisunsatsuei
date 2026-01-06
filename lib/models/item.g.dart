@@ -37,13 +37,16 @@ class InventoryItemAdapter extends TypeAdapter<InventoryItem> {
       description: fields[17] as String?,
       material: fields[18] as String?,
       imageUrls: (fields[19] as List?)?.cast<String>(),
+      imagesJson: (fields[20] as List?)
+          ?.map((dynamic e) => (e as Map).cast<String, dynamic>())
+          ?.toList(),
     );
   }
 
   @override
   void write(BinaryWriter writer, InventoryItem obj) {
     writer
-      ..writeByte(20)
+      ..writeByte(21)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -83,7 +86,9 @@ class InventoryItemAdapter extends TypeAdapter<InventoryItem> {
       ..writeByte(18)
       ..write(obj.material)
       ..writeByte(19)
-      ..write(obj.imageUrls);
+      ..write(obj.imageUrls)
+      ..writeByte(20)
+      ..write(obj.imagesJson);
   }
 
   @override
