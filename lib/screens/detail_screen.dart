@@ -792,9 +792,10 @@ class _DetailScreenState extends State<DetailScreen> {
       }
       
       // 🎯 Phase 2: 差分削除 - 新規アップロード後、最終URLリストを確定
-      final allImageUrls = [...existingUrls, ...imageUrls];
+      // ✅ 修正: uploadedImagesに既存画像も含まれているため、imageUrlsのみを使用（重複防止）
+      final allImageUrls = imageUrls;
       
-      debugPrint('📊 最終画像リスト: ${allImageUrls.length}件（既存${existingUrls.length} + 新規${imageUrls.length}）');
+      debugPrint('📊 最終画像リスト: ${allImageUrls.length}件（uploadedImagesから取得、重複なし）');
       
       // 🎯 Phase 4: 白抜き画像の同期処理
       // 1. 元画像から対応する白抜き画像URLを生成
