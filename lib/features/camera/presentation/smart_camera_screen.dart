@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../measurement/presentation/mock_ar_view.dart';
-import '../../measurement/presentation/measurement_screen.dart'; // Import for bottom sheet logic if needed, or re-implement
 
 // State for Camera Mode
 enum CameraMode { photo, measure }
@@ -147,29 +146,202 @@ class SmartCameraScreen extends ConsumerWidget {
 }
 
 // Standard Camera View (Simulation)
-class _StandardCameraView extends StatelessWidget {
+class _StandardCameraView extends ConsumerStatefulWidget {
   const _StandardCameraView({super.key});
 
   @override
+  ConsumerState<_StandardCameraView> createState() => _StandardCameraViewState();
+}
+
+class _StandardCameraViewState extends ConsumerState<_StandardCameraView> {
+  bool _showGrid = false;
+  double _brightness = 0.0;
+  bool _flashOn = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.camera_alt_outlined, size: 80, color: Colors.white.withValues(alpha: 0.3)),
-            const SizedBox(height: 16),
-            Text(
-              "標準カメラモード\n(エビデンス撮影)",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+    return Stack(
+      children: [
+        // カメラビューフィールド（シミュレーション）
+        Container(
+          color: Colors.black,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.camera_alt_outlined, size: 80, color: Colors.white.withValues(alpha: 0.3)),
+                const SizedBox(height: 16),
+                Text(
+                  "標準カメラモード\n(エビデンス撮影)",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+        
+        // グリッド線表示（3x3グリッド）
+        if (_showGrid)
+          IgnorePointer(
+            child: CustomPaint(
+              painter: _GridPainter(),
+              child: Container(),
+            ),
+          ),
+        
+        // カメラコントロール（トップ）
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: SafeArea(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.7),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // グリッド線トグル
+                  IconButton(
+                    icon: Icon(
+                      _showGrid ? Icons.grid_on : Icons.grid_off,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _showGrid = !_showGrid;
+                      });
+                    },
+                  ),
+                  
+                  // フラッシュトグル
+                  IconButton(
+                    icon: Icon(
+                      _flashOn ? Icons.flash_on : Icons.flash_off,
+                      color: _flashOn ? Colors.yellow : Colors.white,
+                      size: 28,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _flashOn = !_flashOn;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        
+        // 明るさ調整スライダー
+        Positioned(
+          right: 16,
+          top: 120,
+          bottom: 120,
+          child: Container(
+            width: 48,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // 明るさアイコン（上）
+                Icon(
+                  Icons.brightness_high,
+                  color: Colors.white.withValues(alpha: 0.7),
+                  size: 20,
+                ),
+                const SizedBox(height: 8),
+                
+                // 明るさスライダー（縦）
+                Expanded(
+                  child: RotatedBox(
+                    quarterTurns: -1,
+                    child: SliderTheme(
+                      data: SliderThemeData(
+                        trackHeight: 4,
+                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                        overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+                      ),
+                      child: Slider(
+                        value: _brightness,
+                        min: -1.0,
+                        max: 1.0,
+                        activeColor: Colors.white,
+                        inactiveColor: Colors.white.withValues(alpha: 0.3),
+                        onChanged: (value) {
+                          setState(() {
+                            _brightness = value;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 8),
+                // 明るさアイコン（下）
+                Icon(
+                  Icons.brightness_low,
+                  color: Colors.white.withValues(alpha: 0.7),
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
+}
+
+/// グリッド線描画用のカスタムペインター
+class _GridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.3)
+      ..strokeWidth = 1.0;
+    
+    // 縦線2本（3分割）
+    final double verticalStep = size.width / 3;
+    for (int i = 1; i < 3; i++) {
+      final double x = verticalStep * i;
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x, size.height),
+        paint,
+      );
+    }
+    
+    // 横線2本（3分割）
+    final double horizontalStep = size.height / 3;
+    for (int i = 1; i < 3; i++) {
+      final double y = horizontalStep * i;
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // Mode Selector Button

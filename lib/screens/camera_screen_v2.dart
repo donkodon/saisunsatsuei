@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:measure_master/constants.dart';
+import 'package:measure_master/models/image_item.dart';
+import 'package:measure_master/services/image_cache_service.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
-/// 📸 撮影画面 v2（ローカル保存のみ）
+/// 📸 撮影画面 v3（UUID管理）
 /// 
 /// 改善点：
-/// - 即時アップロードを削除 → ローカルファイルのみ管理
-/// - 連番管理をシンプル化 → リストのインデックス = 連番
-/// - 削除処理の簡素化 → ローカルリストから削除のみ
+/// - UUID方式による画像管理
+/// - 削除・並び替えに完全対応
+/// - ファイル名の衝突を防止
+/// - 白抜き画像との整合性を保証
 class CameraScreenV2 extends StatefulWidget {
   final String itemName;
   final String brand;
@@ -24,7 +27,7 @@ class CameraScreenV2 extends StatefulWidget {
   final String productRank;
   final String material;
   final String description;
-  final List<XFile>? existingImageFiles;  // 📸 既存の画像ファイル（編集時）
+  final List<ImageItem>? existingImages;  // 📸 既存の画像アイテム（編集時）
 
   const CameraScreenV2({
     Key? key,
@@ -40,7 +43,7 @@ class CameraScreenV2 extends StatefulWidget {
     required this.productRank,
     required this.material,
     required this.description,
-    this.existingImageFiles,
+    this.existingImages,
   }) : super(key: key);
 
   @override
@@ -53,8 +56,8 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
   int _selectedMode = 0; // 0: Tops, 1: Pants, 2: Bags
   bool _isCameraInitialized = false;
   
-  // 📸 ローカル画像ファイルのリスト（アップロード前）
-  List<XFile> _capturedImageFiles = [];
+  // 📸 画像アイテムのリスト（UUID管理）
+  List<ImageItem> _images = [];
   
   bool _isCapturing = false;
   int _selectedImageIndex = 0;
@@ -66,13 +69,15 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
     _initializeExistingImages();
   }
 
-  /// 📸 既存画像ファイルを初期化
+  /// 📸 既存画像を初期化
   void _initializeExistingImages() {
-    if (widget.existingImageFiles != null && widget.existingImageFiles!.isNotEmpty) {
-      _capturedImageFiles = List.from(widget.existingImageFiles!);
+    if (widget.existingImages != null && widget.existingImages!.isNotEmpty) {
+      setState(() {
+        _images = List.from(widget.existingImages!);
+      });
       
       if (kDebugMode) {
-        debugPrint('📸 既存画像を読み込み: ${_capturedImageFiles.length}枚');
+        debugPrint('📸 既存画像を読み込み: ${_images.length}枚');
       }
     }
   }
@@ -126,16 +131,75 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
 
   /// 📸 保存ボタン押下時：撮影画像を持って元の画面に戻る
   void _saveAndReturn() {
-    if (_capturedImageFiles.isEmpty) return;
+    if (_images.isEmpty) return;
+    
+    // 🎯 順序を再計算してから返却
+    final updatedImages = _updateSequences();
     
     if (kDebugMode) {
-      debugPrint('📸 保存: ${_capturedImageFiles.length}枚の画像を返却');
+      debugPrint('📸 保存: ${updatedImages.length}枚の画像を返却');
+      for (var img in updatedImages) {
+        debugPrint('  ${img.id}: sequence=${img.sequence}, isMain=${img.isMain}');
+      }
     }
     
-    Navigator.pop(context, _capturedImageFiles);
+    Navigator.pop(context, updatedImages);
+  }
+  
+  /// 🎯 順序を再計算
+  List<ImageItem> _updateSequences() {
+    final List<ImageItem> updated = [];
+    for (int i = 0; i < _images.length; i++) {
+      updated.add(_images[i].copyWithSequence(i + 1, isMain: i == 0));
+    }
+    return updated;
+  }
+  
+  /// 🗑️ 画像を削除（UUID方式）
+  void _deleteImage(String id) {
+    final imageItem = _images.firstWhere((img) => img.id == id);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('画像を削除'),
+        content: Text(
+          imageItem.isExisting
+              ? 'この画像を削除しますか？\n（商品確定時にサーバーからも削除されます）'
+              : 'この画像を削除しますか？',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _images.removeWhere((img) => img.id == id);
+                // 選択インデックスの調整
+                if (_selectedImageIndex >= _images.length && _images.isNotEmpty) {
+                  _selectedImageIndex = _images.length - 1;
+                }
+              });
+              Navigator.pop(context);
+              
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('画像を削除しました'),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            child: const Text('削除', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 
-  /// 📸 写真を撮影（ローカル保存のみ）
+  /// 📸 写真を撮影（UUID方式）
   Future<void> _takePicture() async {
     if (_controller == null || !_controller!.value.isInitialized || _isCapturing) {
       return;
@@ -150,11 +214,30 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
         debugPrint('✅ 撮影完了: ${image.path}');
       }
 
+      // 🔧 blob URL問題の回避: 即座にバイトデータに変換
+      final imageBytes = await image.readAsBytes();
+      if (kDebugMode) {
+        debugPrint('📦 画像データ取得: ${imageBytes.length} bytes');
+      }
+
       if (mounted) {
-        // ✅ ローカルファイルリストに追加（アップロードなし）
+        // ✅ ImageItem として追加（bytesを保持）
         setState(() {
-          _capturedImageFiles.add(image);
-          _selectedImageIndex = _capturedImageFiles.length - 1;
+          final newItem = ImageItem.fromBytes(
+            bytes: imageBytes,
+            sequence: _images.length + 1,
+            isMain: _images.isEmpty,
+          );
+          _images.add(newItem);
+          _selectedImageIndex = _images.length - 1;
+          
+          if (kDebugMode) {
+            debugPrint('📸 新規画像追加: ${newItem.id}');
+          }
+        });
+        
+        setState(() {
+          _selectedImageIndex = _images.length - 1;
           _isCapturing = false;
         });
 
@@ -164,7 +247,7 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
               children: [
                 Icon(Icons.check_circle, color: Colors.white),
                 SizedBox(width: 8),
-                Text('撮影完了 (${_capturedImageFiles.length}枚)'),
+                Text('撮影完了 (${_images.length}枚)'),
               ],
             ),
             backgroundColor: AppConstants.successGreen,
@@ -216,8 +299,13 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
       if (mounted) {
         // ✅ ローカルファイルリストに追加
         setState(() {
-          _capturedImageFiles.add(pickedFile);
-          _selectedImageIndex = _capturedImageFiles.length - 1;
+          final newItem = ImageItem.fromFile(
+            file: pickedFile,
+            sequence: _images.length + 1,
+            isMain: _images.isEmpty,
+          );
+          _images.add(newItem);
+          _selectedImageIndex = _images.length - 1;
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -226,7 +314,7 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
               children: [
                 Icon(Icons.check_circle, color: Colors.white),
                 SizedBox(width: 8),
-                Text('画像を選択しました (${_capturedImageFiles.length}枚)'),
+                Text('画像を選択しました (${_images.length}枚)'),
               ],
             ),
             backgroundColor: AppConstants.successGreen,
@@ -248,44 +336,7 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
     }
   }
 
-  /// 🗑️ 画像を削除（ローカルリストから削除のみ）
-  void _deleteImage(int index) {
-    if (index < 0 || index >= _capturedImageFiles.length) return;
 
-    final removedImage = _capturedImageFiles[index];
-    
-    if (kDebugMode) {
-      debugPrint('🗑️ 画像を削除: ${removedImage.name} (index: $index)');
-    }
-
-    setState(() {
-      _capturedImageFiles.removeAt(index);
-      
-      // 選択インデックスの調整
-      if (_selectedImageIndex >= _capturedImageFiles.length) {
-        _selectedImageIndex = _capturedImageFiles.length - 1;
-      }
-      if (_selectedImageIndex < 0) {
-        _selectedImageIndex = 0;
-      }
-    });
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.delete, color: Colors.white),
-              SizedBox(width: 8),
-              Text('画像を削除しました'),
-            ],
-          ),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 1),
-        ),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -314,7 +365,7 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
           _buildHelpText(),
           
           // 撮影画像サムネイル
-          if (_capturedImageFiles.isNotEmpty)
+          if (_images.isNotEmpty)
             _buildImageThumbnails(),
           
           // 底部コントロール
@@ -322,6 +373,69 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
         ],
       ),
     );
+  }
+
+  /// 画像ウィジェットを構築
+  /// 
+  /// 🔧 v2.0 改善点:
+  /// - URLからの画像読み込み時にキャッシュバスティングを適用
+  /// - キャッシュ制御ヘッダーを追加
+  Widget _buildImageWidget(ImageItem imageItem) {
+    if (imageItem.bytes != null) {
+      // 🔧 バイトデータから表示（blob URL問題の回避）
+      return Image.memory(
+        imageItem.bytes!,
+        width: 80,
+        height: 80,
+        fit: BoxFit.cover,
+      );
+    } else if (imageItem.url != null) {
+      // 🔧 既存画像（URLから表示）- キャッシュバスティングを適用
+      final cacheBustedUrl = ImageCacheService.getCacheBustedUrl(imageItem.url!);
+      return Image.network(
+        cacheBustedUrl,
+        width: 80,
+        height: 80,
+        fit: BoxFit.cover,
+        // ✅ Phase 1のUUID形式でキャッシュ衝突は回避済み
+        // ✅ ?t=timestamp パラメータでキャッシュバスティング実現
+        // ❌ Cache-Controlヘッダーは削除（CORS問題回避）
+        errorBuilder: (context, error, stackTrace) {
+          if (kDebugMode) {
+            debugPrint('❌ 画像読み込みエラー: $error');
+          }
+          return Container(
+            width: 80,
+            height: 80,
+            color: Colors.grey[300],
+            child: const Icon(Icons.error, color: Colors.red),
+          );
+        },
+      );
+    } else if (imageItem.file != null) {
+      // 新規画像（ローカルファイルから表示）
+      return kIsWeb
+          ? Image.network(
+              imageItem.file!.path,
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+            )
+          : Image.file(
+              File(imageItem.file!.path),
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+            );
+    } else {
+      // エラー状態
+      return Container(
+        width: 80,
+        height: 80,
+        color: Colors.grey[300],
+        child: const Icon(Icons.image_not_supported, color: Colors.grey),
+      );
+    }
   }
 
   Widget _buildCameraPreview() {
@@ -369,11 +483,11 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
                 ),
               ),
               TextButton(
-                onPressed: _capturedImageFiles.isEmpty ? null : _saveAndReturn,
+                onPressed: _images.isEmpty ? null : _saveAndReturn,
                 child: Text(
-                  "保存 (${_capturedImageFiles.length})", 
+                  "保存 (${_images.length})", 
                   style: TextStyle(
-                    color: _capturedImageFiles.isEmpty 
+                    color: _images.isEmpty 
                       ? Colors.grey 
                       : AppConstants.primaryCyan, 
                     fontWeight: FontWeight.bold,
@@ -466,17 +580,17 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
         height: 80,
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          itemCount: _capturedImageFiles.length,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: _images.length,
           itemBuilder: (context, index) {
-            final imageFile = _capturedImageFiles[index];
+            final imageItem = _images[index];
             final isSelected = index == _selectedImageIndex;
 
             return GestureDetector(
               onTap: () => setState(() => _selectedImageIndex = index),
               child: Container(
                 width: 80,
-                margin: EdgeInsets.only(right: 8),
+                margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
                   border: Border.all(
                     color: isSelected ? AppConstants.primaryCyan : Colors.white,
@@ -489,33 +603,40 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
                     // 画像サムネイル
                     ClipRRect(
                       borderRadius: BorderRadius.circular(6),
-                      child: kIsWeb
-                          ? Image.network(
-                              imageFile.path,
-                              width: 80,
-                              height: 80,
-                              fit: BoxFit.cover,
-                            )
-                          : Image.file(
-                              File(imageFile.path),
-                              width: 80,
-                              height: 80,
-                              fit: BoxFit.cover,
-                            ),
+                      child: _buildImageWidget(imageItem),
                     ),
+                    
+                    // 🎯 バッジ（既存画像）
+                    if (imageItem.isExisting)
+                      Positioned(
+                        top: 4,
+                        left: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.blue,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            '保存済',
+                            style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    
                     // 削除ボタン
                     Positioned(
                       top: 2,
                       right: 2,
                       child: GestureDetector(
-                        onTap: () => _deleteImage(index),
+                        onTap: () => _deleteImage(imageItem.id),
                         child: Container(
-                          padding: EdgeInsets.all(4),
-                          decoration: BoxDecoration(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
                             color: Colors.red,
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(
+                          child: const Icon(
                             Icons.close,
                             color: Colors.white,
                             size: 14,
@@ -523,12 +644,13 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
                         ),
                       ),
                     ),
+                    
                     // 連番表示
                     Positioned(
                       bottom: 2,
                       left: 2,
                       child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: Colors.black54,
                           borderRadius: BorderRadius.circular(10),
@@ -567,7 +689,7 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
               // ギャラリーボタン
               _buildControlButton(
                 icon: Icons.photo_library,
-                label: '${_capturedImageFiles.length}',
+                label: '${_images.length}',
                 onTap: _pickImageFromGallery,
               ),
               

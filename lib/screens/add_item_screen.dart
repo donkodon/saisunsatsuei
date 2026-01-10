@@ -8,8 +8,11 @@ import 'package:measure_master/screens/detail_screen.dart';
 import 'package:measure_master/widgets/custom_button.dart';
 import 'package:measure_master/models/api_product.dart';
 import 'package:measure_master/models/item.dart';
+import 'package:measure_master/models/image_item.dart';
 import 'package:measure_master/providers/inventory_provider.dart';
 import 'package:measure_master/services/cloudflare_storage_service.dart';
+import 'package:measure_master/services/image_cache_service.dart';
+import 'package:measure_master/widgets/smart_image_viewer.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -27,11 +30,8 @@ class _AddItemScreenState extends State<AddItemScreen> {
   bool _aiMeasure = true;
   bool _aiBgRemove = true;
   
-  // 📸 撮影した画像のリスト（既存URL）
-  List<String> _capturedImages = [];
-  
-  // 📸 新規撮影ファイル（XFile）
-  List<XFile> _capturedImageFiles = [];
+  // 📸 画像アイテムのリスト（UUID管理）
+  List<ImageItem> _images = [];
   
   // Form controllers
   final TextEditingController _nameController = TextEditingController();
@@ -185,9 +185,16 @@ class _AddItemScreenState extends State<AddItemScreen> {
         _descriptionController.text = product.description!;
       }
       
-      // 📸 撮影画像を復元（ApiProductにimageUrlsがある場合）
+      // 📸 画像をImageItemとして復元（ApiProductにimageUrlsがある場合）
       if (product.imageUrls != null && product.imageUrls!.isNotEmpty) {
-        _capturedImages = List.from(product.imageUrls!);
+        _images = product.imageUrls!.asMap().entries.map((entry) {
+          return ImageItem.fromUrl(
+            id: 'existing_${entry.key}',  // 仮のID
+            url: entry.value,
+            sequence: entry.key + 1,
+            isMain: entry.key == 0,
+          );
+        }).toList();
       }
     });
   }
@@ -242,22 +249,86 @@ class _AddItemScreenState extends State<AddItemScreen> {
       
       // 📸 画像リストを復元
       if (item.imageUrls != null && item.imageUrls!.isNotEmpty) {
-        _capturedImages = List.from(item.imageUrls!);
+        _images = item.imageUrls!.asMap().entries.map((entry) {
+          return ImageItem.fromUrl(
+            id: 'existing_${entry.key}',
+            url: entry.value,
+            sequence: entry.key + 1,
+            isMain: entry.key == 0,
+          );
+        }).toList();
       }
     });
   }
   
   /// 📸 カメラ画面へ遷移
+  /// 【削除】URL→XFile変換は不要（UUID方式）
+  /*
+  Future<List<XFile>> _convertUrlsToXFiles(List<String> urls) async {
+    final List<XFile> xFiles = [];
+    
+    for (int i = 0; i < urls.length; i++) {
+      try {
+        final url = urls[i];
+        
+        // 🎯 ステップ1: キャッシュを確認（通信量削減）
+        final cachedFile = await ImageCacheService.getCachedFile(url);
+        if (cachedFile != null) {
+          xFiles.add(XFile(cachedFile.path));
+          if (kDebugMode) {
+            print('✅ キャッシュから取得 (${i + 1}/${urls.length}): ${cachedFile.path}');
+          }
+          continue;
+        }
+        
+        // 🎯 ステップ2: URLから画像をダウンロード
+        if (kDebugMode) {
+          print('⬇️ ダウンロード中 (${i + 1}/${urls.length}): $url');
+        }
+        
+        final response = await http.get(Uri.parse(url));
+        
+        if (response.statusCode == 200) {
+          // 一時ファイルとして保存
+          final tempDir = await getTemporaryDirectory();
+          final fileName = 'existing_${i + 1}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          final file = File('${tempDir.path}/$fileName');
+          
+          await file.writeAsBytes(response.bodyBytes);
+          xFiles.add(XFile(file.path));
+          
+          // キャッシュにも保存
+          await ImageCacheService.cacheImage(url, response.bodyBytes);
+          
+          if (kDebugMode) {
+            print('✅ 既存画像変換成功 (${i + 1}/${urls.length}): $fileName');
+          }
+        } else {
+          if (kDebugMode) {
+            print('❌ 画像ダウンロード失敗 (${i + 1}/${urls.length}): $url - Status ${response.statusCode}');
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('❌ 既存画像変換エラー (${i + 1}/${urls.length}): $e');
+        }
+      }
+    }
+    
+    return xFiles;
+  }
+  */
+  
   void _goToCameraScreen() async {
     if (_nameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('商品名を入力してください')),
+        const SnackBar(content: Text('商品名を入力してください')),
       );
       return;
     }
     
-    // ✨ CameraScreenV2へ遷移（ローカル保存のみ）
-    final result = await Navigator.push<List<XFile>>(
+    // ✨ CameraScreenV2へ遷移（UUID方式）
+    final result = await Navigator.push<List<ImageItem>>(
       context,
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => CameraScreenV2(
@@ -273,7 +344,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
           productRank: _selectedRank,
           material: _selectedMaterial,
           description: _descriptionController.text,
-          existingImageFiles: _capturedImageFiles.isNotEmpty ? _capturedImageFiles : null,  // 既存ファイル
+          existingImages: _images.isNotEmpty ? _images : null,  // 🎯 既存の ImageItem リスト
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
@@ -282,14 +353,14 @@ class _AddItemScreenState extends State<AddItemScreen> {
       ),
     );
     
-    // ✨ カメラ画面から戻ってきた時の処理（XFileリスト）
+    // ✨ カメラ画面から戻ってきた時の処理（ImageItemリスト）
     if (result != null && result.isNotEmpty) {
       setState(() {
-        _capturedImageFiles = result;  // ✨ XFileリストを保存
+        _images = result;  // ✨ ImageItemリストを保存
       });
       
       // 撮影完了のフィードバック
-      final message = '📸 ${result.length}枚の画像を追加しました';
+      final message = '📸 ${result.length}枚の画像を管理中';
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -431,33 +502,22 @@ class _AddItemScreenState extends State<AddItemScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 📸 撮影した画像のサムネイル表示
-                      if (_capturedImages.isNotEmpty) ...[
+                      // 📸 画像サムネイル表示（UUID方式）
+                      if (_images.isNotEmpty) ...[
                         Container(
                           height: 120,
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
-                            itemCount: _capturedImages.length,
+                            itemCount: _images.length,
                             itemBuilder: (context, index) {
+                              final imageItem = _images[index];
                               return Container(
                                 margin: EdgeInsets.only(right: 8),
                                 child: Stack(
                                   children: [
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
-                                      child: kIsWeb
-                                          ? Image.network(
-                                              _capturedImages[index],
-                                              width: 100,
-                                              height: 120,
-                                              fit: BoxFit.cover,
-                                            )
-                                          : Image.file(
-                                              File(_capturedImages[index]),
-                                              width: 100,
-                                              height: 120,
-                                              fit: BoxFit.cover,
-                                            ),
+                                      child: _buildImageWidget(imageItem),
                                     ),
                                     // 削除ボタン
                                     Positioned(
@@ -465,37 +525,13 @@ class _AddItemScreenState extends State<AddItemScreen> {
                                       right: 4,
                                       child: GestureDetector(
                                         onTap: () async {
-                                          final removedImageUrl = _capturedImages[index];
-                                          
-                                          // 🗑️ Cloudflareから画像を削除
-                                          if (removedImageUrl.startsWith('http')) {
-                                            if (kDebugMode) {
-                                              debugPrint('🗑️ Cloudflareから画像を削除中: $removedImageUrl');
-                                            }
-                                            
-                                            // バックグラウンドで削除実行
-                                            CloudflareWorkersStorageService.deleteImage(removedImageUrl).then((success) {
-                                              if (kDebugMode) {
-                                                debugPrint(success 
-                                                  ? '✅ Cloudflare削除成功: $removedImageUrl' 
-                                                  : '⚠️ Cloudflare削除失敗: $removedImageUrl');
-                                              }
-                                            });
-                                          }
-                                          
                                           setState(() {
-                                            _capturedImages.removeAt(index);
+                                            _images.removeAt(index);
                                           });
                                           
-                                          // 📸 既存商品の場合、Hiveのデータも更新
-                                          if (widget.existingItem != null && _skuController.text.isNotEmpty) {
-                                            await Provider.of<InventoryProvider>(context, listen: false)
-                                                .updateItemImages(_skuController.text, _capturedImages);
-                                            
-                                            if (kDebugMode) {
-                                              debugPrint('🗑️ Hiveから画像を削除: $removedImageUrl');
-                                              debugPrint('📸 残りの画像数: ${_capturedImages.length}');
-                                            }
+                                          if (kDebugMode) {
+                                            debugPrint('🗑️ 画像を削除: ${imageItem.id}');
+                                            debugPrint('📸 残りの画像数: ${_images.length}');
                                           }
                                           
                                           ScaffoldMessenger.of(context).showSnackBar(
@@ -540,13 +576,13 @@ class _AddItemScreenState extends State<AddItemScreen> {
                         onTap: _goToCameraScreen,
                         child: Container(
                           width: double.infinity,
-                          height: _capturedImages.isEmpty ? 200 : 60,
+                          height: _images.isEmpty ? 200 : 60,
                           decoration: BoxDecoration(
-                            color: _capturedImages.isEmpty ? Colors.transparent : Colors.white,
+                            color: _images.isEmpty ? Colors.transparent : Colors.white,
                             borderRadius: BorderRadius.circular(12),
-                            border: _capturedImages.isEmpty ? null : Border.all(color: AppConstants.primaryCyan, width: 2),
+                            border: _images.isEmpty ? null : Border.all(color: AppConstants.primaryCyan, width: 2),
                           ),
-                          child: _capturedImages.isEmpty
+                          child: _images.isEmpty
                               ? Stack(
                                   alignment: Alignment.center,
                                   children: [
@@ -759,8 +795,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                       productRank: _selectedRank,  // 🔧 そのまま渡す（DetailScreenで判定）
                       material: _selectedMaterial,  // 🔧 そのまま渡す（DetailScreenで判定）
                       description: _descriptionController.text,
-                      capturedImages: _capturedImages.isEmpty ? null : _capturedImages,  // 📸 既存URL
-                      capturedImageFiles: _capturedImageFiles.isEmpty ? null : _capturedImageFiles,  // ✨ 新規ファイル
+                      images: _images.isEmpty ? null : _images,  // 📸 画像アイテムリスト（UUID管理）
                       // 🆕 product_masterから引き継ぐ追加フィールド
                       brandKana: widget.prefillData?.brandKana,
                       categorySub: widget.prefillData?.categorySub,
@@ -787,6 +822,68 @@ class _AddItemScreenState extends State<AddItemScreen> {
         ],
       ),
     );
+  }
+
+  /// 📸 ImageItemからWidgetを生成
+  /// 
+  /// 🔧 v2.0 改善点:
+  /// - キャッシュバスティングを適用（古い画像が表示される問題を解決）
+  Widget _buildImageWidget(ImageItem imageItem) {
+    if (imageItem.bytes != null) {
+      // 🔧 バイトデータがある場合（最優先）
+      return Image.memory(
+        imageItem.bytes!,
+        width: 100,
+        height: 120,
+        fit: BoxFit.cover,
+      );
+    } else if (imageItem.file != null) {
+      // XFileが存在する場合
+      return kIsWeb
+          ? Image.network(
+              imageItem.file!.path,
+              width: 100,
+              height: 120,
+              fit: BoxFit.cover,
+            )
+          : Image.file(
+              File(imageItem.file!.path),
+              width: 100,
+              height: 120,
+              fit: BoxFit.cover,
+            );
+    } else if (imageItem.url != null) {
+      // URLが存在する場合 - 🔧 キャッシュバスティングを適用
+      final cacheBustedUrl = ImageCacheService.getCacheBustedUrl(imageItem.url!);
+      return Image.network(
+        cacheBustedUrl,
+        width: 100,
+        height: 120,
+        fit: BoxFit.cover,
+        // ✅ Phase 1のUUID形式でキャッシュ衝突は回避済み
+        // ✅ ?t=timestamp パラメータでキャッシュバスティング実現
+        // ❌ Cache-Controlヘッダーは削除（CORS問題回避）
+        errorBuilder: (context, error, stackTrace) {
+          if (kDebugMode) {
+            debugPrint('❌ 画像読み込みエラー: $error');
+          }
+          return Container(
+            width: 100,
+            height: 120,
+            color: Colors.grey[200],
+            child: Icon(Icons.broken_image, size: 40, color: Colors.grey[400]),
+          );
+        },
+      );
+    } else {
+      // ファイルもURLもない場合
+      return Container(
+        width: 100,
+        height: 120,
+        color: Colors.grey[200],
+        child: Icon(Icons.image, size: 40, color: Colors.grey[400]),
+      );
+    }
   }
 
   Widget _buildInputField(String label, TextEditingController controller, String hint) {

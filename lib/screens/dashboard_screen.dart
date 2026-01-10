@@ -12,6 +12,8 @@ import 'package:measure_master/models/item.dart';
 import 'package:measure_master/services/api_service.dart';
 import 'package:measure_master/models/api_product.dart';
 import 'package:measure_master/services/image_cache_service.dart';
+import 'package:measure_master/screens/image_preview_screen.dart';
+import 'package:measure_master/widgets/smart_image_viewer.dart';
 import 'dart:io' show File, Platform;
 
 class DashboardScreen extends StatefulWidget {
@@ -562,23 +564,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Stack(
-              children: [
-                _buildItemImage(item.imageUrl),  // 📸 ファイルパスとアセットパスの両方に対応
-                if (item.status == 'Ready')
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      color: Color(0xFF1A2A3A).withValues(alpha: 0.8),
-                      child: Text("済", style: TextStyle(color: Colors.white, fontSize: 10)),
+          // Image - タップで拡大表示
+          GestureDetector(
+            // イベント伝播を停止して親のGestureDetectorと競合しないようにする
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              // 画像URLリストを取得（メイン画像 + 追加画像）
+              final imageUrls = <String>[];
+              if (item.imageUrl.isNotEmpty) {
+                imageUrls.add(item.imageUrl);
+              }
+              if (item.imageUrls != null && item.imageUrls!.isNotEmpty) {
+                imageUrls.addAll(item.imageUrls!);
+              }
+              
+              // 画像プレビュー画面を表示
+              if (imageUrls.isNotEmpty) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ImagePreviewScreen(
+                      imageUrls: imageUrls,
+                      initialIndex: 0,
+                      heroTag: 'item_image_${item.id}',
                     ),
                   ),
-              ],
+                );
+              }
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Stack(
+                children: [
+                  _buildItemImage(item.imageUrl),  // 📸 ファイルパスとアセットパスの両方に対応
+                  if (item.status == 'Ready')
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        color: Color(0xFF1A2A3A).withValues(alpha: 0.8),
+                        child: Text("済", style: TextStyle(color: Colors.white, fontSize: 10)),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
           SizedBox(width: 12),
@@ -682,14 +712,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // 📸 ファイルパスとアセットパスの両方に対応した画像表示
+  /// 📸 ファイルパスとアセットパスの両方に対応した画像表示
+  /// 
+  /// 🔧 v2.0 改善点:
+  /// - キャッシュバスティングを適用して常に最新画像を表示
+  /// - Image.networkにキャッシュ制御ヘッダーを追加
+  /// 
+  /// 🎨 Phase 5: SmartImageViewerに統一
   Widget _buildItemImage(String imageUrl) {
+    return SmartImageViewer(
+      imageUrl: imageUrl,
+      width: 80,
+      height: 80,
+      fit: BoxFit.cover,
+      borderRadius: 8,
+    );
+  }
+
+  /// 📸 旧実装（Phase 5で置き換え済み）
+  Widget _buildItemImage_Legacy(String imageUrl) {
     // 📸 まずローカルキャッシュをチェック（CORS回避）
     if (imageUrl.contains('.r2.dev') || imageUrl.contains('workers.dev')) {
-      final cachedBytes = ImageCacheService.getCachedImage(imageUrl);
+      // 🔧 キャッシュバスティングパラメータを除去したURLでキャッシュを検索
+      final cleanUrl = ImageCacheService.removeCacheBusting(imageUrl);
+      final cachedBytes = ImageCacheService.getCachedImage(cleanUrl);
       if (cachedBytes != null) {
         if (kDebugMode) {
-          debugPrint('✅ キャッシュから画像表示: $imageUrl');
+          debugPrint('✅ キャッシュから画像表示: $cleanUrl');
         }
         return ClipRRect(
           borderRadius: BorderRadius.circular(8),
@@ -708,6 +757,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (kDebugMode) {
         debugPrint('⚠️ キャッシュなし、ネットワーク画像を試行: $imageUrl');
       }
+      
+      // 🔧 キャッシュバスティングを適用してネットワークから取得
+      final cacheBustedUrl = ImageCacheService.getCacheBustedUrl(cleanUrl);
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          cacheBustedUrl,
+          width: 80,
+          height: 80,
+          fit: BoxFit.cover,
+          // ✅ Phase 1のUUID形式でキャッシュ衝突は回避済み
+          // ✅ ?t=timestamp パラメータでキャッシュバスティング実現
+          // ❌ Cache-Controlヘッダーは削除（CORS問題回避）
+          errorBuilder: (c, o, s) {
+            if (kDebugMode) {
+              debugPrint('❌ ネットワーク画像読み込みエラー: $imageUrl');
+              debugPrint('   エラー詳細: $o');
+            }
+            
+            // 🔧 404エラーの場合、古い画像URLの可能性があることを記録
+            // （自動削除はせず、ログで警告のみ）
+            if (o.toString().contains('404') || o.toString().contains('Not Found')) {
+              if (kDebugMode) {
+                debugPrint('⚠️ 404エラー: 古い画像URLの可能性があります: $imageUrl');
+                debugPrint('   💡 ヒント: 商品を再編集して保存すると、無効な画像URLが削除されます');
+              }
+            }
+            
+            return _buildPlaceholderImage(Icons.cloud_off);
+          },
+        ),
+      );
     }
     
     // ファイルパス（/data/user/0/...）の場合
@@ -731,23 +812,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       );
     } else if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-      // URL画像の場合 - CORSエラーの可能性あり
-      // キャッシュがない場合はプレースホルダーを表示（CORSエラー回避）
-      if (imageUrl.contains('.r2.dev')) {
-        if (kDebugMode) {
-          debugPrint('⚠️ R2直URLはCORSエラーのためプレースホルダー表示');
-        }
-        return _buildPlaceholderImage(Icons.cloud_off);
-      }
-      
-      // その他のHTTP URLはネットワーク画像として試行
+      // 🔧 その他のHTTP URLはキャッシュバスティングを適用してネットワーク画像として試行
+      final cacheBustedUrl = ImageCacheService.getCacheBustedUrl(imageUrl);
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Image.network(
-          imageUrl,
+          cacheBustedUrl,
           width: 80,
           height: 80,
           fit: BoxFit.cover,
+          // ✅ Phase 1のUUID形式でキャッシュ衝突は回避済み
+          // ✅ ?t=timestamp パラメータでキャッシュバスティング実現
           errorBuilder: (c, o, s) => _buildPlaceholderImage(Icons.cloud_off),
         ),
       );

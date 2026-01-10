@@ -32,13 +32,15 @@ class ImageRepository {
   /// 
   /// [imageBytes] - 画像データ
   /// [sku] - SKUコード（フォルダ分けに使用）
-  /// [sequence] - 連番
+  /// [sequence] - 連番（表示順序用、ファイル名には使用しない）
+  /// [imageId] - 画像UUID（オプション、未指定時は自動生成）
   /// [source] - 画像ソース（カメラ/ギャラリー）
   /// [isMain] - メイン画像フラグ
   Future<Result<ProductImage>> saveImage({
     required Uint8List imageBytes,
     required String sku,
     required int sequence,
+    String? imageId,
     ImageSource source = ImageSource.camera,
     bool isMain = false,
     String? localPath,
@@ -47,10 +49,13 @@ class ImageRepository {
       debugPrint('🔧 ImageRepository.saveImage 開始');
       debugPrint('  📦 SKU: $sku, 連番: $sequence');
       
-      // ファイルIDとファイル名の生成
-      final fileId = '${sku}_$sequence';
+      // 🎯 Phase 1: UUID導入 - ファイル名を ${sku}_${uuid}.jpg 形式に変更
+      final uuid = imageId ?? _uuid.v4();
+      final fileId = '${sku}_$uuid';
       final fileName = '$fileId.jpg';
       
+      debugPrint('  🆔 UUID: $uuid');
+      debugPrint('  📁 fileId: $fileId');
       debugPrint('  📁 ファイル名: $fileName');
 
       // Step 1: Cloudflareにアップロード
@@ -86,7 +91,7 @@ class ImageRepository {
 
       // Step 3: ProductImageオブジェクトの作成
       final productImage = ProductImage(
-        id: _uuid.v4(),
+        id: uuid,  // 🎯 UUIDを使用（ファイル名と一致）
         url: imageUrl,
         localPath: localPath,
         fileName: fileName,
@@ -285,12 +290,22 @@ class ImageRepository {
   }
 
   /// キャッシュに保存
+  /// 
+  /// 🔧 v2.0 改善点:
+  /// - updateCachedImage を使用して既存キャッシュを削除してから新規保存
+  /// - キャッシュバスティングパラメータを除去したクリーンなURLでキャッシュ
   Future<Result<void>> _saveToCache({
     required String imageUrl,
     required Uint8List imageBytes,
   }) async {
     try {
-      await ImageCacheService.cacheImage(imageUrl, imageBytes);
+      // キャッシュバスティングパラメータを除去したクリーンなURLを使用
+      final cleanUrl = ImageCacheService.removeCacheBusting(imageUrl);
+      
+      // 既存キャッシュを削除してから新規保存（updateCachedImage）
+      await ImageCacheService.updateCachedImage(cleanUrl, imageBytes);
+      
+      debugPrint('✅ キャッシュ保存完了: $cleanUrl');
       return Success(null);
     } catch (e, stackTrace) {
       return Failure(
@@ -320,11 +335,13 @@ class ImageRepository {
   }
 
   /// キャッシュから削除
+  /// 
+  /// 🔧 v2.0 改善点:
+  /// - ImageCacheService.invalidateCache を使用して個別キャッシュを削除
   Future<Result<void>> _deleteFromCache(String imageUrl) async {
     try {
-      // TODO: 特定画像のキャッシュ削除機能を実装
-      // 現時点では全体クリアのみサポート
-      debugPrint('📝 キャッシュ削除: $imageUrl（全体クリアは未実装）');
+      await ImageCacheService.invalidateCache(imageUrl);
+      debugPrint('✅ キャッシュ削除完了: $imageUrl');
       return Success(null);
     } catch (e, stackTrace) {
       return Failure(

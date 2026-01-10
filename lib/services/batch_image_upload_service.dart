@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 import '../models/product_image.dart';
 import '../models/result.dart';
+import '../models/image_item.dart';
 import '../repositories/image_repository.dart';
 import '../services/cloudflare_storage_service.dart';
 
@@ -21,6 +22,192 @@ class BatchImageUploadService {
 
   BatchImageUploadService({ImageRepository? repository})
       : _repository = repository ?? ImageRepository();
+
+  /// 🎯 Phase 3: ImageItemから一括アップロード（UUID完全対応）
+  /// 
+  /// [imageItems] - ImageItemのリスト（UUIDを含む）
+  /// [sku] - SKUコード
+  /// [onProgress] - 進捗コールバック (current, total)
+  /// 
+  /// Returns: Result<List<ProductImage>>
+  Future<Result<List<ProductImage>>> uploadImagesFromImageItems({
+    required List<ImageItem> imageItems,
+    required String sku,
+    void Function(int current, int total)? onProgress,
+  }) async {
+    try {
+      if (imageItems.isEmpty) {
+        return Failure('アップロードする画像がありません');
+      }
+
+      debugPrint('📤 一括アップロード開始: ${imageItems.length}枚');
+      debugPrint('   SKU: $sku');
+
+      final uploadedImages = <ProductImage>[];
+
+      for (int i = 0; i < imageItems.length; i++) {
+        final imageItem = imageItems[i];
+        
+        // 🧪 Phase 3 デバッグ: ImageItemの処理状況を出力
+        debugPrint('  🧪 [${i + 1}/${imageItems.length}] ImageItem処理:');
+        debugPrint('     id=${imageItem.id}');
+        debugPrint('     sequence=${imageItem.sequence}');
+        debugPrint('     isMain=${imageItem.isMain}');
+        debugPrint('     isExisting=${imageItem.isExisting}');
+        debugPrint('     isNew=${imageItem.isNew}');
+        
+        // 既存画像の場合はスキップ（再アップロード不要）
+        if (imageItem.isExisting) {
+          debugPrint('  ⏭️ 既存画像をスキップ（再アップロード不要）');
+          debugPrint('     url=${imageItem.url}');
+          
+          // 既存画像をProductImageとして追加
+          uploadedImages.add(ProductImage(
+            id: imageItem.id,
+            url: imageItem.url!,
+            fileName: imageItem.id, // UUIDをファイル名として使用
+            sequence: imageItem.sequence,
+            isMain: imageItem.isMain,
+            capturedAt: imageItem.createdAt,
+            source: ImageSource.camera,
+            uploadStatus: UploadStatus.uploaded,
+          ));
+          
+          onProgress?.call(i + 1, imageItems.length);
+          continue;
+        }
+        
+        // 新規画像の場合
+        debugPrint('  🆕 新規画像をアップロード開始');
+
+        try {
+          // 進捗通知
+          onProgress?.call(i + 1, imageItems.length);
+
+          debugPrint('  📤 [${i + 1}/${imageItems.length}] 新規画像をアップロード中...');
+          debugPrint('     🔑 ImageItem.id (UUID): ${imageItem.id}');
+          debugPrint('     📊 sequence: ${imageItem.sequence}, isMain: ${imageItem.isMain}');
+
+          // 画像バイトデータを取得
+          Uint8List imageBytes;
+          if (imageItem.bytes != null) {
+            imageBytes = imageItem.bytes!;
+          } else if (imageItem.file != null) {
+            imageBytes = await imageItem.file!.readAsBytes();
+          } else {
+            throw Exception('画像データがありません');
+          }
+
+          // ImageRepositoryを使ってアップロード（ImageItem.idを渡す）
+          debugPrint('     🚀 ImageRepository.saveImage()を呼び出し（imageId=${imageItem.id}）');
+          
+          final result = await _repository.saveImage(
+            imageBytes: imageBytes,
+            sku: sku,
+            imageId: imageItem.id, // 🎯 Phase 3: ImageItem.idをUUIDとして渡す
+            sequence: imageItem.sequence,
+            source: ImageSource.camera,
+            isMain: imageItem.isMain,
+          );
+
+          if (result is Success<ProductImage>) {
+            uploadedImages.add(result.data);
+            debugPrint('     ✅ アップロード成功!');
+            debugPrint('        URL: ${result.data.url}');
+            debugPrint('        ファイル名: ${result.data.fileName}');
+            debugPrint('        UUID一致確認: imageId=${imageItem.id} == productImage.id=${result.data.id} → ${imageItem.id == result.data.id}');
+          } else if (result is Failure<ProductImage>) {
+            throw Exception(result.message);
+          }
+
+        } catch (e) {
+          debugPrint('❌ アップロード失敗 [${i + 1}]: $e');
+          return Failure('画像アップロード失敗: $e');
+        }
+      }
+
+      debugPrint('✅ 一括アップロード完了: ${uploadedImages.length}枚');
+      
+      // 🧪 Phase 3 最終確認: アップロード結果の詳細
+      debugPrint('🧪 Phase 3 最終確認: アップロード結果');
+      for (int i = 0; i < uploadedImages.length; i++) {
+        final img = uploadedImages[i];
+        debugPrint('   [$i] id=${img.id}, fileName=${img.fileName}, sequence=${img.sequence}, isMain=${img.isMain}');
+      }
+      
+      return Success(uploadedImages);
+
+    } catch (e) {
+      debugPrint('❌ 一括アップロードエラー: $e');
+      return Failure('一括アップロード失敗: $e');
+    }
+  }
+
+  /// 🔧 画像バイトデータを一括アップロード（blob URL問題回避版）
+  /// 
+  /// [imageBytesList] - Uint8Listのリスト（画像バイトデータ）
+  /// [sku] - SKUコード
+  /// [onProgress] - 進捗コールバック (current, total)
+  /// 
+  /// Returns: Result<List<ProductImage>>
+  /// 
+  /// ⚠️ 非推奨: uploadImagesFromImageItems() を使用してください
+  @Deprecated('Use uploadImagesFromImageItems() instead')
+  Future<Result<List<ProductImage>>> uploadImagesFromBytes({
+    required List<Uint8List> imageBytesList,
+    required String sku,
+    void Function(int current, int total)? onProgress,
+  }) async {
+    try {
+      if (imageBytesList.isEmpty) {
+        return Failure('アップロードする画像がありません');
+      }
+
+      debugPrint('📤 一括アップロード開始: ${imageBytesList.length}枚');
+      debugPrint('   SKU: $sku');
+
+      final uploadedImages = <ProductImage>[];
+
+      for (int i = 0; i < imageBytesList.length; i++) {
+        final imageBytes = imageBytesList[i];
+        final sequence = i + 1;
+
+        try {
+          // 進捗通知
+          onProgress?.call(i + 1, imageBytesList.length);
+
+          debugPrint('  📤 [$sequence/${imageBytesList.length}] をアップロード中...');
+
+          // ImageRepositoryを使ってアップロード
+          final result = await _repository.saveImage(
+            imageBytes: imageBytes,
+            sku: sku,
+            sequence: sequence,
+            source: ImageSource.camera,
+            isMain: i == 0,
+          );
+
+          if (result is Success<ProductImage>) {
+            uploadedImages.add(result.data);
+            debugPrint('     ✅ アップロード成功: ${result.data.url}');
+          } else if (result is Failure<ProductImage>) {
+            throw Exception(result.message);
+          }
+
+        } catch (e) {
+          debugPrint('❌ アップロード失敗 [$sequence]: $e');
+          return Failure('画像アップロード失敗: $e');
+        }
+      }
+
+      debugPrint('✅ 一括アップロード完了: ${uploadedImages.length}枚');
+      return Success(uploadedImages);
+
+    } catch (e) {
+      debugPrint('❌ 一括アップロードエラー: $e');
+      return Failure('一括アップロード失敗: $e');
+    }
+  }
 
   /// 📤 複数画像を一括アップロード
   /// 

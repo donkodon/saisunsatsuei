@@ -54,6 +54,7 @@ dependencies:
   flutter_image_compress: ^2.3.0
   json_annotation: ^4.9.0
   url_launcher: ^6.3.1
+  photo_view: ^0.15.0
 
 dev_dependencies:
   flutter_test:
