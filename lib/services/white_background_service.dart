@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:measure_master/constants/image_constants.dart';
 import '../models/image_item.dart';
 import '../models/product_image.dart';
 
@@ -109,19 +110,18 @@ class WhiteBackgroundService {
 
     for (var url in originalUrls) {
       // URL形式: https://.../{SKU}/{SKU}_{UUID}.jpg
-      // 白抜き形式: https://.../{SKU}/{SKU}_{UUID}_white.jpg
+      // 白抜き形式: https://.../{SKU}/{SKU}_{UUID}_p.png
       
       // ファイル名部分を抽出
       final fileName = url.split('/').last;
-      if (fileName.contains('_white.')) {
+      if (ImageConstants.isWhiteBackgroundImage(fileName)) {
         // 既に白抜き画像の場合はスキップ
         continue;
       }
 
       // 白抜きファイル名を生成
-      final whiteFileName = fileName.replaceAll('.jpg', '_white.jpg')
-                                     .replaceAll('.jpeg', '_white.jpeg')
-                                     .replaceAll('.png', '_white.png');
+      final whiteFileName = ImageConstants.generateWhiteBackgroundUrl(fileName)
+                                          .split('/').last;
       
       // SKUフォルダパスを抽出
       final urlParts = url.split('/');

@@ -116,6 +116,21 @@ class ApiService {
       // 🔍 デバッグ: 送信データをログ出力
       if (kDebugMode) {
         debugPrint('🌐 D1 API送信データ: ${jsonEncode(dataWithUpsert)}');
+        
+        // 🔍 imageUrls の詳細ログ
+        if (dataWithUpsert.containsKey('imageUrls') && dataWithUpsert['imageUrls'] is List) {
+          final imageUrls = dataWithUpsert['imageUrls'] as List;
+          debugPrint('🖼️ D1送信: imageUrls配列の詳細（${imageUrls.length}件）');
+          for (int i = 0; i < imageUrls.length; i++) {
+            final url = imageUrls[i].toString();
+            // URLからUUID部分を抽出（末尾8文字）
+            final uuidPart = url.contains('_') 
+                ? url.split('_').last.substring(0, 8) 
+                : 'unknown';
+            debugPrint('   配列[$i] (Sequence ${i + 1}): UUID=$uuidPart');
+            debugPrint('       Full URL: $url');
+          }
+        }
       }
       
       final response = await http.post(

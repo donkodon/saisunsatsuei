@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
+import 'package:measure_master/constants/image_constants.dart';
 
 /// 📸 画像アイテムモデル（UUID管理）
 /// 
@@ -121,8 +122,8 @@ class ImageItem {
       // クエリパラメータを除去（例: ?t=timestamp）
       final cleanFileName = fileName.split('?').first;
       
-      // _white.jpg サフィックスを除去
-      final baseFileName = cleanFileName.replaceAll('_white.jpg', '.jpg');
+      // _p.png サフィックスを除去（白抜き画像の場合）
+      final baseFileName = ImageConstants.restoreOriginalFileName(cleanFileName);
       
       // ファイル名パターン: {SKU}_{UUID}.jpg
       // 正規表現: 最後のアンダースコア以降、拡張子の前まで

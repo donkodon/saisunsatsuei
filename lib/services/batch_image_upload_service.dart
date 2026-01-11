@@ -58,20 +58,11 @@ class BatchImageUploadService {
         
         // 既存画像の場合はスキップ（再アップロード不要）
         if (imageItem.isExisting) {
-          debugPrint('  ⏭️ 既存画像をスキップ（再アップロード不要）');
+          debugPrint('  ⏭️ 既存画像をスキップ（再アップロード不要、リストに追加しない）');
           debugPrint('     url=${imageItem.url}');
           
-          // 既存画像をProductImageとして追加
-          uploadedImages.add(ProductImage(
-            id: imageItem.id,
-            url: imageItem.url!,
-            fileName: imageItem.id, // UUIDをファイル名として使用
-            sequence: imageItem.sequence,
-            isMain: imageItem.isMain,
-            capturedAt: imageItem.createdAt,
-            source: ImageSource.camera,
-            uploadStatus: UploadStatus.uploaded,
-          ));
+          // 🔧 修正: 既存画像はリストに追加しない（新規アップロードのみを返す）
+          // uploadedImages.add() を削除
           
           onProgress?.call(i + 1, imageItems.length);
           continue;

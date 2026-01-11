@@ -16,6 +16,7 @@ import 'package:measure_master/models/product_image.dart';
 import 'package:measure_master/models/result.dart';
 import 'package:measure_master/models/image_item.dart';
 import 'package:measure_master/widgets/smart_image_viewer.dart';
+import 'package:measure_master/constants/image_constants.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 import 'dart:io' show File;
@@ -751,9 +752,14 @@ class _DetailScreenState extends State<DetailScreen> {
         }
       }
       
-      if (images.isNotEmpty) {
+      // 🔧 修正: 新規画像のみをアップロード（既存画像は除外）
+      final newImages = images.where((img) => !img.isExisting).toList();
+      
+      debugPrint('🎯 アップロード対象: 新規画像=${newImages.length}件（既存画像は除外）');
+      
+      if (newImages.isNotEmpty) {
         final uploadResult = await _batchUploadService.uploadImagesFromImageItems(
-          imageItems: images,
+          imageItems: newImages,  // 🔧 修正: 新規画像のみを渡す
           sku: widget.sku.isNotEmpty ? widget.sku : 'NOSKU',
           onProgress: (current, total) {
             setState(() {
@@ -775,40 +781,80 @@ class _DetailScreenState extends State<DetailScreen> {
             return <ProductImage>[];
           },
         );
+        
+        // 🔍 BatchImageUploadService戻り値デバッグ
+        debugPrint('🔍 BatchImageUploadService戻り値: ${uploadedImages.length}件');
+        for (int i = 0; i < uploadedImages.length; i++) {
+          final img = uploadedImages[i];
+          debugPrint('  [$i] id=${img.id}, url=${img.url}, sequence=${img.sequence}, isMain=${img.isMain}');
+        }
 
         if (uploadedImages.isEmpty && images.where((img) => !img.isExisting).isNotEmpty) {
           return; // 新規画像のアップロード失敗時は処理中断
         }
 
-        // 🎯 Phase 6: sequence順でソートして順序保証
+        // 🎯 Phase 6: sequence順でソートして順序保証（新規画像のみ）
         final sortedImages = List<ProductImage>.from(uploadedImages)
           ..sort((a, b) => a.sequence.compareTo(b.sequence));
         imageUrls = sortedImages.map((img) => img.url).toList();
         
-        debugPrint('🎯 Phase 6: imageUrls順序保証完了（sequence順）');
+        debugPrint('🎯 Phase 6: 新規画像のimageUrls順序保証完了（sequence順）: ${imageUrls.length}件');
         for (int i = 0; i < sortedImages.length; i++) {
           debugPrint('   [$i] sequence=${sortedImages[i].sequence}, url=${sortedImages[i].url}');
         }
       }
       
       // 🎯 Phase 2: 差分削除 - 新規アップロード後、最終URLリストを確定
-      // ✅ 修正: uploadedImagesに既存画像も含まれているため、imageUrlsのみを使用（重複防止）
-      final allImageUrls = imageUrls;
+      // ✅ 修正: 既存画像URL + 新規画像URLを統合（既存画像が抜けていた問題を解決）
       
-      debugPrint('📊 最終画像リスト: ${allImageUrls.length}件（uploadedImagesから取得、重複なし）');
+      // 既存画像のURLを抽出（sequence順）
+      final existingImageData = widget.images
+          ?.where((img) => img.isExisting && img.url != null)
+          .map((img) => (url: img.url!, sequence: img.sequence))
+          .toList() ?? [];
+      
+      debugPrint('📋 既存画像の抽出: ${existingImageData.length}件');
+      for (var data in existingImageData) {
+        debugPrint('   - sequence=${data.sequence}, url=${data.url}');
+      }
+      
+      // 新規画像のURLとsequenceを抽出 (imageUrlsはLine 793で既に作成済み)
+      // imageUrls は String のリストなので、sequenceを再構築する必要がある
+      // 既存画像の最大sequenceを取得
+      final maxExistingSeq = existingImageData.isEmpty ? 0 : existingImageData.map((e) => e.sequence).reduce((a, b) => a > b ? a : b);
+      
+      final newImageData = imageUrls.asMap().entries
+          .map((entry) => (url: entry.value, sequence: maxExistingSeq + entry.key + 1))
+          .toList();
+      
+      debugPrint('📋 新規画像のURL: ${newImageData.length}件');
+      for (var data in newImageData) {
+        debugPrint('   - sequence=${data.sequence}, url=${data.url}');
+      }
+      
+      // 既存 + 新規を統合してsequence順にソート
+      final allImageData = [...existingImageData, ...newImageData]
+        ..sort((a, b) => a.sequence.compareTo(b.sequence));
+      
+      final allImageUrls = allImageData.map((e) => e.url).toList().cast<String>();
+      
+      debugPrint('📊 最終画像リスト（既存+新規、sequence順）: ${allImageUrls.length}件');
+      for (int i = 0; i < allImageUrls.length; i++) {
+        debugPrint('   [$i] ${allImageUrls[i]}');
+      }
       
       // 🎯 Phase 4: 白抜き画像の同期処理
       // 1. 元画像から対応する白抜き画像URLを生成
       final expectedWhiteUrls = allImageUrls.map((url) {
-        if (url.contains('_white.jpg')) return null; // すでに白抜きならスキップ
-        return url.replaceAll('.jpg', '_white.jpg');
+        if (ImageConstants.isWhiteBackgroundImage(url)) return null; // すでに白抜きならスキップ
+        return ImageConstants.generateWhiteBackgroundUrl(url);
       }).where((url) => url != null).cast<String>().toSet();
       
       debugPrint('🎨 Phase 4: 期待される白抜き画像: ${expectedWhiteUrls.length}件');
       
       // 2. DBから古い白抜き画像を抽出
       final oldWhiteUrls = oldImageUrls
-          .where((url) => url.contains('_white.jpg'))
+          .where((url) => ImageConstants.isWhiteBackgroundImage(url))
           .toSet();
       
       debugPrint('🎨 Phase 4: DBの古い白抜き画像: ${oldWhiteUrls.length}件');
@@ -914,11 +960,17 @@ class _DetailScreenState extends State<DetailScreen> {
       debugPrint('✅ Hive保存完了');
 
       // 7) D1保存（クラウド）+ リトライ機能
+      debugPrint('🌐 D1保存処理を開始します...');
+      debugPrint('   SKU: ${widget.sku.isNotEmpty ? widget.sku : 'NOSKU'}');
+      debugPrint('   画像数: ${allImageUrls.length}件');
+      
       final d1Success = await _saveToD1WithRetry(
         sku: widget.sku.isNotEmpty ? widget.sku : 'NOSKU',
         imageUrls: allImageUrls,  // 🎯 Phase 2: 既存+新規の統合リスト
         newItem: newItem,
       );
+      
+      debugPrint('🌐 D1保存処理完了: ${d1Success ? "成功" : "失敗"}');
 
       Navigator.pop(context); // プログレスダイアログを閉じる
 
@@ -973,6 +1025,18 @@ class _DetailScreenState extends State<DetailScreen> {
         debugPrint('🌐 D1保存試行 ${retryCount + 1}/$maxRetries');
         
         final itemCode = '${newItem.sku}_${DateTime.now().millisecondsSinceEpoch}';
+        
+        // 🔍 D1送信前: imageUrls の最終確認
+        debugPrint('🔍 D1送信直前: imageUrls配列の最終確認（${imageUrls.length}件）');
+        for (int i = 0; i < imageUrls.length; i++) {
+          final url = imageUrls[i];
+          // URLからUUID部分を抽出
+          final uuidPart = url.contains('_') 
+              ? url.split('_').last.split('-').first.substring(0, 8)
+              : 'unknown';
+          debugPrint('   配列[$i] → Sequence ${i + 1}: UUID=$uuidPart');
+        }
+        
         final itemData = <String, dynamic>{
           'sku': newItem.sku ?? '',
           'itemCode': itemCode,
