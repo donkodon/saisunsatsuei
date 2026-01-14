@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/screens/landing_screen.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +8,7 @@ import 'package:measure_master/providers/api_product_provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:measure_master/models/item.dart';
 import 'package:measure_master/services/image_cache_service.dart';
+import 'package:measure_master/utils/config_checker.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,10 +22,17 @@ void main() async {
   // 📸 画像キャッシュサービスを初期化
   await ImageCacheService.initialize();
   
-  runApp(MyApp());
+  // 🔍 設定状態をチェック（デバッグモードのみ）
+  if (kDebugMode) {
+    ConfigChecker.checkAllConfigs();
+  }
+  
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+  
   @override
   Widget build(BuildContext context) {
     return MultiProvider(

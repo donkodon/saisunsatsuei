@@ -4,15 +4,16 @@ import 'dart:typed_data'; // Uint8List用
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
+import 'package:measure_master/config/cloudflare_config.dart';
 
 /// 📦 Cloudflare R2 ストレージサービス
 /// 無料で画像を保存・共有できる（10GB/月の無料枠）
 class CloudflareStorageService {
-  // 🔧 設定値（実際の値に置き換えてください）
-  static const String accountId = 'YOUR_ACCOUNT_ID';
-  static const String bucketName = 'product-images';
-  static const String apiToken = 'YOUR_API_TOKEN';
-  static const String publicDomain = 'pub-300562464768499b8fcaee903d0f9861.r2.dev'; // R2公開ドメイン
+  // ✅ 設定を外部ファイルから読み込み（セキュリティ向上）
+  static String get accountId => CloudflareConfig.accountId;
+  static String get bucketName => CloudflareConfig.bucketName;
+  static String get apiToken => CloudflareConfig.apiToken;
+  static String get publicDomain => CloudflareConfig.publicDomain;
   
   /// 📸 画像をCloudflare R2にアップロード
   /// 
@@ -87,9 +88,7 @@ class CloudflareStorageService {
   
   /// 🔍 設定が正しいか確認
   static bool isConfigured() {
-    return accountId != 'YOUR_ACCOUNT_ID' &&
-           apiToken != 'YOUR_API_TOKEN' &&
-           publicDomain != 'YOUR_R2_PUBLIC_DOMAIN';
+    return CloudflareConfig.isConfigured;
   }
 }
 
@@ -133,17 +132,15 @@ class CloudflareWorkersStorageService {
     return hasUuid;
   }
   
-  /// ユニークなファイル名を生成（タイムスタンプ付き）
-  /// ⚠️ 非推奨: Phase 1以降はUUID使用を推奨
+  /// ✅ ユニークなファイル名を生成（タイムスタンプ付き）
   /// [sku] - SKUコード
   /// [sequence] - 連番
   /// Returns: ユニークなファイル名（拡張子なし）
   /// 例: "ABC123_1_1704067200000"
-  @Deprecated('Use UUID-based file naming instead')
-  static String generateUniqueFileId(String sku, int sequence) {
+  static String _generateTimestampBasedFileId(String sku, int sequence) {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final uniqueId = '${sku}_${sequence}_$timestamp';
-    debugPrint('🔑 ユニークファイルID生成（旧形式）: $uniqueId');
+    debugPrint('🔑 ユニークファイルID生成（タイムスタンプ形式）: $uniqueId');
     return uniqueId;
   }
   
@@ -327,7 +324,7 @@ class CloudflareWorkersStorageService {
         // 🔢 旧形式: タイムスタンプを付与（後方互換性）
         final parts = itemId.split('_');
         final sequence = parts.length >= 2 ? (int.tryParse(parts[1]) ?? 1) : 1;
-        final uniqueId = generateUniqueFileId(skuFolder, sequence);
+        final uniqueId = _generateTimestampBasedFileId(skuFolder, sequence);
         fileName = '$uniqueId.jpg';
         debugPrint('🔢 タイムスタンプ形式のファイル名を生成: $fileName');
       } else {

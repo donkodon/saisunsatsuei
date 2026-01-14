@@ -52,7 +52,7 @@ class ApiProductProvider with ChangeNotifier {
     // 🔐 強制更新 (ログイン時など)
     if (forceRefresh) {
       if (kDebugMode) {
-        print('🔐 ログイン更新: API呼び出し');
+        debugPrint('🔐 ログイン更新: API呼び出し');
       }
       return await _fetchFromApi();
     }
@@ -63,14 +63,14 @@ class ApiProductProvider with ChangeNotifier {
         final lastUpdate = _lastFetchTime != null 
           ? DateTime.now().difference(_lastFetchTime!).inMinutes
           : 0;
-        print('✅ セッションキャッシュを使用 (最終更新: ${lastUpdate}分前)');
+        debugPrint('✅ セッションキャッシュを使用 (最終更新: ${lastUpdate}分前)');
       }
       return _products;
     }
     
     // 🌐 初回アクセス (キャッシュなし) → API呼び出し
     if (kDebugMode) {
-      print('🌐 初回API呼び出し');
+      debugPrint('🌐 初回API呼び出し');
     }
     return await _fetchFromApi();
   }
@@ -84,7 +84,7 @@ class ApiProductProvider with ChangeNotifier {
   /// ```
   Future<List<ApiProduct>> fetchOnLogin() async {
     if (kDebugMode) {
-      print('🔐 ログイン時のデータ更新');
+      debugPrint('🔐 ログイン時のデータ更新');
     }
     return await fetchProducts(forceRefresh: true);
   }
@@ -102,7 +102,7 @@ class ApiProductProvider with ChangeNotifier {
       _error = null;
       
       if (kDebugMode) {
-        print('✅ API取得成功: ${_products.length}件');
+        debugPrint('✅ API取得成功: ${_products.length}件');
       }
       
       _isLoading = false;
@@ -120,7 +120,7 @@ class ApiProductProvider with ChangeNotifier {
   /// 手動リフレッシュ (ユーザー操作)
   Future<List<ApiProduct>> refresh() async {
     if (kDebugMode) {
-      print('🔄 手動リフレッシュ');
+      debugPrint('🔄 手動リフレッシュ');
     }
     return await _fetchFromApi();
   }
@@ -133,7 +133,7 @@ class ApiProductProvider with ChangeNotifier {
     notifyListeners();
     
     if (kDebugMode) {
-      print('🗑️ キャッシュクリア完了');
+      debugPrint('🗑️ キャッシュクリア完了');
     }
   }
   

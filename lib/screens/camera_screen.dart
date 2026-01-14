@@ -181,7 +181,9 @@ class _CameraScreenState extends State<CameraScreen> {
         });
       }
     } catch (e) {
-      print('❌ カメラ初期化エラー: $e');
+      if (kDebugMode) {
+        debugPrint('❌ カメラ初期化エラー: $e');
+      }
       if (mounted) {
         setState(() {
           _isCameraInitialized = false;
@@ -350,7 +352,9 @@ class _CameraScreenState extends State<CameraScreen> {
         // 📸 連続撮影のため、遷移はしない（完了ボタンで遷移）
       }
     } catch (e) {
-      print('❌ 撮影エラー: $e');
+      if (kDebugMode) {
+        debugPrint('❌ 撮影エラー: $e');
+      }
       if (mounted) {
         setState(() {
           _isCapturing = false;
@@ -1100,9 +1104,12 @@ class _CameraScreenState extends State<CameraScreen> {
 
 // 🚀 最適化されたGridPainter（Paintオブジェクトをキャッシュ）
 class GridPainter extends CustomPainter {
+  // ✅ 色を定数として定義（16進数で直接指定）
+  static const Color _gridColor = Color(0x8000BCD4); // primaryCyan with 50% alpha
+  
   // Paintオブジェクトを事前に作成してキャッシュ
   static final Paint _cachedPaint = Paint()
-    ..color = AppConstants.primaryCyan.withValues(alpha: 0.5)
+    ..color = _gridColor
     ..style = PaintingStyle.stroke
     ..strokeWidth = 1
     ..strokeCap = StrokeCap.round;

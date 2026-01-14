@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:measure_master/models/item.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -31,7 +32,9 @@ class InventoryProvider with ChangeNotifier {
       // 日付順にソート（新しい順）
       _items.sort((a, b) => b.date.compareTo(a.date));
       
-      print('📦 Hiveから読み込み完了: ${_items.length}件');
+      if (kDebugMode) {
+        debugPrint('📦 Hiveから読み込み完了: ${_items.length}件');
+      }
     }
     notifyListeners();
   }
@@ -45,21 +48,20 @@ class InventoryProvider with ChangeNotifier {
 
   // 💾 商品を追加してHiveに保存（SKUベースの上書き保存）
   Future<void> addItem(InventoryItem item) async {
-    // 🔍 SKUで既存アイテムを検索
-    final existingItem = _items.cast<InventoryItem?>().firstWhere(
-      (existingItem) => 
-        existingItem != null &&
-        existingItem.sku != null && 
-        existingItem.sku!.isNotEmpty && 
-        existingItem.sku == item.sku,
-      orElse: () => null,
-    );
+    // 🔍 SKUで既存アイテムを検索（✅ より簡潔な方法）
+    final existingItem = _items.where((existingItem) => 
+      existingItem.sku != null && 
+      existingItem.sku!.isNotEmpty && 
+      existingItem.sku == item.sku
+    ).firstOrNull;
     
     if (existingItem != null) {
       // 🔄 既存アイテムを更新（SKUが同じ場合）
-      print('🔄 既存のSKU (${item.sku}) を更新します');
-      print('   古いID: ${existingItem.id}');
-      print('   新しいデータで上書きします');
+      if (kDebugMode) {
+        debugPrint('🔄 既存のSKU (${item.sku}) を更新します');
+        debugPrint('   古いID: ${existingItem.id}');
+        debugPrint('   新しいデータで上書きします');
+      }
       
       // Hiveから古いエントリをすべて削除（念のため全検索）
       if (_box != null) {
@@ -73,7 +75,9 @@ class InventoryProvider with ChangeNotifier {
         
         for (var key in keysToDelete) {
           await _box!.delete(key);
-          print('🗑️ 古いHiveエントリを削除: $key');
+          if (kDebugMode) {
+            debugPrint('🗑️ 古いHiveエントリを削除: $key');
+          }
         }
       }
       
@@ -84,22 +88,26 @@ class InventoryProvider with ChangeNotifier {
       _items.insert(0, item);
     } else {
       // ✨ 新規アイテムとしてリストの先頭に追加
-      print('✨ 新規アイテムとして追加します（SKU: ${item.sku}）');
+      if (kDebugMode) {
+        debugPrint('✨ 新規アイテムとして追加します（SKU: ${item.sku}）');
+      }
       _items.insert(0, item);
     }
     
     // ローカル保存 (Hive) - IDをキーとして使用
     if (_box != null) {
       await _box!.put(item.id, item);
-      print('✅ Hiveに保存成功: ID=${item.id}');
-      print('📦 保存データ:');
-      print('   - 商品名: ${item.name}');
-      print('   - カテゴリ: ${item.category}');
-      print('   - 商品の状態: ${item.condition}');
-      print('   - 説明: ${item.description}');
-      print('   - SKU: ${item.sku}');
-      print('   - バーコード: ${item.barcode}');
-      print('   - 画像URL: ${item.imageUrl}');
+      if (kDebugMode) {
+        debugPrint('✅ Hiveに保存成功: ID=${item.id}');
+        debugPrint('📦 保存データ:');
+        debugPrint('   - 商品名: ${item.name}');
+        debugPrint('   - カテゴリ: ${item.category}');
+        debugPrint('   - 商品の状態: ${item.condition}');
+        debugPrint('   - 説明: ${item.description}');
+        debugPrint('   - SKU: ${item.sku}');
+        debugPrint('   - バーコード: ${item.barcode}');
+        debugPrint('   - 画像URL: ${item.imageUrl}');
+      }
     }
     
     notifyListeners();
@@ -123,7 +131,9 @@ class InventoryProvider with ChangeNotifier {
     // SKUで既存アイテムを検索
     final index = _items.indexWhere((item) => item.sku == sku);
     if (index == -1) {
-      print('⚠️ 画像更新: SKU $sku が見つかりません');
+      if (kDebugMode) {
+        debugPrint('⚠️ 画像更新: SKU $sku が見つかりません');
+      }
       return;
     }
     
@@ -159,7 +169,9 @@ class InventoryProvider with ChangeNotifier {
     // Hiveを更新
     if (_box != null) {
       await _box!.put(existingItem.id, updatedItem);
-      print('📸 画像URL更新完了: SKU=$sku, 画像数=${newImageUrls.length}');
+      if (kDebugMode) {
+        debugPrint('📸 画像URL更新完了: SKU=$sku, 画像数=${newImageUrls.length}');
+      }
     }
     
     notifyListeners();
@@ -171,7 +183,9 @@ class InventoryProvider with ChangeNotifier {
     
     final existingItem = findBySku(sku);
     if (existingItem == null) {
-      print('⚠️ 画像削除: SKU $sku が見つかりません');
+      if (kDebugMode) {
+        debugPrint('⚠️ 画像削除: SKU $sku が見つかりません');
+      }
       return;
     }
     
@@ -181,6 +195,8 @@ class InventoryProvider with ChangeNotifier {
     
     // 更新
     await updateItemImages(sku, currentImages);
-    print('🗑️ 画像を削除しました: $imageUrl');
+    if (kDebugMode) {
+      debugPrint('🗑️ 画像を削除しました: $imageUrl');
+    }
   }
 }

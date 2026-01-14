@@ -276,14 +276,14 @@ class _AddItemScreenState extends State<AddItemScreen> {
         if (cachedFile != null) {
           xFiles.add(XFile(cachedFile.path));
           if (kDebugMode) {
-            print('✅ キャッシュから取得 (${i + 1}/${urls.length}): ${cachedFile.path}');
+            debugPrint('✅ キャッシュから取得 (${i + 1}/${urls.length}): ${cachedFile.path}');
           }
           continue;
         }
         
         // 🎯 ステップ2: URLから画像をダウンロード
         if (kDebugMode) {
-          print('⬇️ ダウンロード中 (${i + 1}/${urls.length}): $url');
+          debugPrint('⬇️ ダウンロード中 (${i + 1}/${urls.length}): $url');
         }
         
         final response = await http.get(Uri.parse(url));
@@ -301,16 +301,16 @@ class _AddItemScreenState extends State<AddItemScreen> {
           await ImageCacheService.cacheImage(url, response.bodyBytes);
           
           if (kDebugMode) {
-            print('✅ 既存画像変換成功 (${i + 1}/${urls.length}): $fileName');
+            debugPrint('✅ 既存画像変換成功 (${i + 1}/${urls.length}): $fileName');
           }
         } else {
           if (kDebugMode) {
-            print('❌ 画像ダウンロード失敗 (${i + 1}/${urls.length}): $url - Status ${response.statusCode}');
+            debugPrint('❌ 画像ダウンロード失敗 (${i + 1}/${urls.length}): $url - Status ${response.statusCode}');
           }
         }
       } catch (e) {
         if (kDebugMode) {
-          print('❌ 既存画像変換エラー (${i + 1}/${urls.length}): $e');
+          debugPrint('❌ 既存画像変換エラー (${i + 1}/${urls.length}): $e');
         }
       }
     }

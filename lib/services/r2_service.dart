@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data'; // Uint8List
+import 'package:flutter/foundation.dart';
 import 'package:minio/minio.dart';
 import 'package:mime/mime.dart';
 import 'package:path/path.dart' as path;
@@ -28,7 +29,9 @@ class R2Service {
   /// Otherwise, returns a presigned URL (valid for 1 hour by default).
   Future<String?> uploadImage(File file) async {
     if (R2Config.accountId == 'YOUR_ACCOUNT_ID') {
-      print('⚠️ R2 Credentials not configured.');
+      if (kDebugMode) {
+        debugPrint('⚠️ R2 Credentials not configured.');
+      }
       return null;
     }
 
@@ -50,7 +53,9 @@ class R2Service {
         },
       );
 
-      print('✅ Upload successful: $fileName');
+      if (kDebugMode) {
+        debugPrint('✅ Upload successful: $fileName');
+      }
 
       if (R2Config.publicDomain.isNotEmpty) {
         // Construct public URL
@@ -69,7 +74,9 @@ class R2Service {
         );
       }
     } catch (e) {
-      print('❌ R2 Upload failed: $e');
+      if (kDebugMode) {
+        debugPrint('❌ R2 Upload failed: $e');
+      }
       return null;
     }
   }

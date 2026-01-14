@@ -14,7 +14,6 @@ import 'package:measure_master/models/api_product.dart';
 import 'package:measure_master/services/image_cache_service.dart';
 import 'package:measure_master/screens/image_preview_screen.dart';
 import 'package:measure_master/widgets/smart_image_viewer.dart';
-import 'dart:io' show File, Platform;
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -24,6 +23,9 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  // ✅ 定数化: ページ遷移のアニメーション時間
+  static const Duration _pageTransitionDuration = Duration(milliseconds: 200);
+  
   final TextEditingController _searchController = TextEditingController();
   final ApiService _apiService = ApiService();
   bool _isSearching = false;
@@ -75,7 +77,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
             },
-            transitionDuration: const Duration(milliseconds: 200),
+            transitionDuration: _pageTransitionDuration,
           ),
         );
         
@@ -142,7 +144,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
             },
-            transitionDuration: const Duration(milliseconds: 200),
+            transitionDuration: _pageTransitionDuration,
           ),
         );
 
@@ -179,7 +181,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
             },
-            transitionDuration: const Duration(milliseconds: 200),
+            transitionDuration: _pageTransitionDuration,
           ),
         );
         _searchController.clear();
@@ -293,7 +295,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         transitionsBuilder: (context, animation, secondaryAnimation, child) {
                           return FadeTransition(opacity: animation, child: child);
                         },
-                        transitionDuration: const Duration(milliseconds: 200),
+                        transitionDuration: _pageTransitionDuration,
                       ),
                     );
                   },
@@ -467,7 +469,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 transitionsBuilder: (context, animation, secondaryAnimation, child) {
                   return FadeTransition(opacity: animation, child: child);
                 },
-                transitionDuration: const Duration(milliseconds: 200),
+                transitionDuration: _pageTransitionDuration,
               ),
             );
         },
@@ -546,7 +548,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
             },
-            transitionDuration: const Duration(milliseconds: 200),
+            transitionDuration: _pageTransitionDuration,
           ),
         );
       },

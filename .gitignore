@@ -48,3 +48,11 @@ app.*.map.json
 
 # Server logs
 *.log
+
+# Security: Secrets and API keys
+lib/config/secrets.dart
+*.env
+.env.local
+.env.*.local
+build_config_production.sh
+build_config_*.sh

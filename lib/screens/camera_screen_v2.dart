@@ -766,8 +766,11 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
 
 /// グリッドペインター（撮影補助線）
 class GridPainter extends CustomPainter {
+  // ✅ 色を定数として定義（16進数で直接指定）
+  static const Color _gridColor = Color(0x4DFFFFFF); // white with 30% alpha
+  
   static final Paint _paint = Paint()
-    ..color = Colors.white.withOpacity(0.3)
+    ..color = _gridColor
     ..strokeWidth = 1;
 
   @override
