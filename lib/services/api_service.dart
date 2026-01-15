@@ -107,11 +107,22 @@ class ApiService {
   /// 
   /// product_items テーブルに保存
   /// ⚠️ SKUが重複している場合は既存データを上書き（UPSERT）
+  /// 💾 D1に商品実物データを保存（updatedAt自動設定付き）
+  /// 
+  /// updatedAtが指定されていない場合は自動的に現在時刻を設定します。
   Future<bool> saveProductItemToD1(Map<String, dynamic> itemData) async {
     try {
       // 🔧 upsert: true フラグを追加して上書きモードを有効化
       final dataWithUpsert = Map<String, dynamic>.from(itemData);
       dataWithUpsert['upsert'] = true;  // 重複時は上書き
+      
+      // updatedAtが指定されていない場合は自動追加
+      if (!dataWithUpsert.containsKey('updatedAt')) {
+        dataWithUpsert['updatedAt'] = DateTime.now().toIso8601String();
+        if (kDebugMode) {
+          debugPrint('📅 updatedAt自動設定: ${dataWithUpsert['updatedAt']}');
+        }
+      }
       
       // 🔍 デバッグ: 送信データをログ出力
       if (kDebugMode) {
@@ -173,8 +184,38 @@ class ApiService {
   /// 💾 D1の商品実物データを更新（SKUで特定）
   /// 
   /// 既存データを上書きする専用メソッド
+  /// 📝 D1の商品実物データを更新（updatedAt自動設定付き）
+  /// 
+  /// updatedAtが指定されていない場合は自動的に現在時刻を設定します。
+  /// これによりWEB側のキャッシュ制御と商品リストのソート順が正しく動作します。
   Future<bool> updateProductItemInD1(String sku, Map<String, dynamic> itemData) async {
     try {
+      // updatedAtが指定されていない場合は自動追加
+      if (!itemData.containsKey('updatedAt')) {
+        itemData['updatedAt'] = DateTime.now().toIso8601String();
+        if (kDebugMode) {
+          debugPrint('📅 updatedAt自動設定: ${itemData['updatedAt']}');
+        }
+      }
+      
+      // Sequence情報をデバッグログに出力
+      if (kDebugMode && itemData.containsKey('imageUrls')) {
+        final urls = itemData['imageUrls'] as List;
+        debugPrint('📊 D1更新: ${urls.length}件の画像, updatedAt: ${itemData['updatedAt']}');
+        for (int i = 0; i < urls.length && i < 5; i++) {
+          // 最初の5件のみログ出力（大量の画像対応）
+          final url = urls[i];
+          // URLからUUID部分を抽出（デバッグ用）
+          final uuidPart = url.toString().contains('_') 
+              ? url.toString().split('_').last.split('-').first.substring(0, 8)
+              : 'unknown';
+          debugPrint('   Sequence ${i + 1}: UUID=$uuidPart');
+        }
+        if (urls.length > 5) {
+          debugPrint('   ... 他 ${urls.length - 5}件');
+        }
+      }
+      
       final response = await http.put(
         Uri.parse('$d1ApiUrl/api/products/items/$sku'),
         headers: {
@@ -191,6 +232,53 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('D1 API通信エラー: $e');
+    }
+  }
+  
+  /// 🔍 D1から商品実物データを取得
+  /// 
+  /// [sku] - 商品SKU
+  /// Returns: 商品データ（imageUrls含む）またはnull
+  Future<Map<String, dynamic>?> getProductItemFromD1(String sku) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$d1ApiUrl/api/products/items/$sku'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        if (jsonData['success'] == true && jsonData['data'] != null) {
+          final data = jsonData['data'];
+          
+          // imageUrls を JSON文字列からリストに変換
+          if (data['imageUrls'] is String) {
+            data['imageUrls'] = json.decode(data['imageUrls']);
+          }
+          
+          if (kDebugMode) {
+            debugPrint('🔍 D1取得成功: SKU=$sku');
+            if (data['imageUrls'] != null) {
+              debugPrint('   画像数: ${(data['imageUrls'] as List).length}件');
+            }
+          }
+          
+          return data;
+        }
+        return null;
+      } else if (response.statusCode == 404) {
+        // 商品が存在しない（新規商品）
+        return null;
+      } else {
+        throw Exception('D1の取得に失敗しました (${response.statusCode})');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('⚠️ D1 API取得エラー: $e');
+      }
+      return null;
     }
   }
   

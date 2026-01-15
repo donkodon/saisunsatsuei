@@ -221,6 +221,20 @@ class CloudflareWorkersStorageService {
   /// 🗑️ Workers経由で画像を削除（詳細結果付き）
   /// [imageUrl] - 削除する画像のURL
   /// Returns: (success: bool, reason: String?, statusCode: int?)
+  /// 🗑️ Workers経由で画像と関連ファイルを削除（4ファイル対応）
+  /// 
+  /// 削除対象:
+  /// - {SKU}/{baseFileName}.jpg          (元画像)
+  /// - {SKU}/{baseFileName}_p.png        (白抜き画像)
+  /// - {SKU}/{baseFileName}_f.png        (編集済み画像)
+  /// - {SKU}/{baseFileName}_settings.json (編集設定)
+  /// 
+  /// 戻り値:
+  /// - success: 最低1ファイル削除成功でtrue
+  /// - totalDeleted: 削除成功ファイル数
+  /// - totalNotFound: 存在しなかったファイル数
+  /// - deletedFiles: 削除成功したファイル名リスト
+  /// - statusCode: 200（成功）または最後のエラーコード
   static Future<Map<String, dynamic>> deleteImageWithDetails(String imageUrl) async {
     try {
       // URLからファイル名を抽出
@@ -231,63 +245,130 @@ class CloudflareWorkersStorageService {
           'success': false,
           'reason': '無効なURL形式',
           'statusCode': null,
+          'totalDeleted': 0,
+          'totalNotFound': 0,
+          'deletedFiles': [],
         };
       }
       
-      // URLからSKUフォルダパスを含むファイルパスを抽出
-      // pathSegmentsから SKU/filename 形式のパスを構築
-      // 例: ["1025L280001", "1025L280001_uuid.jpg"] → "1025L280001/1025L280001_uuid.jpg"
-      String filePath;
+      // URLからSKUとファイル名を抽出
+      // 例: "https://.../1025L280001/1025L280001_uuid.jpg" → SKU="1025L280001", fileName="1025L280001_uuid.jpg"
+      String sku;
+      String fileName;
+      
       if (uri.pathSegments.length >= 2) {
-        // SKUフォルダを含むパス
-        filePath = '${uri.pathSegments[uri.pathSegments.length - 2]}/${uri.pathSegments.last}';
+        sku = uri.pathSegments[uri.pathSegments.length - 2];
+        fileName = uri.pathSegments.last;
       } else {
         // フォルダなしの場合（後方互換性）
-        filePath = uri.pathSegments.last;
+        sku = '';
+        fileName = uri.pathSegments.last;
       }
       
-      // Workers削除エンドポイント
-      final deleteUrl = Uri.parse('$workerBaseUrl/delete?filename=$filePath');
+      // ファイル名から拡張子を除去してbaseFileNameを取得
+      // 例: "1025L280001_uuid.jpg" → "1025L280001_uuid"
+      final baseFileName = fileName.replaceAll(RegExp(r'\.(jpg|jpeg|png)$', caseSensitive: false), '');
       
-      debugPrint('🗑️ Cloudflare削除リクエスト: $deleteUrl');
-      debugPrint('📁 削除するファイルパス: $filePath');
+      // 削除対象の4ファイルを定義
+      final filesToDelete = [
+        '$baseFileName.jpg',           // 元画像
+        '${baseFileName}_p.png',       // 白抜き画像
+        '${baseFileName}_f.png',       // 編集済み画像
+        '${baseFileName}_settings.json', // 編集設定
+      ];
       
-      final response = await http.delete(deleteUrl).timeout(
-        Duration(seconds: 15),
-        onTimeout: () => http.Response('{"error":"タイムアウト"}', 408),
-      );
+      debugPrint('🗑️ 完全削除開始: $baseFileName');
+      debugPrint('📁 SKU: $sku');
+      debugPrint('📋 削除対象: ${filesToDelete.length}ファイル');
       
-      debugPrint('📨 削除レスポンス: ${response.statusCode}');
+      int totalDeleted = 0;
+      int totalNotFound = 0;
+      List<String> deletedFiles = [];
+      List<Map<String, dynamic>> deleteResults = [];
       
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        debugPrint('✅ 画像削除成功: $filePath');
-        return {
-          'success': true,
-          'reason': null,
-          'statusCode': response.statusCode,
-        };
-      } else if (response.statusCode == 404) {
-        debugPrint('⚠️ 画像削除失敗（404: ファイルが存在しないか、削除エンドポイント未実装）: $filePath');
-        return {
-          'success': false,
-          'reason': 'ファイルが存在しないか、削除エンドポイント未実装',
-          'statusCode': 404,
-        };
-      } else {
-        debugPrint('⚠️ 画像削除失敗（${response.statusCode}）: $filePath');
-        debugPrint('   レスポンス: ${response.body}');
-        return {
-          'success': false,
-          'reason': 'HTTP ${response.statusCode}: ${response.body}',
-          'statusCode': response.statusCode,
-        };
+      // 各ファイルを順次削除
+      for (final fileToDelete in filesToDelete) {
+        final filePath = sku.isNotEmpty ? '$sku/$fileToDelete' : fileToDelete;
+        final deleteUrl = Uri.parse('$workerBaseUrl/delete?filename=$filePath');
+        
+        try {
+          debugPrint('  🔄 削除試行: $fileToDelete');
+          
+          final response = await http.delete(deleteUrl).timeout(
+            Duration(seconds: 10),
+            onTimeout: () => http.Response('{"error":"タイムアウト"}', 408),
+          );
+          
+          if (response.statusCode == 200 || response.statusCode == 204) {
+            totalDeleted++;
+            deletedFiles.add(fileToDelete);
+            debugPrint('    ✅ 削除成功: $fileToDelete');
+            deleteResults.add({
+              'file': fileToDelete,
+              'status': 'deleted',
+              'statusCode': response.statusCode,
+            });
+          } else if (response.statusCode == 404) {
+            totalNotFound++;
+            debugPrint('    ⚠️ ファイル未検出（スキップ）: $fileToDelete');
+            deleteResults.add({
+              'file': fileToDelete,
+              'status': 'not_found',
+              'statusCode': 404,
+            });
+          } else {
+            debugPrint('    ❌ 削除失敗（${response.statusCode}）: $fileToDelete');
+            deleteResults.add({
+              'file': fileToDelete,
+              'status': 'failed',
+              'statusCode': response.statusCode,
+              'reason': response.body,
+            });
+          }
+        } catch (e) {
+          debugPrint('    ❌ 削除エラー: $fileToDelete - $e');
+          deleteResults.add({
+            'file': fileToDelete,
+            'status': 'error',
+            'reason': e.toString(),
+          });
+        }
       }
+      
+      debugPrint('🎯 完全削除完了: 削除=$totalDeleted, 未検出=$totalNotFound, 失敗=${filesToDelete.length - totalDeleted - totalNotFound}');
+      debugPrint('   削除成功: ${deletedFiles.join(", ")}');
+      
+      // 🔑 重要: 元の画像ファイル（.jpg）が削除されたかチェック
+      final originalFileName = '$baseFileName.jpg';
+      final originalFileDeleted = deletedFiles.contains(originalFileName);
+      
+      // 元画像が削除されていれば success: true
+      final success = originalFileDeleted;
+      
+      if (!success) {
+        debugPrint('⚠️ 元画像（$originalFileName）の削除に失敗');
+      }
+      
+      return {
+        'success': success,
+        'totalDeleted': totalDeleted,
+        'totalNotFound': totalNotFound,
+        'deletedFiles': deletedFiles,
+        'deleteResults': deleteResults,
+        'originalFileDeleted': originalFileDeleted,  // 元画像削除フラグ
+        'statusCode': success ? 200 : 404,
+        'reason': success ? null : '元画像ファイルの削除に失敗しました',
+      };
+      
     } catch (e) {
       debugPrint('❌ Cloudflare画像削除エラー: $e');
       return {
         'success': false,
         'reason': '例外エラー: $e',
         'statusCode': null,
+        'totalDeleted': 0,
+        'totalNotFound': 0,
+        'deletedFiles': [],
       };
     }
   }
