@@ -321,6 +321,58 @@ export default {
       }
       
       // ================================================
+      // 🎨 背景削除API (Cloudflare AI)
+      // ================================================
+      if (path === '/api/remove-bg' && request.method === 'POST') {
+        try {
+          const formData = await request.formData();
+          const imageUrl = formData.get('imageUrl');
+          
+          if (!imageUrl) {
+            return Response.json({ 
+              success: false, 
+              error: 'imageUrl is required' 
+            }, { status: 400, headers: corsHeaders });
+          }
+          
+          // 画像をダウンロード
+          const imageResponse = await fetch(imageUrl);
+          if (!imageResponse.ok) {
+            return Response.json({ 
+              success: false, 
+              error: 'Failed to fetch image from URL' 
+            }, { status: 400, headers: corsHeaders });
+          }
+          
+          const imageBlob = await imageResponse.blob();
+          
+          // Cloudflare AIで背景削除
+          const aiResponse = await env.AI.run(
+            '@cf/cloudflare/background-remover',  // 背景削除専用モデル
+            {
+              image: Array.from(new Uint8Array(await imageBlob.arrayBuffer()))
+            }
+          );
+          
+          // 処理済み画像を返す
+          return new Response(aiResponse, {
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'image/png'
+            }
+          });
+          
+        } catch (error) {
+          console.error('Background removal error:', error);
+          return Response.json({ 
+            success: false, 
+            error: 'Background removal failed',
+            details: error.message
+          }, { status: 500, headers: corsHeaders });
+        }
+      }
+      
+      // ================================================
       // ❌ 404 Not Found
       // ================================================
       return Response.json({ 

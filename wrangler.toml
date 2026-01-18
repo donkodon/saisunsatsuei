@@ -1,0 +1,18 @@
+name = "smart-measure-api"
+main = "cloudflare_workers_api.js"
+compatibility_date = "2024-01-01"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "measure-master-db"
+database_id = "your-database-id"  # Cloudflareダッシュボードから取得
+
+# AI binding for background removal
+[ai]
+binding = "AI"
+
+# R2 bucket binding (optional, for future use)
+# [[r2_buckets]]
+# binding = "IMAGES"
+# bucket_name = "measure-images"
