@@ -335,22 +335,47 @@ export default {
             }, { status: 400, headers: corsHeaders });
           }
           
-          // 画像をダウンロード
-          const imageResponse = await fetch(imageUrl);
-          if (!imageResponse.ok) {
-            return Response.json({ 
-              success: false, 
-              error: 'Failed to fetch image from URL' 
-            }, { status: 400, headers: corsHeaders });
+          let imageBuffer;
+          
+          // Data URLかHTTP URLかを判定
+          if (imageUrl.startsWith('data:image/')) {
+            // Data URLの場合、Base64デコード
+            const base64Data = imageUrl.split(',')[1];
+            const binaryString = atob(base64Data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            imageBuffer = bytes;
+          } else {
+            // HTTP URLの場合、画像をダウンロード
+            const imageResponse = await fetch(imageUrl);
+            if (!imageResponse.ok) {
+              return Response.json({ 
+                success: false, 
+                error: 'Failed to fetch image from URL',
+                status: imageResponse.status
+              }, { status: 400, headers: corsHeaders });
+            }
+            
+            const arrayBuffer = await imageResponse.arrayBuffer();
+            imageBuffer = new Uint8Array(arrayBuffer);
           }
           
-          const imageBlob = await imageResponse.blob();
+          // Cloudflare AIが利用可能か確認
+          if (!env.AI) {
+            return Response.json({ 
+              success: false, 
+              error: 'Cloudflare AI is not configured. Please add AI binding in wrangler.toml'
+            }, { status: 500, headers: corsHeaders });
+          }
           
           // Cloudflare AIで背景削除
+          // 利用可能なモデル: @cf/remove-bg/rembg-v1.4 または @cf/bytedance/remove-bg
           const aiResponse = await env.AI.run(
-            '@cf/cloudflare/background-remover',  // 背景削除専用モデル
+            '@cf/remove-bg/rembg-v1.4',
             {
-              image: Array.from(new Uint8Array(await imageBlob.arrayBuffer()))
+              image: Array.from(imageBuffer)
             }
           );
           
@@ -367,7 +392,8 @@ export default {
           return Response.json({ 
             success: false, 
             error: 'Background removal failed',
-            details: error.message
+            details: error.message,
+            stack: error.stack
           }, { status: 500, headers: corsHeaders });
         }
       }
