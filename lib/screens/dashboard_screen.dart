@@ -15,6 +15,7 @@ import 'package:measure_master/models/api_product.dart';
 import 'package:measure_master/services/image_cache_service.dart';
 import 'package:measure_master/screens/image_preview_screen.dart';
 import 'package:measure_master/widgets/smart_image_viewer.dart';
+import 'package:measure_master/utils/cleanup_helper.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -227,6 +228,104 @@ class _DashboardScreenState extends State<DashboardScreen> {
     //   }
     // }
   }
+  
+  /// 🗑️ Phase 1: クリーンアップダイアログを表示
+  Future<void> _showCleanupDialog() async {
+    // 現在のデータ件数を取得
+    final dataCount = await CleanupHelper.getHiveDataCount();
+    final itemCount = dataCount['inventory_box'] ?? 0;
+    
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('Phase 1: データ削除'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('既存のHiveデータを削除します。', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 12),
+            Text('削除されるデータ:'),
+            Text('  • 商品データ: $itemCount件', style: TextStyle(color: Colors.red)),
+            SizedBox(height: 12),
+            Text('⚠️ この操作は取り消せません', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            SizedBox(height: 8),
+            Text('Phase 1完了後に商品を再登録してください。', style: TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('キャンセル'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _executeCleanup();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('削除実行'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 🗑️ Phase 1: クリーンアップを実行
+  Future<void> _executeCleanup() async {
+    // ローディング表示
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('データ削除中...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    
+    // クリーンアップ実行
+    await CleanupHelper.showMigrationChecklist();
+    final success = await CleanupHelper.clearAllHiveData();
+    
+    if (!mounted) return;
+    Navigator.pop(context); // ローディングを閉じる
+    
+    // 結果表示
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(success ? '✅ データ削除完了！Phase 1の準備が整いました' : '❌ データ削除に失敗しました'),
+        backgroundColor: success ? Colors.green : Colors.red,
+        duration: Duration(seconds: 3),
+      ),
+    );
+    
+    // 画面を更新
+    if (success) {
+      setState(() {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -248,6 +347,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Text("出品ダッシュボード", style: AppConstants.subHeaderStyle),
                   Row(
                     children: [
+                      // 🗑️ Phase 1: デバッグモード専用クリーンアップボタン
+                      if (kDebugMode)
+                        IconButton(
+                          icon: Icon(Icons.delete_sweep, color: Colors.red),
+                          tooltip: 'Hiveデータ削除（Phase 1）',
+                          onPressed: _showCleanupDialog,
+                        ),
                       Icon(Icons.notifications_outlined, color: AppConstants.textDark),
                       const SizedBox(width: 16),
                       CircleAvatar(

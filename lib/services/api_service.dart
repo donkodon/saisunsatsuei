@@ -9,6 +9,9 @@ class ApiService {
   static String get baseUrl => ApiConfig.baseUrl;
   static String get d1ApiUrl => ApiConfig.d1ApiUrl;
   
+  // 🏢 Phase 1: 固定のcompany_id（Phase 2で動的に変更）
+  static const String TEST_COMPANY_ID = "test_company";
+  
   /// 商品リストを取得
   Future<ApiProductResponse> fetchProducts() async {
     try {
@@ -103,11 +106,11 @@ class ApiService {
   // 🔧 Cloudflare D1 Database API
   // ==========================================
   
-  /// 💾 D1に商品実物データを保存 (撮影データ)
+  /// 💾 D1に商品実物データを保存（企業ID付き・updatedAt自動設定付き）
   /// 
   /// product_items テーブルに保存
   /// ⚠️ SKUが重複している場合は既存データを上書き（UPSERT）
-  /// 💾 D1に商品実物データを保存（updatedAt自動設定付き）
+  /// 🏢 自動的にcompany_idを付与します
   /// 
   /// updatedAtが指定されていない場合は自動的に現在時刻を設定します。
   Future<bool> saveProductItemToD1(Map<String, dynamic> itemData) async {
@@ -115,6 +118,14 @@ class ApiService {
       // 🔧 upsert: true フラグを追加して上書きモードを有効化
       final dataWithUpsert = Map<String, dynamic>.from(itemData);
       dataWithUpsert['upsert'] = true;  // 重複時は上書き
+      
+      // 🏢 company_idを自動追加（Phase 1: 固定値）
+      if (!dataWithUpsert.containsKey('company_id')) {
+        dataWithUpsert['company_id'] = TEST_COMPANY_ID;
+        if (kDebugMode) {
+          debugPrint('🏢 company_id自動設定: $TEST_COMPANY_ID');
+        }
+      }
       
       // updatedAtが指定されていない場合は自動追加
       if (!dataWithUpsert.containsKey('updatedAt')) {
@@ -235,14 +246,17 @@ class ApiService {
     }
   }
   
-  /// 🔍 D1から商品実物データを取得
+  /// 🔍 D1から商品実物データを取得（企業IDでフィルタ）
   /// 
   /// [sku] - 商品SKU
+  /// [companyId] - 企業ID（省略時はTEST_COMPANY_ID）
   /// Returns: 商品データ（imageUrls含む）またはnull
-  Future<Map<String, dynamic>?> getProductItemFromD1(String sku) async {
+  Future<Map<String, dynamic>?> getProductItemFromD1(String sku, {String? companyId}) async {
     try {
+      // 🏢 企業IDを含めたリクエスト
+      final effectiveCompanyId = companyId ?? TEST_COMPANY_ID;
       final response = await http.get(
-        Uri.parse('$d1ApiUrl/api/products/items/$sku'),
+        Uri.parse('$d1ApiUrl/api/products/items/$sku?company_id=$effectiveCompanyId'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -304,11 +318,17 @@ class ApiService {
     }
   }
   
-  /// 📋 D1から商品リストを取得
-  Future<List<Map<String, dynamic>>> fetchProductsFromD1({int limit = 100, int offset = 0}) async {
+  /// 📋 D1から商品リストを取得（企業IDでフィルタ）
+  /// 
+  /// [limit] - 取得件数上限
+  /// [offset] - オフセット
+  /// [companyId] - 企業ID（省略時はTEST_COMPANY_ID）
+  Future<List<Map<String, dynamic>>> fetchProductsFromD1({int limit = 100, int offset = 0, String? companyId}) async {
     try {
+      // 🏢 企業IDを含めたリクエスト
+      final effectiveCompanyId = companyId ?? TEST_COMPANY_ID;
       final response = await http.get(
-        Uri.parse('$d1ApiUrl/api/products?limit=$limit&offset=$offset'),
+        Uri.parse('$d1ApiUrl/api/products?limit=$limit&offset=$offset&company_id=$effectiveCompanyId'),
         headers: {
           'Content-Type': 'application/json',
         },

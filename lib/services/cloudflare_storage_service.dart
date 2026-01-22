@@ -105,6 +105,9 @@ class CloudflareWorkersStorageService {
   static const String uploadEndpoint = '$workerBaseUrl/upload';  // ✅ /upload パスを追加
   static const String checkEndpoint = '$workerBaseUrl/check';    // 🔍 ファイル存在チェック用
   
+  // 🏢 Phase 1: 固定company_id（Phase 2で動的に変更）
+  static const String TEST_COMPANY_ID = "test_company";
+  
   // ============================================
   // 🔧 ユニークファイル名生成
   // ============================================
@@ -381,17 +384,21 @@ class CloudflareWorkersStorageService {
     return result['success'] as bool;
   }
 
-  /// 📸 Workers経由で画像をアップロード（SKUフォルダ対応）
+  /// 📸 Workers経由で画像をアップロード（企業ID + SKUフォルダ対応）
   /// [imageBytes] - 画像のバイトデータ
   /// [itemId] - ファイル名（SKU_連番形式: 例 "1025L190003_1"）
   /// [sku] - SKUコード（フォルダ名として使用: 例 "1025L190003"）
+  /// [companyId] - 企業ID（省略時はTEST_COMPANY_ID）
   /// [useUniqueFileName] - ユニークファイル名を使用するか（デフォルト: true）
   static Future<String> uploadImage(
     Uint8List imageBytes, 
     String itemId, 
-    {String? sku, bool useUniqueFileName = true}
+    {String? sku, String? companyId, bool useUniqueFileName = true}
   ) async {
     try {
+      // 🏢 企業IDを取得（Phase 1: 固定値）
+      final effectiveCompanyId = companyId ?? TEST_COMPANY_ID;
+      
       // 🆕 SKU情報を取得（itemIdから抽出 or 引数から取得）
       String skuFolder = sku ?? itemId.split('_')[0];
       
@@ -414,6 +421,7 @@ class CloudflareWorkersStorageService {
       }
       
       debugPrint('📤 Uploading to Cloudflare Workers: $uploadEndpoint');
+      debugPrint('🏢 Company ID: $effectiveCompanyId');
       debugPrint('📁 SKU Folder: $skuFolder');
       debugPrint('📦 File name: $fileName');
       debugPrint('📊 File size: ${imageBytes.length} bytes');
@@ -421,6 +429,9 @@ class CloudflareWorkersStorageService {
       
       // Multipartリクエストを作成
       final request = http.MultipartRequest('POST', Uri.parse(uploadEndpoint));
+      
+      // 🏢 企業IDをフォームデータに追加（Phase 1）
+      request.fields['company_id'] = effectiveCompanyId;
       
       // 🆕 SKU情報をフォームデータに追加
       request.fields['sku'] = skuFolder;
@@ -450,7 +461,7 @@ class CloudflareWorkersStorageService {
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
         final imageUrl = jsonResponse['url'] as String;
-        debugPrint('✅ Workers経由でアップロード成功（SKUフォルダ: $skuFolder）: $imageUrl');
+        debugPrint('✅ Workers経由でアップロード成功（$effectiveCompanyId/$skuFolder）: $imageUrl');
         return imageUrl;
       } else {
         throw Exception('アップロードに失敗しました: ${response.statusCode} - ${response.body}');
