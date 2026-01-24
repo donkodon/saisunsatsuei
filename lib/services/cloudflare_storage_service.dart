@@ -254,18 +254,28 @@ class CloudflareWorkersStorageService {
         };
       }
       
-      // URLからSKUとファイル名を抽出
-      // 例: "https://.../1025L280001/1025L280001_uuid.jpg" → SKU="1025L280001", fileName="1025L280001_uuid.jpg"
-      String sku;
+      // URLからcompany_id、SKU、ファイル名を抽出
+      // 例: "https://.../test_company/1025L280001/1025L280001_uuid.jpg"
+      //  → companyId="test_company", sku="1025L280001", fileName="1025L280001_uuid.jpg"
+      String companyId = '';
+      String sku = '';
       String fileName;
       
-      if (uri.pathSegments.length >= 2) {
+      if (uri.pathSegments.length >= 3) {
+        // 新形式: company_id/sku/filename
+        companyId = uri.pathSegments[uri.pathSegments.length - 3];
         sku = uri.pathSegments[uri.pathSegments.length - 2];
         fileName = uri.pathSegments.last;
+        debugPrint('🔍 新形式URL検出: company_id=$companyId, sku=$sku, fileName=$fileName');
+      } else if (uri.pathSegments.length >= 2) {
+        // 旧形式: sku/filename（後方互換性）
+        sku = uri.pathSegments[uri.pathSegments.length - 2];
+        fileName = uri.pathSegments.last;
+        debugPrint('🔍 旧形式URL検出: sku=$sku, fileName=$fileName');
       } else {
         // フォルダなしの場合（後方互換性）
-        sku = '';
         fileName = uri.pathSegments.last;
+        debugPrint('🔍 フォルダなしURL検出: fileName=$fileName');
       }
       
       // ファイル名から拡張子を除去してbaseFileNameを取得
@@ -281,6 +291,7 @@ class CloudflareWorkersStorageService {
       ];
       
       debugPrint('🗑️ 完全削除開始: $baseFileName');
+      debugPrint('🏢 Company ID: $companyId');
       debugPrint('📁 SKU: $sku');
       debugPrint('📋 削除対象: ${filesToDelete.length}ファイル');
       
@@ -291,8 +302,18 @@ class CloudflareWorkersStorageService {
       
       // 各ファイルを順次削除
       for (final fileToDelete in filesToDelete) {
-        final filePath = sku.isNotEmpty ? '$sku/$fileToDelete' : fileToDelete;
+        // 🏢 company_id/sku/filename の完全なパスを構築
+        String filePath;
+        if (companyId.isNotEmpty && sku.isNotEmpty) {
+          filePath = '$companyId/$sku/$fileToDelete';  // ✅ 新形式
+        } else if (sku.isNotEmpty) {
+          filePath = '$sku/$fileToDelete';  // 旧形式（後方互換性）
+        } else {
+          filePath = fileToDelete;  // フォルダなし
+        }
+        
         final deleteUrl = Uri.parse('$workerBaseUrl/delete?filename=$filePath');
+        debugPrint('  🗑️ 削除URL: $deleteUrl');
         
         try {
           debugPrint('  🔄 削除試行: $fileToDelete');
