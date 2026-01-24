@@ -1,10 +1,10 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode, debugPrint;
-import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:measure_master/constants.dart';
-import 'package:measure_master/providers/inventory_provider.dart';
 import 'package:measure_master/screens/add_item_screen.dart';
 import 'package:measure_master/screens/api_products_screen.dart';
 // Web環境ではMLKitが使えないためバーコードスキャナーは無効
@@ -31,11 +31,147 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ApiService _apiService = ApiService();
   bool _isSearching = false;
+  
+  // 🏢 ログイン中の企業ID
+  String _loggedInCompanyId = 'test_company';
+  
+  // 📊 D1から取得した商品データ
+  List<InventoryItem> _d1Items = [];
+  bool _isLoadingD1 = true;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadCompanyIdAndData();
+  }
+  
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+  
+  /// 🏢 ログイン中の企業IDを取得してD1からデータを読み込み
+  Future<void> _loadCompanyIdAndData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final companyId = prefs.getString('company_id') ?? 'test_company';
+      
+      if (kDebugMode) {
+        debugPrint('🏢 ログイン中の企業ID: $companyId');
+      }
+      
+      setState(() {
+        _loggedInCompanyId = companyId;
+      });
+      
+      // D1からデータを取得
+      await _loadDataFromD1();
+      
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ 企業ID取得エラー: $e');
+      }
+      
+      setState(() {
+        _isLoadingD1 = false;
+      });
+    }
+  }
+  
+  /// 📊 D1から商品データを取得
+  Future<void> _loadDataFromD1() async {
+    setState(() {
+      _isLoadingD1 = true;
+    });
+    
+    try {
+      if (kDebugMode) {
+        debugPrint('📊 D1からデータを取得開始 (company_id: $_loggedInCompanyId)');
+      }
+      
+      final d1Products = await _apiService.fetchProductsFromD1(
+        companyId: _loggedInCompanyId,
+        limit: 100,
+      );
+      
+      if (kDebugMode) {
+        debugPrint('✅ D1からデータを取得完了: ${d1Products.length}件');
+      }
+      
+      // D1データをInventoryItemに変換
+      final items = d1Products.map((d1Data) => _convertD1ToInventoryItem(d1Data)).toList();
+      
+      // 日付順にソート（新しい順）
+      items.sort((a, b) => b.date.compareTo(a.date));
+      
+      setState(() {
+        _d1Items = items;
+        _isLoadingD1 = false;
+      });
+      
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ D1データ取得エラー: $e');
+      }
+      
+      setState(() {
+        _d1Items = [];
+        _isLoadingD1 = false;
+      });
+    }
+  }
+  
+  /// 🔄 D1データをInventoryItemに変換
+  InventoryItem _convertD1ToInventoryItem(Map<String, dynamic> d1Data) {
+    final imageUrlsList = _parseImageUrls(d1Data['imageUrls']);
+    
+    return InventoryItem(
+      id: d1Data['sku'] ?? 'NO_SKU',
+      sku: d1Data['sku'] ?? '',
+      name: d1Data['name'] ?? '',
+      brand: d1Data['brand'] ?? '',
+      imageUrl: imageUrlsList.isNotEmpty ? imageUrlsList.first : '',
+      category: d1Data['category'] ?? '',
+      condition: d1Data['condition'] ?? '',
+      salePrice: d1Data['price'] != null ? int.tryParse(d1Data['price'].toString()) : null,
+      date: _parseDate(d1Data['created_at']),
+      status: 'Ready',
+      barcode: d1Data['barcode'] ?? '',
+      size: d1Data['size'] ?? '',
+      color: d1Data['color'] ?? '',
+      productRank: d1Data['product_rank'] ?? '',
+      material: d1Data['material'] ?? '',
+      description: d1Data['inspection_notes'] ?? '',
+      imageUrls: imageUrlsList,
+    );
+  }
+  
+  /// 📅 日付パース
+  DateTime _parseDate(dynamic dateStr) {
+    if (dateStr == null) return DateTime.now();
+    try {
+      return DateTime.parse(dateStr.toString());
+    } catch (_) {
+      return DateTime.now();
+    }
+  }
+  
+  /// 🖼️ 画像URLリストパース
+  List<String> _parseImageUrls(dynamic imageUrls) {
+    if (imageUrls == null) return [];
+    if (imageUrls is List) {
+      return imageUrls.map((e) => e.toString()).toList();
+    }
+    if (imageUrls is String) {
+      try {
+        final decoded = json.decode(imageUrls);
+        if (decoded is List) {
+          return decoded.map((e) => e.toString()).toList();
+        }
+      } catch (_) {}
+    }
+    return [];
   }
 
   /// 🔍 商品を検索してAddItemScreenに遷移
@@ -52,42 +188,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
 
     try {
-      // 🔍 ステップ1: ローカル保存データを検索
-      final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
-      final savedItem = inventoryProvider.findBySku(query);
-      
-      if (savedItem != null) {
-        // 💾 保存済み商品が見つかった
-        setState(() {
-          _isSearching = false;
-        });
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('保存済み商品: ${savedItem.name}'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        
-        // 🔧 修正: 保存済み商品は existingItem として渡す
-        Navigator.push(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => AddItemScreen(
-              existingItem: savedItem,
-            ),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: _pageTransitionDuration,
-          ),
-        );
-        
-        _searchController.clear();
-        return;
-      }
-      
-      // 🌐 ステップ2: 統合検索API（product_items → product_master）
+      // 🌐 D1統合検索API（product_items → product_master）
+      // company_id でフィルタされた結果のみ取得
       final searchResult = await _apiService.searchByBarcodeOrSku(query);
 
       setState(() {
@@ -376,15 +478,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 24),
 
               // Stats Cards
-              // 🚀 Consumer で必要な部分だけ再描画
-              Consumer<InventoryProvider>(
-                builder: (context, inventory, _) => Row(
-                  children: [
-                    Expanded(child: _buildStatCard("Ready", inventory.readyCount.toString(), "出品待ちアイテム", AppConstants.successGreen, Icons.check_circle)),
-                    const SizedBox(width: 16),
-                    Expanded(child: _buildStatCard("Draft", inventory.draftCount.toString(), "下書き保存中", AppConstants.warningOrange, Icons.edit_document)),
-                  ],
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      "Ready",
+                      _d1Items.where((i) => i.status == 'Ready').length.toString(),
+                      "出品待ちアイテム",
+                      AppConstants.successGreen,
+                      Icons.check_circle,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildStatCard(
+                      "Draft",
+                      _d1Items.where((i) => i.status == 'Draft').length.toString(),
+                      "下書き保存中",
+                      AppConstants.warningOrange,
+                      Icons.edit_document,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
 
@@ -538,17 +653,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(height: 16),
 
-              // 🚀 Consumer でリスト部分だけ再描画
-              Consumer<InventoryProvider>(
-                builder: (context, inventory, _) => ListView.builder(
-                  shrinkWrap: true,
-                  physics: NeverScrollableScrollPhysics(),
-                  itemCount: inventory.items.length,
-                  itemBuilder: (context, index) {
-                    return _buildItemCard(inventory.items[index]);
-                  },
-                ),
-              ),
+              // 📊 D1から取得したデータを表示
+              _isLoadingD1
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        children: [
+                          CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(AppConstants.primaryCyan),
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'データを読み込み中...',
+                            style: TextStyle(color: AppConstants.textGrey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : _d1Items.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: Column(
+                            children: [
+                              Icon(Icons.inventory_2_outlined, size: 64, color: AppConstants.textGrey),
+                              SizedBox(height: 16),
+                              Text(
+                                'データがありません',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: AppConstants.textGrey,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                '商品を撮影して登録しましょう',
+                                style: TextStyle(color: AppConstants.textGrey),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        physics: NeverScrollableScrollPhysics(),
+                        itemCount: _d1Items.length,
+                        itemBuilder: (context, index) {
+                          return _buildItemCard(_d1Items[index]);
+                        },
+                      ),
             ],
           ),
         ),
@@ -567,9 +723,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
+        onPressed: () async {
            // 🚀 高速遷移
-           Navigator.push(
+           final result = await Navigator.push(
               context, 
               PageRouteBuilder(
                 pageBuilder: (context, animation, secondaryAnimation) => AddItemScreen(),
@@ -579,6 +735,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 transitionDuration: _pageTransitionDuration,
               ),
             );
+            
+            // 📊 商品保存後にD1データを再読み込み
+            if (result == true) {
+              await _loadDataFromD1();
+            }
         },
         backgroundColor: Color(0xFF1A2A3A), // Dark color from screenshot
         child: Icon(Icons.camera_alt, color: Colors.white),
