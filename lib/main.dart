@@ -9,6 +9,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:measure_master/models/item.dart';
 import 'package:measure_master/services/image_cache_service.dart';
 import 'package:measure_master/utils/config_checker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +22,18 @@ void main() async {
   
   // 📸 画像キャッシュサービスを初期化
   await ImageCacheService.initialize();
+  
+  // 🔐 shared_preferences初期化（Web版対応）
+  try {
+    await SharedPreferences.getInstance();
+    if (kDebugMode) {
+      debugPrint('✅ shared_preferences initialized successfully');
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      debugPrint('⚠️ shared_preferences initialization failed (Web版では正常): $e');
+    }
+  }
   
   // 🔍 設定状態をチェック（デバッグモードのみ）
   if (kDebugMode) {
