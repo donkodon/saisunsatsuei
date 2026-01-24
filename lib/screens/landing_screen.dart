@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:measure_master/constants.dart';
-import 'package:measure_master/screens/dashboard_screen.dart';
+import 'package:measure_master/screens/login_screen.dart';
 import 'package:measure_master/widgets/custom_button.dart';
 
 class LandingScreen extends StatelessWidget {
@@ -112,15 +112,15 @@ class LandingScreen extends StatelessWidget {
                     CustomButton(
                       text: "今すぐ始める",
                       onPressed: () {
-                        // 🚀 高速遷移（PageRouteBuilder使用）
-                        Navigator.pushReplacement(
+                        // 🚀 ログイン画面へ遷移
+                        Navigator.push(
                           context,
                           PageRouteBuilder(
-                            pageBuilder: (context, animation, secondaryAnimation) => const DashboardScreen(),
+                            pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
                             transitionsBuilder: (context, animation, secondaryAnimation, child) {
                               return FadeTransition(opacity: animation, child: child);
                             },
-                            transitionDuration: const Duration(milliseconds: 200),
+                            transitionDuration: const Duration(milliseconds: 300),
                           ),
                         );
                       },

@@ -47,6 +47,7 @@ dependencies:
   hive: 2.2.3
   hive_flutter: 1.1.0
   mime: ^2.0.0
+  shared_preferences: 2.5.3
   minio: ^3.5.8
   uuid: ^4.5.1
   flutter_riverpod: ^2.6.1
