@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:measure_master/models/api_product.dart';
 import 'package:measure_master/config/api_config.dart';
 
@@ -386,11 +387,18 @@ class ApiService {
     }
   }
   
-  /// 🔍 D1からSKU検索
-  Future<Map<String, dynamic>?> searchProductInD1(String sku) async {
+  /// 🔍 D1からSKU検索（企業IDでフィルタ）
+  Future<Map<String, dynamic>?> searchProductInD1(String sku, {String? companyId}) async {
     try {
+      // 🏢 ログインした企業IDを取得
+      String effectiveCompanyId = companyId ?? TEST_COMPANY_ID;
+      if (companyId == null) {
+        final prefs = await SharedPreferences.getInstance();
+        effectiveCompanyId = prefs.getString('company_id') ?? TEST_COMPANY_ID;
+      }
+      
       final response = await http.get(
-        Uri.parse('$d1ApiUrl/api/products/search?sku=$sku'),
+        Uri.parse('$d1ApiUrl/api/products/search?sku=$sku&company_id=$effectiveCompanyId'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -428,12 +436,16 @@ class ApiService {
     }
     
     try {
+      // 🏢 ログインした企業IDを取得
+      final prefs = await SharedPreferences.getInstance();
+      final companyId = prefs.getString('company_id') ?? TEST_COMPANY_ID;
+      
       if (kDebugMode) {
-        debugPrint('🔍 統合検索開始: $query');
+        debugPrint('🔍 統合検索開始: $query (企業ID: $companyId)');
       }
       
       final response = await http.get(
-        Uri.parse('$d1ApiUrl/api/search?query=${Uri.encodeComponent(query.trim())}'),
+        Uri.parse('$d1ApiUrl/api/search?query=${Uri.encodeComponent(query.trim())}&company_id=$companyId'),
         headers: {
           'Content-Type': 'application/json',
         },
