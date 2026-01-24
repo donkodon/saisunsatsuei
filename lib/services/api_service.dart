@@ -272,6 +272,44 @@ class ApiService {
             data['imageUrls'] = json.decode(data['imageUrls']);
           }
           
+          // 🔧 古い画像URLを新しい形式に変換（company_idフォルダ対応）
+          if (data['imageUrls'] != null && data['imageUrls'] is List) {
+            final imageUrls = data['imageUrls'] as List;
+            final fixedUrls = imageUrls.map((url) {
+              final urlStr = url.toString();
+              
+              // すでに company_id が含まれているかチェック
+              if (urlStr.contains('/$effectiveCompanyId/')) {
+                // ✅ すでに新しい形式
+                return urlStr;
+              }
+              
+              // ❌ 古い形式: https://.../SKU/filename.jpg
+              // ✅ 新しい形式: https://.../company_id/SKU/filename.jpg
+              
+              // URLを分解
+              final uri = Uri.parse(urlStr);
+              final pathSegments = uri.pathSegments;
+              
+              if (pathSegments.length >= 2) {
+                // 例: ['1025L280001', '1025L280001_uuid.jpg']
+                // → ['test_company', '1025L280001', '1025L280001_uuid.jpg']
+                final newPath = '/$effectiveCompanyId/${pathSegments.join('/')}';
+                final newUrl = '${uri.scheme}://${uri.host}$newPath';
+                
+                if (kDebugMode) {
+                  debugPrint('🔧 URL修正: $urlStr → $newUrl');
+                }
+                
+                return newUrl;
+              }
+              
+              return urlStr; // 変換できない場合はそのまま
+            }).toList();
+            
+            data['imageUrls'] = fixedUrls;
+          }
+          
           if (kDebugMode) {
             debugPrint('🔍 D1取得成功: SKU=$sku');
             if (data['imageUrls'] != null) {
