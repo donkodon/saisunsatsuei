@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/product_image.dart';
 import '../models/result.dart';
 import '../services/cloudflare_storage_service.dart';
@@ -274,10 +275,21 @@ class ImageRepository {
     required String sku,
   }) async {
     try {
+      // 🏢 ログインした企業IDを取得
+      String? companyId;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        companyId = prefs.getString('company_id');
+        debugPrint('🏢 ログインした企業ID: $companyId');
+      } catch (e) {
+        debugPrint('⚠️ 企業ID取得エラー（デフォルト値を使用）: $e');
+      }
+      
       final imageUrl = await CloudflareWorkersStorageService.uploadImage(
         imageBytes,
         fileId,
         sku: sku,
+        companyId: companyId,  // 🏢 企業IDを渡す
       );
       return Success(imageUrl);
     } catch (e, stackTrace) {
