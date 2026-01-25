@@ -120,11 +120,13 @@ class ApiService {
       final dataWithUpsert = Map<String, dynamic>.from(itemData);
       dataWithUpsert['upsert'] = true;  // 重複時は上書き
       
-      // 🏢 company_idを自動追加（Phase 1: 固定値）
+      // 🏢 ログイン中の company_id を取得して自動追加
       if (!dataWithUpsert.containsKey('company_id')) {
-        dataWithUpsert['company_id'] = TEST_COMPANY_ID;
+        final prefs = await SharedPreferences.getInstance();
+        final companyId = prefs.getString('company_id') ?? TEST_COMPANY_ID;
+        dataWithUpsert['company_id'] = companyId;
         if (kDebugMode) {
-          debugPrint('🏢 company_id自動設定: $TEST_COMPANY_ID');
+          debugPrint('🏢 company_id自動設定: $companyId (ログイン中の企業ID)');
         }
       }
       
