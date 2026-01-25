@@ -753,6 +753,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                       material: _selectedMaterial,  // 🔧 そのまま渡す（DetailScreenで判定）
                       description: _descriptionController.text,
                       images: _images.isEmpty ? null : _images,  // 📸 画像アイテムリスト（UUID管理）
+                      aiMeasureEnabled: _aiMeasure,  // 📏 AI自動採寸フラグを渡す
                       // 🆕 product_masterから引き継ぐ追加フィールド
                       brandKana: widget.prefillData?.brandKana,
                       categorySub: widget.prefillData?.categorySub,

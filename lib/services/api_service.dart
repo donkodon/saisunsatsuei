@@ -13,6 +13,36 @@ class ApiService {
   // 🏢 Phase 1: 固定のcompany_id（Phase 2で動的に変更）
   static const String TEST_COMPANY_ID = "test_company";
   
+  /// 📏 カテゴリ → Replicate Garment Class マッピング
+  /// Flutterアプリのカテゴリ選択値をReplicate APIの garment_class パラメータに変換
+  static String getCategoryToGarmentClass(String category) {
+    // カテゴリが空または「選択してください」の場合はデフォルト値
+    if (category.isEmpty || category == '選択してください') {
+      return 'long sleeve top';  // デフォルト: 長袖トップス
+    }
+    
+    // カテゴリマッピング
+    switch (category) {
+      case 'トップス':
+        return 'long sleeve top';  // トップスはデフォルトで長袖扱い
+      case 'ジャケット/アウター':
+        return 'jacket';
+      case 'パンツ':
+        return 'pants';
+      case 'スカート':
+        return 'skirt';
+      case 'ワンピース':
+        return 'dress';
+      case 'シューズ':
+      case 'バッグ':
+      case 'アクセサリー':
+      case 'その他':
+        return 'long sleeve top';  // 採寸非対応カテゴリはデフォルト値
+      default:
+        return 'long sleeve top';  // 未知のカテゴリもデフォルト値
+    }
+  }
+  
   /// 商品リストを取得
   Future<ApiProductResponse> fetchProducts() async {
     try {
@@ -500,6 +530,116 @@ class ApiService {
         debugPrint('❌ 統合検索エラー: $e');
       }
       throw Exception('検索API通信エラー: $e');
+    }
+  }
+  
+  /// 📏 AI自動採寸API - Replicate経由で寸法を取得
+  /// 
+  /// Cloudflare Workers の `/api/measure` エンドポイントを呼び出し、
+  /// Replicate API経由で自動採寸を実行します。
+  /// 
+  /// **パラメータ:**
+  /// - `imageUrl`: 採寸対象の画像URL（Cloudflare R2）
+  /// - `sku`: 商品SKU（必須）
+  /// - `companyId`: 企業ID（省略時はSharedPreferencesから取得）
+  /// - `garmentClass`: 衣類タイプ（'long sleeve top', 'jacket', 'pants'など）
+  /// 
+  /// **戻り値:**
+  /// ```json
+  /// {
+  ///   "success": true,
+  ///   "measurements": {
+  ///     "shoulder_width": 43.13,
+  ///     "sleeve_length": 60.08,
+  ///     "body_length": 68.54,
+  ///     "body_width": 46.64,
+  ///     "unit": "cm"
+  ///   },
+  ///   "measurement_image_url": "https://replicate.delivery/...",
+  ///   "status": "completed"
+  /// }
+  /// ```
+  Future<Map<String, dynamic>?> measureGarment({
+    required String imageUrl,
+    required String sku,
+    String? companyId,
+    required String garmentClass,
+  }) async {
+    try {
+      // 企業IDを取得（引数 > SharedPreferences > デフォルト値）
+      String effectiveCompanyId = companyId ?? TEST_COMPANY_ID;
+      
+      if (companyId == null) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          effectiveCompanyId = prefs.getString('company_id') ?? TEST_COMPANY_ID;
+          
+          if (kDebugMode) {
+            debugPrint('🏢 企業ID取得（採寸API）: $effectiveCompanyId');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('⚠️ Web版: SharedPreferences取得エラー（採寸API） - デフォルト値使用: $e');
+          }
+          // Web版でSharedPreferences取得失敗時はデフォルト値を使用
+        }
+      }
+      
+      if (kDebugMode) {
+        debugPrint('📏 AI自動採寸開始');
+        debugPrint('   画像URL: $imageUrl');
+        debugPrint('   SKU: $sku');
+        debugPrint('   企業ID: $effectiveCompanyId');
+        debugPrint('   衣類タイプ: $garmentClass');
+      }
+      
+      final requestBody = {
+        'imageUrl': imageUrl,
+        'sku': sku,
+        'companyId': effectiveCompanyId,
+        'garmentClass': garmentClass,
+      };
+      
+      final response = await http.post(
+        Uri.parse('$d1ApiUrl/api/measure'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: json.encode(requestBody),
+      ).timeout(const Duration(seconds: 60));  // 採寸処理は時間がかかる可能性（60秒）
+      
+      if (kDebugMode) {
+        debugPrint('📡 採寸APIレスポンス (${response.statusCode})');
+      }
+      
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        
+        if (jsonData['success'] == true) {
+          if (kDebugMode) {
+            debugPrint('✅ 採寸成功');
+            debugPrint('   肩幅: ${jsonData['measurements']['shoulder_width']} cm');
+            debugPrint('   袖丈: ${jsonData['measurements']['sleeve_length']} cm');
+            debugPrint('   着丈: ${jsonData['measurements']['body_length']} cm');
+            debugPrint('   身幅: ${jsonData['measurements']['body_width']} cm');
+          }
+          return jsonData;
+        } else {
+          throw Exception('採寸API失敗: ${jsonData['message'] ?? '不明なエラー'}');
+        }
+      } else if (response.statusCode == 400) {
+        final errorData = json.decode(response.body);
+        throw Exception('採寸リクエストエラー: ${errorData['message'] ?? '不明なエラー'}');
+      } else if (response.statusCode == 500) {
+        throw Exception('採寸サーバーエラー: Replicate API処理失敗');
+      } else {
+        throw Exception('採寸に失敗しました (${response.statusCode})');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ 採寸APIエラー: $e');
+      }
+      throw Exception('採寸API通信エラー: $e');
     }
   }
 }

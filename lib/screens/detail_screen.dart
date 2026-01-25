@@ -37,6 +37,7 @@ class DetailScreen extends StatefulWidget {
   final String material;
   final String description;
   final List<ImageItem>? images;  // 📸 画像アイテムリスト（UUID管理）
+  final bool aiMeasureEnabled;  // 📏 AI自動採寸フラグ（AddItemScreenから渡される）
   
   // 🆕 product_masterから引き継ぐ追加フィールド
   final String? brandKana;        // ブランドカナ
@@ -66,6 +67,7 @@ class DetailScreen extends StatefulWidget {
     required this.material,
     required this.description,
     this.images,  // オプション（画像アイテムリスト）
+    this.aiMeasureEnabled = false,  // 📏 AI自動採寸フラグ（デフォルト: OFF）
     // 🆕 追加フィールド（オプション）
     this.brandKana,
     this.categorySub,
@@ -959,6 +961,43 @@ class _DetailScreenState extends State<DetailScreen> {
       await _inventoryProvider.addItem(newItem);
       debugPrint('✅ Hive保存完了');
 
+      // 📏 6.5) AI自動採寸（シーケンス1-1枚目のみ、トグルONの場合）
+      Map<String, dynamic>? measurementResult;
+      if (widget.aiMeasureEnabled && allImageUrls.isNotEmpty) {
+        debugPrint('📏 AI自動採寸を開始します（シーケンス1-1枚目）');
+        debugPrint('   対象画像: ${allImageUrls.first}');
+        debugPrint('   カテゴリ: ${widget.category}');
+        
+        try {
+          // カテゴリ → Garment Class に変換
+          final garmentClass = ApiService.getCategoryToGarmentClass(widget.category);
+          debugPrint('   Garment Class: $garmentClass');
+          
+          // Replicate API経由で自動採寸実行
+          measurementResult = await _apiService.measureGarment(
+            imageUrl: allImageUrls.first,  // シーケンス1-1枚目
+            sku: widget.sku.isNotEmpty ? widget.sku : 'NOSKU',
+            garmentClass: garmentClass,
+          );
+          
+          if (measurementResult != null && measurementResult['success'] == true) {
+            debugPrint('✅ AI自動採寸成功');
+            final measurements = measurementResult['measurements'] as Map<String, dynamic>;
+            debugPrint('   肩幅: ${measurements['shoulder_width']} cm');
+            debugPrint('   袖丈: ${measurements['sleeve_length']} cm');
+            debugPrint('   着丈: ${measurements['body_length']} cm');
+            debugPrint('   身幅: ${measurements['body_width']} cm');
+          }
+        } catch (e) {
+          debugPrint('⚠️ AI自動採寸エラー（保存処理は続行）: $e');
+          // 採寸失敗でも保存処理は続行
+        }
+      } else if (!widget.aiMeasureEnabled) {
+        debugPrint('📏 AI自動採寸: トグルOFFのためスキップ');
+      } else {
+        debugPrint('📏 AI自動採寸: 画像なしのためスキップ');
+      }
+
       // 7) D1保存（クラウド）+ リトライ機能
       debugPrint('🌐 D1保存処理を開始します...');
       debugPrint('   SKU: ${widget.sku.isNotEmpty ? widget.sku : 'NOSKU'}');
@@ -968,6 +1007,7 @@ class _DetailScreenState extends State<DetailScreen> {
         sku: widget.sku.isNotEmpty ? widget.sku : 'NOSKU',
         imageUrls: allImageUrls,  // 🎯 Phase 2: 既存+新規の統合リスト
         newItem: newItem,
+        measurementResult: measurementResult,  // 📏 採寸結果をD1に保存
       );
       
       debugPrint('🌐 D1保存処理完了: ${d1Success ? "成功" : "失敗"}');
@@ -1017,6 +1057,7 @@ class _DetailScreenState extends State<DetailScreen> {
     required String sku,
     required List<String> imageUrls,
     required InventoryItem newItem,
+    Map<String, dynamic>? measurementResult,  // 📏 AI自動採寸結果（オプション）
   }) async {
     const maxRetries = 3;
     
@@ -1061,6 +1102,23 @@ class _DetailScreenState extends State<DetailScreen> {
           'status': 'Ready',
           'upsert': true,
         };
+        
+        // 📏 AI自動採寸結果をitemDataに追加
+        if (measurementResult != null && measurementResult['success'] == true) {
+          final measurements = measurementResult['measurements'] as Map<String, dynamic>;
+          itemData['aiMeasurements'] = {
+            'shoulder_width': measurements['shoulder_width'],
+            'sleeve_length': measurements['sleeve_length'],
+            'body_length': measurements['body_length'],
+            'body_width': measurements['body_width'],
+            'unit': 'cm',
+          };
+          itemData['measurementImageUrl'] = measurementResult['measurement_image_url'];
+          itemData['measurementStatus'] = 'completed';
+          itemData['measuredAt'] = DateTime.now().toIso8601String();
+          
+          debugPrint('📏 D1に採寸データを含めて保存します');
+        }
 
         final d1Result = await _apiService.saveProductItemToD1(itemData);
 
