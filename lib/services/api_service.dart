@@ -120,10 +120,17 @@ class ApiService {
       final dataWithUpsert = Map<String, dynamic>.from(itemData);
       dataWithUpsert['upsert'] = true;  // 重複時は上書き
       
-      // 🏢 ログイン中の company_id を取得して自動追加
+      // 🏢 ログイン中の company_id を取得して自動追加（Web版エラー対応）
       if (!dataWithUpsert.containsKey('company_id')) {
-        final prefs = await SharedPreferences.getInstance();
-        final companyId = prefs.getString('company_id') ?? TEST_COMPANY_ID;
+        String companyId = TEST_COMPANY_ID;
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          companyId = prefs.getString('company_id') ?? TEST_COMPANY_ID;
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('⚠️ SharedPreferences取得エラー（Web版）: $e');
+          }
+        }
         dataWithUpsert['company_id'] = companyId;
         if (kDebugMode) {
           debugPrint('🏢 company_id自動設定: $companyId (ログイン中の企業ID)');
@@ -392,11 +399,17 @@ class ApiService {
   /// 🔍 D1からSKU検索（企業IDでフィルタ）
   Future<Map<String, dynamic>?> searchProductInD1(String sku, {String? companyId}) async {
     try {
-      // 🏢 ログインした企業IDを取得
+      // 🏢 ログインした企業IDを取得（Web版エラー対応）
       String effectiveCompanyId = companyId ?? TEST_COMPANY_ID;
       if (companyId == null) {
-        final prefs = await SharedPreferences.getInstance();
-        effectiveCompanyId = prefs.getString('company_id') ?? TEST_COMPANY_ID;
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          effectiveCompanyId = prefs.getString('company_id') ?? TEST_COMPANY_ID;
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('⚠️ SharedPreferences取得エラー（Web版）: $e');
+          }
+        }
       }
       
       final response = await http.get(
@@ -438,9 +451,18 @@ class ApiService {
     }
     
     try {
-      // 🏢 ログインした企業IDを取得
-      final prefs = await SharedPreferences.getInstance();
-      final companyId = prefs.getString('company_id') ?? TEST_COMPANY_ID;
+      // 🏢 ログインした企業IDを取得（Web版エラー対応）
+      String companyId = TEST_COMPANY_ID;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        companyId = prefs.getString('company_id') ?? TEST_COMPANY_ID;
+      } catch (e) {
+        // Web版で SharedPreferences が使えない場合はデフォルト値を使用
+        if (kDebugMode) {
+          debugPrint('⚠️ SharedPreferences取得エラー（Web版）: $e');
+          debugPrint('🏢 デフォルト企業IDを使用: $companyId');
+        }
+      }
       
       if (kDebugMode) {
         debugPrint('🔍 統合検索開始: $query (企業ID: $companyId)');

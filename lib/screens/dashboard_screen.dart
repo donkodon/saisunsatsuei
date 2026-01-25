@@ -54,8 +54,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// 🏢 ログイン中の企業IDを取得してD1からデータを読み込み
   Future<void> _loadCompanyIdAndData() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final companyId = prefs.getString('company_id') ?? 'test_company';
+      String companyId = 'test_company';
+      
+      // Web版エラー対応: SharedPreferences取得を try-catch で囲む
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        companyId = prefs.getString('company_id') ?? 'test_company';
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('⚠️ SharedPreferences取得エラー（Web版）: $e');
+          debugPrint('🏢 デフォルト企業IDを使用: $companyId');
+        }
+      }
       
       if (kDebugMode) {
         debugPrint('🏢 ログイン中の企業ID: $companyId');
