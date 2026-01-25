@@ -963,9 +963,16 @@ class _DetailScreenState extends State<DetailScreen> {
 
       // 📏 6.5) AI自動採寸（シーケンス1-1枚目のみ、トグルONの場合）
       Map<String, dynamic>? measurementResult;
+      
+      debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      debugPrint('📏 AI自動採寸チェック開始');
+      debugPrint('   トグル状態: ${widget.aiMeasureEnabled ? "ON ✅" : "OFF ❌"}');
+      debugPrint('   画像数: ${allImageUrls.length}件');
+      
       if (widget.aiMeasureEnabled && allImageUrls.isNotEmpty) {
-        debugPrint('📏 AI自動採寸を開始します（シーケンス1-1枚目）');
+        debugPrint('📏 AI自動採寸を実行します（シーケンス1-1枚目）');
         debugPrint('   対象画像: ${allImageUrls.first}');
+        debugPrint('   SKU: ${widget.sku.isNotEmpty ? widget.sku : 'NOSKU'}');
         debugPrint('   カテゴリ: ${widget.category}');
         
         try {
@@ -973,41 +980,62 @@ class _DetailScreenState extends State<DetailScreen> {
           final garmentClass = ApiService.getCategoryToGarmentClass(widget.category);
           debugPrint('   Garment Class: $garmentClass');
           
+          debugPrint('📡 Cloudflare Workers API呼び出し中...');
+          debugPrint('   エンドポイント: /api/measure');
+          
           // Replicate API経由で自動採寸実行
+          final startTime = DateTime.now();
           measurementResult = await _apiService.measureGarment(
             imageUrl: allImageUrls.first,  // シーケンス1-1枚目
             sku: widget.sku.isNotEmpty ? widget.sku : 'NOSKU',
             garmentClass: garmentClass,
           );
+          final elapsed = DateTime.now().difference(startTime).inSeconds;
           
           if (measurementResult != null && measurementResult['success'] == true) {
-            debugPrint('✅ AI自動採寸成功');
+            debugPrint('✅ AI自動採寸成功（所要時間: ${elapsed}秒）');
             final measurements = measurementResult['measurements'] as Map<String, dynamic>;
-            debugPrint('   肩幅: ${measurements['shoulder_width']} cm');
-            debugPrint('   袖丈: ${measurements['sleeve_length']} cm');
-            debugPrint('   着丈: ${measurements['body_length']} cm');
-            debugPrint('   身幅: ${measurements['body_width']} cm');
+            debugPrint('   📐 寸法データ:');
+            debugPrint('      肩幅: ${measurements['shoulder_width']} cm');
+            debugPrint('      袖丈: ${measurements['sleeve_length']} cm');
+            debugPrint('      着丈: ${measurements['body_length']} cm');
+            debugPrint('      身幅: ${measurements['body_width']} cm');
+            debugPrint('   🖼️ 可視化画像: ${measurementResult['measurement_image_url']}');
+          } else {
+            debugPrint('❌ AI自動採寸失敗: APIレスポンスが不正');
+            debugPrint('   レスポンス: $measurementResult');
           }
-        } catch (e) {
-          debugPrint('⚠️ AI自動採寸エラー（保存処理は続行）: $e');
+        } catch (e, stackTrace) {
+          debugPrint('❌ AI自動採寸エラー（保存処理は続行）');
+          debugPrint('   エラー内容: $e');
+          debugPrint('   スタックトレース: $stackTrace');
           // 採寸失敗でも保存処理は続行
         }
       } else if (!widget.aiMeasureEnabled) {
-        debugPrint('📏 AI自動採寸: トグルOFFのためスキップ');
+        debugPrint('📏 AI自動採寸スキップ: トグルOFF');
       } else {
-        debugPrint('📏 AI自動採寸: 画像なしのためスキップ');
+        debugPrint('📏 AI自動採寸スキップ: 画像なし');
       }
+      
+      debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
       // 7) D1保存（クラウド）+ リトライ機能
       debugPrint('🌐 D1保存処理を開始します...');
       debugPrint('   SKU: ${widget.sku.isNotEmpty ? widget.sku : 'NOSKU'}');
       debugPrint('   画像数: ${allImageUrls.length}件');
       
+      // 📏 採寸結果のログ出力
+      if (measurementResult != null) {
+        debugPrint('📏 採寸結果あり: D1に保存予定');
+      } else {
+        debugPrint('📏 採寸結果なし: 通常保存');
+      }
+      
       final d1Success = await _saveToD1WithRetry(
         sku: widget.sku.isNotEmpty ? widget.sku : 'NOSKU',
         imageUrls: allImageUrls,  // 🎯 Phase 2: 既存+新規の統合リスト
         newItem: newItem,
-        measurementResult: measurementResult,  // 📏 採寸結果をD1に保存
+        measurementResult: measurementResult,  // 📏 採寸結果をD1に保存（nullの場合は通常保存）
       );
       
       debugPrint('🌐 D1保存処理完了: ${d1Success ? "成功" : "失敗"}');
@@ -1104,20 +1132,23 @@ class _DetailScreenState extends State<DetailScreen> {
         };
         
         // 📏 AI自動採寸結果をitemDataに追加
+        // ⚠️ 現在は無効化（Cloudflare Workers側の対応待ち）
         if (measurementResult != null && measurementResult['success'] == true) {
-          final measurements = measurementResult['measurements'] as Map<String, dynamic>;
-          itemData['aiMeasurements'] = {
-            'shoulder_width': measurements['shoulder_width'],
-            'sleeve_length': measurements['sleeve_length'],
-            'body_length': measurements['body_length'],
-            'body_width': measurements['body_width'],
-            'unit': 'cm',
-          };
-          itemData['measurementImageUrl'] = measurementResult['measurement_image_url'];
-          itemData['measurementStatus'] = 'completed';
-          itemData['measuredAt'] = DateTime.now().toIso8601String();
+          debugPrint('📏 採寸データ取得済み（D1保存は未実装）');
+          debugPrint('   ※ Cloudflare Workers側の実装が完了次第、D1に保存されます');
           
-          debugPrint('📏 D1に採寸データを含めて保存します');
+          // 将来的にCloudflare Workers側で対応後に有効化:
+          // final measurements = measurementResult['measurements'] as Map<String, dynamic>;
+          // itemData['aiMeasurements'] = {
+          //   'shoulder_width': measurements['shoulder_width'],
+          //   'sleeve_length': measurements['sleeve_length'],
+          //   'body_length': measurements['body_length'],
+          //   'body_width': measurements['body_width'],
+          //   'unit': 'cm',
+          // };
+          // itemData['measurementImageUrl'] = measurementResult['measurement_image_url'];
+          // itemData['measurementStatus'] = 'completed';
+          // itemData['measuredAt'] = DateTime.now().toIso8601String();
         }
 
         final d1Result = await _apiService.saveProductItemToD1(itemData);

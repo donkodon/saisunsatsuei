@@ -600,6 +600,12 @@ class ApiService {
         'garmentClass': garmentClass,
       };
       
+      if (kDebugMode) {
+        debugPrint('📤 採寸APIリクエスト送信');
+        debugPrint('   URL: $d1ApiUrl/api/measure');
+        debugPrint('   Body: ${json.encode(requestBody)}');
+      }
+      
       final response = await http.post(
         Uri.parse('$d1ApiUrl/api/measure'),
         headers: {
@@ -610,6 +616,7 @@ class ApiService {
       
       if (kDebugMode) {
         debugPrint('📡 採寸APIレスポンス (${response.statusCode})');
+        debugPrint('   Body: ${response.body}');
       }
       
       if (response.statusCode == 200) {
@@ -629,15 +636,35 @@ class ApiService {
         }
       } else if (response.statusCode == 400) {
         final errorData = json.decode(response.body);
+        if (kDebugMode) {
+          debugPrint('❌ 採寸リクエストエラー (400)');
+          debugPrint('   エラー: ${errorData['message'] ?? '不明なエラー'}');
+        }
         throw Exception('採寸リクエストエラー: ${errorData['message'] ?? '不明なエラー'}');
+      } else if (response.statusCode == 404) {
+        if (kDebugMode) {
+          debugPrint('❌ 採寸APIエンドポイントが見つかりません (404)');
+          debugPrint('   URL: $d1ApiUrl/api/measure');
+          debugPrint('   ※ Cloudflare Workers側に /api/measure エンドポイントが実装されていない可能性があります');
+        }
+        throw Exception('採寸APIエンドポイントが見つかりません (404)');
       } else if (response.statusCode == 500) {
+        if (kDebugMode) {
+          debugPrint('❌ 採寸サーバーエラー (500)');
+          debugPrint('   Replicate API処理失敗の可能性');
+        }
         throw Exception('採寸サーバーエラー: Replicate API処理失敗');
       } else {
+        if (kDebugMode) {
+          debugPrint('❌ 採寸失敗 (${response.statusCode})');
+          debugPrint('   レスポンス: ${response.body}');
+        }
         throw Exception('採寸に失敗しました (${response.statusCode})');
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ 採寸APIエラー: $e');
+        debugPrint('❌ 採寸API通信エラー');
+        debugPrint('   エラー内容: $e');
       }
       throw Exception('採寸API通信エラー: $e');
     }
