@@ -1119,8 +1119,8 @@ class _DetailScreenState extends State<DetailScreen> {
           'price': newItem.salePrice,
           'imageUrls': imageUrls,
           'actualMeasurements': {
-            'length': newItem.length,
-            'width': newItem.width,
+            'length': newItem.length ?? 0.0,  // 🔧 null の場合は 0.0 に変換
+            'width': newItem.width ?? 0.0,    // 🔧 null の場合は 0.0 に変換
           },
           'condition': newItem.condition ?? widget.condition,
           'productRank': newItem.productRank ?? widget.productRank,
