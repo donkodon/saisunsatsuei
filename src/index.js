@@ -121,6 +121,18 @@ function parseReplicateOutput(output) {
     reference_object: null
   };
 
+  // 🆕 デバッグ強化: 生データの完全ダンプ
+  console.log('🔍 ============ REPLICATE OUTPUT DEBUG ============');
+  console.log('🔍 [RAW] output 型:', typeof output);
+  console.log('🔍 [RAW] Array.isArray:', Array.isArray(output));
+  console.log('🔍 [RAW] output 完全ダンプ:');
+  try {
+    console.log(JSON.stringify(output, null, 2));
+  } catch (e) {
+    console.log('⚠️ JSON.stringify失敗 - output:', output);
+  }
+  console.log('🔍 ===============================================');
+
   try {
     if (Array.isArray(output)) {
       // 🆕 配列形式: output = [ai_landmarks_json, measurements_json]
@@ -129,10 +141,14 @@ function parseReplicateOutput(output) {
       for (let i = 0; i < output.length; i++) {
         let parsed = output[i];
         
+        console.log(`🔍 output[${i}] 型:`, typeof parsed);
+        console.log(`🔍 output[${i}] 内容 (最初の500文字):`, JSON.stringify(parsed).substring(0, 500));
+        
         // 文字列ならパース
         if (typeof parsed === 'string') {
           try {
             parsed = JSON.parse(parsed);
+            console.log(`✅ output[${i}] をJSONパース成功`);
           } catch (e) {
             console.log(`⚠️ output[${i}] のJSONパースに失敗:`, e.message);
             continue;
@@ -140,6 +156,9 @@ function parseReplicateOutput(output) {
         }
         
         if (typeof parsed === 'object' && parsed !== null) {
+          const keys = Object.keys(parsed);
+          console.log(`🔍 output[${i}] のキー:`, keys.slice(0, 10).join(', '));
+          
           // measurements を判定: body_length or shoulder_width があれば measurements
           if (parsed.body_length !== undefined || parsed.shoulder_width !== undefined || 
               parsed.body_width !== undefined || parsed.sleeve_length !== undefined) {
@@ -155,7 +174,7 @@ function parseReplicateOutput(output) {
             // ランドマーク9番に {"pixelPerCm": 15.18} が入っている
             for (const key of Object.keys(parsed)) {
               const point = parsed[key];
-              if (point && point.pixelPerCm !== undefined) {
+              if (point && typeof point === 'object' && point.pixelPerCm !== undefined) {
                 result.reference_object = {
                   type: "pixelPerCm",
                   pixelPerCm: point.pixelPerCm,
@@ -165,27 +184,65 @@ function parseReplicateOutput(output) {
                 break;
               }
             }
+            
+            // 🆕 pixelPerCm がトップレベルにある場合も対応
+            if (!result.reference_object && parsed.pixelPerCm !== undefined) {
+              result.reference_object = {
+                type: "pixelPerCm",
+                pixelPerCm: parsed.pixelPerCm,
+                source_landmark: "top_level"
+              };
+              console.log(`✅ pixelPerCm をトップレベルから抽出:`, parsed.pixelPerCm);
+            }
+          }
+          // 🆕 直接 ai_landmarks や measurements キーがある場合
+          else if (parsed.ai_landmarks || parsed.ai_landmark || parsed.measurements) {
+            console.log(`🔍 output[${i}] にai_landmarks/measurementsキーあり`);
+            if (parsed.ai_landmarks || parsed.ai_landmark) {
+              result.ai_landmarks = parsed.ai_landmarks || parsed.ai_landmark;
+              console.log(`✅ ai_landmarks 抽出成功`);
+            }
+            if (parsed.measurements) {
+              result.measurements = parsed.measurements;
+              console.log(`✅ measurements 抽出成功`);
+            }
+            if (parsed.reference_object) {
+              result.reference_object = parsed.reference_object;
+              console.log(`✅ reference_object 抽出成功`);
+            }
           }
           else {
-            console.log(`⚠️ output[${i}] の形式が不明:`, JSON.stringify(parsed).substring(0, 200));
+            console.log(`⚠️ output[${i}] の形式が不明 - キー:`, keys.slice(0, 5));
+            console.log(`⚠️ 内容サンプル:`, JSON.stringify(parsed).substring(0, 200));
           }
         }
       }
     } else if (typeof output === 'object' && output !== null) {
       // オブジェクト形式（旧バージョン互換）
       console.log('📦 output はオブジェクト形式');
+      const keys = Object.keys(output);
+      console.log('🔍 オブジェクトのキー:', keys.join(', '));
+      
       result.measurements = output.measurements || null;
       result.ai_landmarks = output.ai_landmarks || output.ai_landmark || null;
       result.reference_object = output.reference_object || null;
+      
+      console.log('✅ measurements:', result.measurements ? 'あり' : 'null');
+      console.log('✅ ai_landmarks:', result.ai_landmarks ? 'あり' : 'null');
+      console.log('✅ reference_object:', result.reference_object ? 'あり' : 'null');
+    } else {
+      console.log('⚠️ output が配列でもオブジェクトでもない:', typeof output);
     }
   } catch (e) {
     console.error('❌ output パースエラー:', e.message);
+    console.error('❌ スタック:', e.stack);
   }
 
-  console.log('📊 パース結果サマリー:');
+  console.log('📊 ========== パース結果サマリー ==========');
   console.log('   measurements:', result.measurements ? '✅' : '❌ null');
   console.log('   ai_landmarks:', result.ai_landmarks ? '✅' : '❌ null');
   console.log('   reference_object:', result.reference_object ? '✅' : '❌ null');
+  console.log('==========================================');
 
   return result;
 }
@@ -793,12 +850,20 @@ export default {
       // ==========================================
 
       if (path === "/api/webhook/replicate" && request.method === "POST") {
-        console.log('🔔 Replicate Webhook 受信');
+        console.log('🔔 ========== Replicate Webhook 受信 ==========');
+        console.log('🔔 受信時刻:', new Date().toISOString());
         
         try {
           const webhookData = await request.json();
+          
+          // 🆕 Webhook全体のダンプ（デバッグ用）
+          console.log('📦 Webhook データ全体:');
+          console.log(JSON.stringify(webhookData, null, 2));
+          console.log('==========================================');
+          
           console.log('📦 Webhook ステータス:', webhookData.status);
-          console.log('📦 Webhook output type:', typeof webhookData.output, Array.isArray(webhookData.output) ? '(配列)' : '');
+          console.log('📦 Webhook output 型:', typeof webhookData.output);
+          console.log('📦 Webhook output 配列判定:', Array.isArray(webhookData.output));
           
           if (webhookData.status === 'succeeded' && webhookData.output) {
             console.log('✅ Replicate 処理成功');
