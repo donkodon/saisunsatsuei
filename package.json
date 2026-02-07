@@ -1,0 +1,10 @@
+{
+  "name": "measure-master-api",
+  "version": "1.0.0",
+  "description": "Cloudflare Workers API for Measure Master D1 Database",
+  "main": "src/index.js",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  }
+}
