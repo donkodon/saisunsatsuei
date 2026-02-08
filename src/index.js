@@ -1067,41 +1067,40 @@ export default {
                 console.log('   measurement_image_url (R2):', measurementR2Url ? measurementR2Url.substring(0, 60) + '...' : 'null');
                 console.log('   mask_image_url (R2):', maskR2Url ? maskR2Url.substring(0, 60) + '...' : 'null');
                 
-                // ✅ R2 URLのみをデータベースに保存（永久保存）
-                const updateResult = await env.DB.prepare(`
-                  UPDATE product_items 
-                  SET 
-                    measurements = ?,
-                    ai_landmarks = ?,
-                    reference_object = ?,
-                    measurement_image_url = ?,
-                    mask_image_url = ?,
-                    updated_at = CURRENT_TIMESTAMP
-                  WHERE id = (
+                // Step 1: 更新対象のレコードIDを取得
+                console.log('🔍 更新対象レコードを検索中...');
+                console.log('   SKU:', sku, '/ company_id:', companyId);
+                const targetRecord = await env.DB.prepare(`
+                  SELECT id FROM product_items 
+                  WHERE sku = ? AND company_id = ?
+                  ORDER BY id DESC
+                  LIMIT 1
+                `).bind(sku, companyId).first();
+                
+                if (!targetRecord) {
+                  console.error('❌ 更新対象レコードが見つかりません');
+                  console.error('   SKU:', sku, '/ company_id:', companyId);
+                  // フォールバック: company_id なしで再検索
+                  const fallbackRecord = await env.DB.prepare(`
                     SELECT id FROM product_items 
-                    WHERE sku = ? AND company_id = ?
+                    WHERE sku = ?
                     ORDER BY id DESC
                     LIMIT 1
-                  )
-                `).bind(
-                  parsed.measurements ? JSON.stringify(parsed.measurements) : null,
-                  parsed.ai_landmarks ? JSON.stringify(parsed.ai_landmarks) : null,
-                  parsed.reference_object ? JSON.stringify(parsed.reference_object) : null,
-                  measurementR2Url || null,  // ✅ R2 URL（永久保存）
-                  maskR2Url || null,          // ✅ R2 URL（永久保存）
-                  sku,
-                  companyId
-                ).run();
-                
-                console.log('✅ D1更新結果:', JSON.stringify(updateResult));
-                
-                if (updateResult.meta && updateResult.meta.changes === 0) {
-                  console.log('⚠️ 警告: 更新された行が0件');
-                  console.log('   SKU:', sku, '/ Company:', companyId);
+                  `).bind(sku).first();
                   
-                  // フォールバック: company_id なしで再試行
-                  console.log('🔄 フォールバック: company_id なしで再試行...');
-                  const fallbackResult = await env.DB.prepare(`
+                  if (!fallbackRecord) {
+                    console.error('❌ フォールバックでも見つかりません');
+                    return Response.json({
+                      success: false,
+                      error: 'レコードが見つかりません',
+                      sku: sku,
+                      companyId: companyId
+                    }, { status: 404 });
+                  }
+                  
+                  console.log('✅ フォールバックでレコード発見 ID:', fallbackRecord.id);
+                  // Step 2: レコードを更新（IDで直接指定）
+                  const updateResult = await env.DB.prepare(`
                     UPDATE product_items 
                     SET 
                       measurements = ?,
@@ -1110,31 +1109,44 @@ export default {
                       measurement_image_url = ?,
                       mask_image_url = ?,
                       updated_at = CURRENT_TIMESTAMP
-                    WHERE id = (
-                      SELECT id FROM product_items 
-                      WHERE sku = ?
-                      ORDER BY id DESC
-                      LIMIT 1
-                    )
+                    WHERE id = ?
                   `).bind(
                     parsed.measurements ? JSON.stringify(parsed.measurements) : null,
                     parsed.ai_landmarks ? JSON.stringify(parsed.ai_landmarks) : null,
                     parsed.reference_object ? JSON.stringify(parsed.reference_object) : null,
-                    measurementR2Url || null,  // ✅ R2 URL（永久保存）
-                    maskR2Url || null,          // ✅ R2 URL（永久保存）
-                    sku
+                    measurementR2Url || null,
+                    maskR2Url || null,
+                    fallbackRecord.id
                   ).run();
                   
-                  console.log('🔄 フォールバック結果:', JSON.stringify(fallbackResult));
-                  
-                  if (fallbackResult.meta && fallbackResult.meta.changes > 0) {
-                    console.log('✅ フォールバックで更新成功');
-                  } else {
-                    console.log('❌ フォールバックも失敗: SKU=' + sku + ' のレコードが存在しない可能性');
-                  }
+                  console.log('✅ D1更新結果 (fallback):', JSON.stringify(updateResult));
                 } else {
-                  console.log('✅ D1更新成功: ' + (updateResult.meta?.changes || 0) + '行更新');
+                  console.log('✅ 更新対象レコード発見 ID:', targetRecord.id);
+                  
+                  // Step 2: レコードを更新（IDで直接指定）
+                  const updateResult = await env.DB.prepare(`
+                    UPDATE product_items 
+                    SET 
+                      measurements = ?,
+                      ai_landmarks = ?,
+                      reference_object = ?,
+                      measurement_image_url = ?,
+                      mask_image_url = ?,
+                      updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                  `).bind(
+                    parsed.measurements ? JSON.stringify(parsed.measurements) : null,
+                    parsed.ai_landmarks ? JSON.stringify(parsed.ai_landmarks) : null,
+                    parsed.reference_object ? JSON.stringify(parsed.reference_object) : null,
+                    measurementR2Url || null,
+                    maskR2Url || null,
+                    targetRecord.id
+                  ).run();
+                  
+                  console.log('✅ D1更新結果:', JSON.stringify(updateResult));
                 }
+                
+                console.log('✅ D1更新結果:', JSON.stringify(updateResult));
                 
               } catch (dbError) {
                 console.error('❌ D1更新エラー:', dbError.message);
