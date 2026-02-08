@@ -1033,39 +1033,19 @@ export default {
             // データが1つでもあればD1に保存
             if (parsed.measurements || parsed.ai_landmarks) {
               try {
-                // 🆕 R2へ画像をアップロード (image-upload-api Worker経由)
-                let measurementR2Url = null;
-                let maskR2Url = null;
-                
-                if (parsed.measurement_image_url) {
-                  measurementR2Url = await uploadImageToR2ViaWorker(
-                    parsed.measurement_image_url,
-                    sku,
-                    companyId,
-                    'measurement'
-                  );
-                }
-                
-                if (parsed.mask_image_url) {
-                  console.log('🔍 マスク画像URL検出:', parsed.mask_image_url.substring(0, 80));
-                  maskR2Url = await uploadImageToR2ViaWorker(
-                    parsed.mask_image_url,
-                    sku,
-                    companyId,
-                    'mask'
-                  );
-                  console.log('🔍 マスクR2 URL結果:', maskR2Url ? maskR2Url.substring(0, 80) : 'null');
-                } else {
-                  console.log('⚠️ マスク画像URLがnull - R2アップロードスキップ');
-                }
+                // ✅ Replicate一時URLをそのまま保存（Flutter側でR2永久保存を実施）
+                const measurementTempUrl = parsed.measurement_image_url || null;
+                const maskTempUrl = parsed.mask_image_url || null;
                 
                 console.log('💾 D1に測定結果を保存中...');
                 console.log('🔍 保存データの最終確認:');
                 console.log('   measurements:', parsed.measurements ? 'JSON文字列 (長さ: ' + JSON.stringify(parsed.measurements).length + ')' : 'null');
                 console.log('   ai_landmarks:', parsed.ai_landmarks ? 'JSON文字列 (長さ: ' + JSON.stringify(parsed.ai_landmarks).length + ')' : 'null');
                 console.log('   reference_object:', parsed.reference_object ? 'JSON文字列 (長さ: ' + JSON.stringify(parsed.reference_object).length + ')' : 'null');
-                console.log('   measurement_image_url (R2):', measurementR2Url ? measurementR2Url.substring(0, 60) + '...' : 'null');
-                console.log('   mask_image_url (R2):', maskR2Url ? maskR2Url.substring(0, 60) + '...' : 'null');
+                console.log('   measurement_image_url (一時URL):', measurementTempUrl ? measurementTempUrl.substring(0, 60) + '...' : 'null');
+                console.log('   mask_image_url (一時URL):', maskTempUrl ? maskTempUrl.substring(0, 60) + '...' : 'null');
+                console.log('⚠️ 注意: 画像URLは Replicate 一時URL (30日間有効)');
+                console.log('📱 Flutter側でR2永久保存を実施してください');
                 
                 // Step 1: 更新対象のレコードIDを取得
                 console.log('🔍 更新対象レコードを検索中...');
@@ -1114,8 +1094,8 @@ export default {
                     parsed.measurements ? JSON.stringify(parsed.measurements) : null,
                     parsed.ai_landmarks ? JSON.stringify(parsed.ai_landmarks) : null,
                     parsed.reference_object ? JSON.stringify(parsed.reference_object) : null,
-                    measurementR2Url || null,
-                    maskR2Url || null,
+                    measurementTempUrl,
+                    maskTempUrl,
                     fallbackRecord.id
                   ).run();
                   
@@ -1138,15 +1118,13 @@ export default {
                     parsed.measurements ? JSON.stringify(parsed.measurements) : null,
                     parsed.ai_landmarks ? JSON.stringify(parsed.ai_landmarks) : null,
                     parsed.reference_object ? JSON.stringify(parsed.reference_object) : null,
-                    measurementR2Url || null,
-                    maskR2Url || null,
+                    measurementTempUrl,
+                    maskTempUrl,
                     targetRecord.id
                   ).run();
                   
                   console.log('✅ D1更新結果:', JSON.stringify(updateResult));
                 }
-                
-                console.log('✅ D1更新結果:', JSON.stringify(updateResult));
                 
               } catch (dbError) {
                 console.error('❌ D1更新エラー:', dbError.message);
