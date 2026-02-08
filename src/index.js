@@ -223,9 +223,27 @@ function parseReplicateOutput(output) {
       const keys = Object.keys(output);
       console.log('🔍 オブジェクトのキー:', keys.join(', '));
       
+      // Standard keys
       result.measurements = output.measurements || null;
       result.ai_landmarks = output.ai_landmarks || output.ai_landmark || null;
       result.reference_object = output.reference_object || null;
+      
+      // 🆕 Replicate GarmentIQ 専用のキー名に対応
+      // landmarks → ai_landmarks
+      if (!result.ai_landmarks && output.landmarks) {
+        result.ai_landmarks = output.landmarks;
+        console.log('✅ landmarks → ai_landmarks 変換完了');
+      }
+      
+      // pixel_per_cm → reference_object
+      if (!result.reference_object && output.pixel_per_cm !== undefined) {
+        result.reference_object = {
+          type: "pixelPerCm",
+          pixelPerCm: output.pixel_per_cm,
+          source_landmark: "replicate_direct"
+        };
+        console.log('✅ pixel_per_cm → reference_object 変換完了:', output.pixel_per_cm);
+      }
       
       console.log('✅ measurements:', result.measurements ? 'あり' : 'null');
       console.log('✅ ai_landmarks:', result.ai_landmarks ? 'あり' : 'null');
