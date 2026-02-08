@@ -301,6 +301,11 @@ async function uploadImageToR2(imageUrl, sku, type, r2Bucket) {
     return null;
   }
   
+  if (!r2Bucket) {
+    console.error(`❌ R2バケットがnull (${type}) - R2_BUCKET bindingが設定されていません`);
+    return null;
+  }
+  
   try {
     console.log(`📤 R2アップロード開始 (${type}):`, imageUrl.substring(0, 60) + '...');
     
@@ -992,12 +997,16 @@ export default {
                 }
                 
                 if (parsed.mask_image_url) {
+                  console.log('🔍 マスク画像URL検出:', parsed.mask_image_url.substring(0, 80));
                   maskR2Url = await uploadImageToR2(
                     parsed.mask_image_url,
                     sku,
                     'mask',
                     env.R2_BUCKET
                   );
+                  console.log('🔍 マスクR2 URL結果:', maskR2Url ? maskR2Url.substring(0, 80) : 'null');
+                } else {
+                  console.log('⚠️ マスク画像URLがnull - R2アップロードスキップ');
                 }
                 
                 console.log('💾 D1に測定結果を保存中...');
