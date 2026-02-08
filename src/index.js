@@ -986,6 +986,20 @@ export default {
         console.log('🔔 ========== Replicate Webhook 受信 ==========');
         console.log('🔔 受信時刻:', new Date().toISOString());
         
+        // 🔧 mask_image_url カラムが存在しない場合は自動追加
+        try {
+          await env.DB.prepare(
+            `ALTER TABLE product_items ADD COLUMN mask_image_url TEXT`
+          ).run();
+          console.log('✅ mask_image_url カラムを追加しました');
+        } catch (e) {
+          if (e.message && e.message.includes('duplicate column')) {
+            console.log('ℹ️ mask_image_url カラムは既に存在します');
+          } else {
+            console.log('⚠️ mask_image_url カラム追加スキップ:', e.message);
+          }
+        }
+        
         try {
           const webhookData = await request.json();
           
