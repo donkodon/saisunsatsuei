@@ -917,11 +917,19 @@ export default {
             console.log('   measurements:', parsed.measurements ? JSON.stringify(parsed.measurements) : 'null');
             console.log('   ai_landmarks keys:', parsed.ai_landmarks ? Object.keys(parsed.ai_landmarks).length : 0);
             console.log('   reference_object:', parsed.reference_object ? JSON.stringify(parsed.reference_object) : 'null');
+            console.log('   measurement_image_url:', parsed.measurement_image_url || 'null');
+            console.log('   mask_image_url:', parsed.mask_image_url || 'null');
             
             // データが1つでもあればD1に保存
             if (parsed.measurements || parsed.ai_landmarks) {
               try {
                 console.log('💾 D1に測定結果を保存中...');
+                console.log('🔍 保存データの最終確認:');
+                console.log('   measurements:', parsed.measurements ? 'JSON文字列 (長さ: ' + JSON.stringify(parsed.measurements).length + ')' : 'null');
+                console.log('   ai_landmarks:', parsed.ai_landmarks ? 'JSON文字列 (長さ: ' + JSON.stringify(parsed.ai_landmarks).length + ')' : 'null');
+                console.log('   reference_object:', parsed.reference_object ? 'JSON文字列 (長さ: ' + JSON.stringify(parsed.reference_object).length + ')' : 'null');
+                console.log('   measurement_image_url:', parsed.measurement_image_url ? parsed.measurement_image_url.substring(0, 60) + '...' : 'null');
+                console.log('   mask_image_url:', parsed.mask_image_url ? parsed.mask_image_url.substring(0, 60) + '...' : 'null');
                 
                 // 🆕 v2: WHERE条件を安定化（SKU + company_id + 最新レコード）
                 // json_extract による不安定なマッチングを廃止
