@@ -144,11 +144,11 @@ async function uploadImageToR2ViaWorker(replicateUrl, sku, companyId, type) {
     formData.append('company_id', companyId);
     formData.append('sku', sku);
     
-    console.log(`📤 POST先: https://image-upload-api.jinkedon2.workers.dev/upload`);
+    console.log(`📤 POST先: https://image-upload-api.jinkedon2.workers.dev/`);
     console.log(`   ファイル名: ${fileName}, company_id: ${companyId}, sku: ${sku}`);
     
-    // Step 3: image-upload-apiへPOST
-    const uploadResponse = await fetch('https://image-upload-api.jinkedon2.workers.dev/upload', {
+    // Step 3: image-upload-apiへPOST（エンドポイントはルート "/" ）
+    const uploadResponse = await fetch('https://image-upload-api.jinkedon2.workers.dev/', {
       method: 'POST',
       body: formData,
     });
