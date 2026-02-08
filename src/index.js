@@ -384,6 +384,23 @@ function extractSkuAndCompany(webhookData, requestUrl) {
     }
   }
   
+  // 方法0.5（新規追加）: measurement_image_url からSKUを抽出
+  // ファイル名パターン: 1025L190001_1770561189941_measurement.png
+  if (sku === 'UNKNOWN' || sku.length < 5) {
+    const measurementUrl = webhookData.output?.find(item => 
+      typeof item === 'string' && item.includes('measurement')
+    ) || '';
+    
+    if (measurementUrl) {
+      // ファイル名からSKUを抽出（アンダースコアの前の部分）
+      const fileNameMatch = measurementUrl.match(/\/([^/]+)_(\d+)_measurement\.(png|jpg)$/i);
+      if (fileNameMatch && fileNameMatch[1]) {
+        sku = fileNameMatch[1];
+        console.log('✅ SKU を measurement_image_url から取得:', sku);
+      }
+    }
+  }
+  
   // 方法1: クエリパラメータで取れなかった場合、input.image のURLパターンから抽出
   if (sku === 'UNKNOWN') {
     const imageUrl = webhookData.input?.image || '';
