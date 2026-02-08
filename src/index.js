@@ -326,13 +326,20 @@ async function uploadImageToR2ViaWorker(imageUrl, sku, companyId, type) {
     formData.append('sku', sku);
     
     // image-upload-api にPOST
+    console.log(`🔗 POST先: https://image-upload-api.jinkedon2.workers.dev/upload`);
+    console.log(`📦 送信データ: fileName=${fileName}, company_id=${companyId}, sku=${sku}`);
+    
     const uploadResponse = await fetch('https://image-upload-api.jinkedon2.workers.dev/upload', {
       method: 'POST',
       body: formData
     });
     
+    console.log(`📡 image-upload-api レスポンス: ${uploadResponse.status} ${uploadResponse.statusText}`);
+    
     if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
       console.error(`❌ image-upload-api へのアップロード失敗 (${type}):`, uploadResponse.status);
+      console.error(`❌ エラー詳細:`, errorText.substring(0, 200));
       return null;
     }
     
