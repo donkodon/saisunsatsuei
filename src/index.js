@@ -1071,7 +1071,7 @@ export default {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              version: '6f4a150f6355b07eff5151b7ef49f2bf0b297bd329ee5f17a46e283f0685f926',
+              version: 'cae92e11d94e550f65219633c0bfc0b10db1e290a417001a81ec6a3da66f3216',  // 🆕 mask対応の最新バージョン
               input: {
                 image: imageInput,
                 garment_class: data.garment_class || 'long sleeve top'
