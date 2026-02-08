@@ -61,7 +61,8 @@ async function initializeDatabase(env) {
       { name: 'measurements', type: 'TEXT' },
       { name: 'ai_landmarks', type: 'TEXT' },
       { name: 'reference_object', type: 'TEXT' },
-      { name: 'measurement_image_url', type: 'TEXT' }
+      { name: 'measurement_image_url', type: 'TEXT' },
+      { name: 'mask_image_url', type: 'TEXT' }  // 🆕 マスク画像URL
     ];
     
     for (const col of migrationColumns) {
@@ -118,7 +119,9 @@ function parseReplicateOutput(output) {
   const result = {
     ai_landmarks: null,
     measurements: null,
-    reference_object: null
+    reference_object: null,
+    measurement_image_url: null,  // 🆕 アノテーション画像URL
+    mask_image_url: null           // 🆕 マスク画像URL
   };
 
   // 🆕 デバッグ強化: 生データの完全ダンプ
@@ -245,9 +248,23 @@ function parseReplicateOutput(output) {
         console.log('✅ pixel_per_cm → reference_object 変換完了:', output.pixel_per_cm);
       }
       
+      // 🆕 image → measurement_image_url (アノテーション画像)
+      if (output.image) {
+        result.measurement_image_url = output.image;
+        console.log('✅ image → measurement_image_url 抽出完了:', output.image.substring(0, 80) + '...');
+      }
+      
+      // 🆕 mask → mask_image_url (マスク画像)
+      if (output.mask) {
+        result.mask_image_url = output.mask;
+        console.log('✅ mask → mask_image_url 抽出完了:', output.mask.substring(0, 80) + '...');
+      }
+      
       console.log('✅ measurements:', result.measurements ? 'あり' : 'null');
       console.log('✅ ai_landmarks:', result.ai_landmarks ? 'あり' : 'null');
       console.log('✅ reference_object:', result.reference_object ? 'あり' : 'null');
+      console.log('✅ measurement_image_url:', result.measurement_image_url ? 'あり' : 'null');
+      console.log('✅ mask_image_url:', result.mask_image_url ? 'あり' : 'null');
     } else {
       console.log('⚠️ output が配列でもオブジェクトでもない:', typeof output);
     }
@@ -260,6 +277,8 @@ function parseReplicateOutput(output) {
   console.log('   measurements:', result.measurements ? '✅' : '❌ null');
   console.log('   ai_landmarks:', result.ai_landmarks ? '✅' : '❌ null');
   console.log('   reference_object:', result.reference_object ? '✅' : '❌ null');
+  console.log('   measurement_image_url:', result.measurement_image_url ? '✅' : '❌ null');
+  console.log('   mask_image_url:', result.mask_image_url ? '✅' : '❌ null');
   console.log('==========================================');
 
   return result;
@@ -912,6 +931,8 @@ export default {
                     measurements = ?,
                     ai_landmarks = ?,
                     reference_object = ?,
+                    measurement_image_url = ?,
+                    mask_image_url = ?,
                     updated_at = CURRENT_TIMESTAMP
                   WHERE id = (
                     SELECT id FROM product_items 
@@ -923,6 +944,8 @@ export default {
                   parsed.measurements ? JSON.stringify(parsed.measurements) : null,
                   parsed.ai_landmarks ? JSON.stringify(parsed.ai_landmarks) : null,
                   parsed.reference_object ? JSON.stringify(parsed.reference_object) : null,
+                  parsed.measurement_image_url || null,  // 🆕 アノテーション画像URL
+                  parsed.mask_image_url || null,         // 🆕 マスク画像URL
                   sku,
                   companyId
                 ).run();
@@ -941,6 +964,8 @@ export default {
                       measurements = ?,
                       ai_landmarks = ?,
                       reference_object = ?,
+                      measurement_image_url = ?,
+                      mask_image_url = ?,
                       updated_at = CURRENT_TIMESTAMP
                     WHERE id = (
                       SELECT id FROM product_items 
@@ -952,6 +977,8 @@ export default {
                     parsed.measurements ? JSON.stringify(parsed.measurements) : null,
                     parsed.ai_landmarks ? JSON.stringify(parsed.ai_landmarks) : null,
                     parsed.reference_object ? JSON.stringify(parsed.reference_object) : null,
+                    parsed.measurement_image_url || null,  // 🆕 アノテーション画像URL
+                    parsed.mask_image_url || null,         // 🆕 マスク画像URL
                     sku
                   ).run();
                   
