@@ -287,27 +287,22 @@ function parseReplicateOutput(output) {
 }
 
 /**
- * 🗄️ Replicate画像をR2にアップロード
+ * 🗄️ Replicate画像をR2にアップロード (image-upload-api経由)
  * 
  * @param {string} imageUrl - ReplicateのURL
  * @param {string} sku - 商品SKU
+ * @param {string} companyId - 会社ID
  * @param {string} type - 画像タイプ ("measurement" or "mask")
- * @param {R2Bucket} r2Bucket - R2バケット
  * @returns {Promise<string|null>} - R2のパブリックURL or null
  */
-async function uploadImageToR2(imageUrl, sku, type, r2Bucket) {
+async function uploadImageToR2ViaWorker(imageUrl, sku, companyId, type) {
   if (!imageUrl) {
     console.log(`⚠️ ${type}画像URLがnull - R2アップロードスキップ`);
     return null;
   }
   
-  if (!r2Bucket) {
-    console.error(`❌ R2バケットがnull (${type}) - R2_BUCKET bindingが設定されていません`);
-    return null;
-  }
-  
   try {
-    console.log(`📤 R2アップロード開始 (${type}):`, imageUrl.substring(0, 60) + '...');
+    console.log(`📤 R2アップロード開始 (${type}) [image-upload-api経由]:`, imageUrl.substring(0, 60) + '...');
     
     // 1. Replicateから画像をダウンロード
     const response = await fetch(imageUrl);
@@ -316,30 +311,39 @@ async function uploadImageToR2(imageUrl, sku, type, r2Bucket) {
       return null;
     }
     
-    const imageData = await response.arrayBuffer();
-    console.log(`✅ 画像ダウンロード完了 (${type}): ${imageData.byteLength} bytes`);
+    const imageBlob = await response.blob();
+    console.log(`✅ 画像ダウンロード完了 (${type}): ${imageBlob.size} bytes`);
     
-    // 2. R2にアップロード
-    // パス: company_id/sku/timestamp_type.png
+    // 2. image-upload-api Worker経由でR2にアップロード
     const timestamp = Date.now();
     const extension = imageUrl.includes('.png') ? 'png' : 'jpg';
-    const r2Key = `test_company/${sku}/${timestamp}_${type}.${extension}`;
+    const fileName = `${sku}_${timestamp}_${type}.${extension}`;
     
-    await r2Bucket.put(r2Key, imageData, {
-      httpMetadata: {
-        contentType: `image/${extension}`,
-      },
+    // FormDataを作成
+    const formData = new FormData();
+    formData.append('file', imageBlob, fileName);
+    formData.append('company_id', companyId);
+    formData.append('sku', sku);
+    
+    // image-upload-api にPOST
+    const uploadResponse = await fetch('https://image-upload-api.jinkedon2.workers.dev/upload', {
+      method: 'POST',
+      body: formData
     });
     
-    console.log(`✅ R2アップロード完了 (${type}): ${r2Key}`);
+    if (!uploadResponse.ok) {
+      console.error(`❌ image-upload-api へのアップロード失敗 (${type}):`, uploadResponse.status);
+      return null;
+    }
     
-    // 3. R2パブリックURLを返す (既存のimage-upload-api Workerを使用)
-    const r2PublicUrl = `https://image-upload-api.jinkedon2.workers.dev/${r2Key}`;
+    const uploadResult = await uploadResponse.json();
+    console.log(`✅ R2アップロード完了 (${type}):`, uploadResult.url);
     
-    return r2PublicUrl;
+    return uploadResult.url;
     
   } catch (error) {
     console.error(`❌ R2アップロードエラー (${type}):`, error.message);
+    console.error(error.stack);
     return null;
   }
 }
@@ -983,26 +987,26 @@ export default {
             // データが1つでもあればD1に保存
             if (parsed.measurements || parsed.ai_landmarks) {
               try {
-                // 🆕 R2へ画像をアップロード (既存のReplicate URLから)
+                // 🆕 R2へ画像をアップロード (image-upload-api Worker経由)
                 let measurementR2Url = null;
                 let maskR2Url = null;
                 
                 if (parsed.measurement_image_url) {
-                  measurementR2Url = await uploadImageToR2(
+                  measurementR2Url = await uploadImageToR2ViaWorker(
                     parsed.measurement_image_url,
                     sku,
-                    'measurement',
-                    env.R2_BUCKET
+                    companyId,
+                    'measurement'
                   );
                 }
                 
                 if (parsed.mask_image_url) {
                   console.log('🔍 マスク画像URL検出:', parsed.mask_image_url.substring(0, 80));
-                  maskR2Url = await uploadImageToR2(
+                  maskR2Url = await uploadImageToR2ViaWorker(
                     parsed.mask_image_url,
                     sku,
-                    'mask',
-                    env.R2_BUCKET
+                    companyId,
+                    'mask'
                   );
                   console.log('🔍 マスクR2 URL結果:', maskR2Url ? maskR2Url.substring(0, 80) : 'null');
                 } else {

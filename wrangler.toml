@@ -6,7 +6,3 @@ compatibility_date = "2024-12-01"
 binding = "DB"
 database_name = "measure-master-db"
 database_id = "7fad5dc0-abce-4816-b667-193490cf9650"
-
-[[r2_buckets]]
-binding = "R2_BUCKET"
-bucket_name = "image-upload-api"
