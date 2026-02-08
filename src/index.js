@@ -62,7 +62,9 @@ async function initializeDatabase(env) {
       { name: 'ai_landmarks', type: 'TEXT' },
       { name: 'reference_object', type: 'TEXT' },
       { name: 'measurement_image_url', type: 'TEXT' },
-      { name: 'mask_image_url', type: 'TEXT' }  // 🆕 マスク画像URL
+      { name: 'mask_image_url', type: 'TEXT' },
+      { name: 'measurement_image_url_r2', type: 'TEXT' },  // 🆕 R2保存URL (アノテーション画像)
+      { name: 'mask_image_url_r2', type: 'TEXT' }           // 🆕 R2保存URL (マスク画像)
     ];
     
     for (const col of migrationColumns) {
@@ -282,6 +284,59 @@ function parseReplicateOutput(output) {
   console.log('==========================================');
 
   return result;
+}
+
+/**
+ * 🗄️ Replicate画像をR2にアップロード
+ * 
+ * @param {string} imageUrl - ReplicateのURL
+ * @param {string} sku - 商品SKU
+ * @param {string} type - 画像タイプ ("measurement" or "mask")
+ * @param {R2Bucket} r2Bucket - R2バケット
+ * @returns {Promise<string|null>} - R2のパブリックURL or null
+ */
+async function uploadImageToR2(imageUrl, sku, type, r2Bucket) {
+  if (!imageUrl) {
+    console.log(`⚠️ ${type}画像URLがnull - R2アップロードスキップ`);
+    return null;
+  }
+  
+  try {
+    console.log(`📤 R2アップロード開始 (${type}):`, imageUrl.substring(0, 60) + '...');
+    
+    // 1. Replicateから画像をダウンロード
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      console.error(`❌ 画像ダウンロード失敗 (${type}):`, response.status);
+      return null;
+    }
+    
+    const imageData = await response.arrayBuffer();
+    console.log(`✅ 画像ダウンロード完了 (${type}): ${imageData.byteLength} bytes`);
+    
+    // 2. R2にアップロード
+    // パス: company_id/sku/timestamp_type.png
+    const timestamp = Date.now();
+    const extension = imageUrl.includes('.png') ? 'png' : 'jpg';
+    const r2Key = `test_company/${sku}/${timestamp}_${type}.${extension}`;
+    
+    await r2Bucket.put(r2Key, imageData, {
+      httpMetadata: {
+        contentType: `image/${extension}`,
+      },
+    });
+    
+    console.log(`✅ R2アップロード完了 (${type}): ${r2Key}`);
+    
+    // 3. R2パブリックURLを返す (既存のimage-upload-api Workerを使用)
+    const r2PublicUrl = `https://image-upload-api.jinkedon2.workers.dev/${r2Key}`;
+    
+    return r2PublicUrl;
+    
+  } catch (error) {
+    console.error(`❌ R2アップロードエラー (${type}):`, error.message);
+    return null;
+  }
 }
 
 /**
@@ -923,6 +978,28 @@ export default {
             // データが1つでもあればD1に保存
             if (parsed.measurements || parsed.ai_landmarks) {
               try {
+                // 🆕 R2へ画像をアップロード (既存のReplicate URLから)
+                let measurementR2Url = null;
+                let maskR2Url = null;
+                
+                if (parsed.measurement_image_url) {
+                  measurementR2Url = await uploadImageToR2(
+                    parsed.measurement_image_url,
+                    sku,
+                    'measurement',
+                    env.R2_BUCKET
+                  );
+                }
+                
+                if (parsed.mask_image_url) {
+                  maskR2Url = await uploadImageToR2(
+                    parsed.mask_image_url,
+                    sku,
+                    'mask',
+                    env.R2_BUCKET
+                  );
+                }
+                
                 console.log('💾 D1に測定結果を保存中...');
                 console.log('🔍 保存データの最終確認:');
                 console.log('   measurements:', parsed.measurements ? 'JSON文字列 (長さ: ' + JSON.stringify(parsed.measurements).length + ')' : 'null');
@@ -930,6 +1007,8 @@ export default {
                 console.log('   reference_object:', parsed.reference_object ? 'JSON文字列 (長さ: ' + JSON.stringify(parsed.reference_object).length + ')' : 'null');
                 console.log('   measurement_image_url:', parsed.measurement_image_url ? parsed.measurement_image_url.substring(0, 60) + '...' : 'null');
                 console.log('   mask_image_url:', parsed.mask_image_url ? parsed.mask_image_url.substring(0, 60) + '...' : 'null');
+                console.log('   measurement_image_url_r2:', measurementR2Url ? measurementR2Url.substring(0, 60) + '...' : 'null');
+                console.log('   mask_image_url_r2:', maskR2Url ? maskR2Url.substring(0, 60) + '...' : 'null');
                 
                 // 🆕 v2: WHERE条件を安定化（SKU + company_id + 最新レコード）
                 // json_extract による不安定なマッチングを廃止
@@ -941,6 +1020,8 @@ export default {
                     reference_object = ?,
                     measurement_image_url = ?,
                     mask_image_url = ?,
+                    measurement_image_url_r2 = ?,
+                    mask_image_url_r2 = ?,
                     updated_at = CURRENT_TIMESTAMP
                   WHERE id = (
                     SELECT id FROM product_items 
@@ -952,8 +1033,10 @@ export default {
                   parsed.measurements ? JSON.stringify(parsed.measurements) : null,
                   parsed.ai_landmarks ? JSON.stringify(parsed.ai_landmarks) : null,
                   parsed.reference_object ? JSON.stringify(parsed.reference_object) : null,
-                  parsed.measurement_image_url || null,  // 🆕 アノテーション画像URL
-                  parsed.mask_image_url || null,         // 🆕 マスク画像URL
+                  parsed.measurement_image_url || null,      // Replicate URL (バックアップ)
+                  parsed.mask_image_url || null,             // Replicate URL (バックアップ)
+                  measurementR2Url || null,                  // 🆕 R2 URL (永続保存)
+                  maskR2Url || null,                         // 🆕 R2 URL (永続保存)
                   sku,
                   companyId
                 ).run();
@@ -974,6 +1057,8 @@ export default {
                       reference_object = ?,
                       measurement_image_url = ?,
                       mask_image_url = ?,
+                      measurement_image_url_r2 = ?,
+                      mask_image_url_r2 = ?,
                       updated_at = CURRENT_TIMESTAMP
                     WHERE id = (
                       SELECT id FROM product_items 
@@ -985,8 +1070,10 @@ export default {
                     parsed.measurements ? JSON.stringify(parsed.measurements) : null,
                     parsed.ai_landmarks ? JSON.stringify(parsed.ai_landmarks) : null,
                     parsed.reference_object ? JSON.stringify(parsed.reference_object) : null,
-                    parsed.measurement_image_url || null,  // 🆕 アノテーション画像URL
-                    parsed.mask_image_url || null,         // 🆕 マスク画像URL
+                    parsed.measurement_image_url || null,      // Replicate URL (バックアップ)
+                    parsed.mask_image_url || null,             // Replicate URL (バックアップ)
+                    measurementR2Url || null,                  // 🆕 R2 URL (永続保存)
+                    maskR2Url || null,                         // 🆕 R2 URL (永続保存)
                     sku
                   ).run();
                   
