@@ -1032,6 +1032,7 @@ export default {
                 
                 // 🆕 v2: WHERE条件を安定化（SKU + company_id + 最新レコード）
                 // json_extract による不安定なマッチングを廃止
+                // 🔧 R2カラムなしバージョン（互換性のため）
                 const updateResult = await env.DB.prepare(`
                   UPDATE product_items 
                   SET 
@@ -1040,8 +1041,6 @@ export default {
                     reference_object = ?,
                     measurement_image_url = ?,
                     mask_image_url = ?,
-                    measurement_image_url_r2 = ?,
-                    mask_image_url_r2 = ?,
                     updated_at = CURRENT_TIMESTAMP
                   WHERE id = (
                     SELECT id FROM product_items 
@@ -1053,10 +1052,8 @@ export default {
                   parsed.measurements ? JSON.stringify(parsed.measurements) : null,
                   parsed.ai_landmarks ? JSON.stringify(parsed.ai_landmarks) : null,
                   parsed.reference_object ? JSON.stringify(parsed.reference_object) : null,
-                  parsed.measurement_image_url || null,      // Replicate URL (バックアップ)
-                  parsed.mask_image_url || null,             // Replicate URL (バックアップ)
-                  measurementR2Url || null,                  // 🆕 R2 URL (永続保存)
-                  maskR2Url || null,                         // 🆕 R2 URL (永続保存)
+                  parsed.measurement_image_url || null,      // Replicate URL
+                  parsed.mask_image_url || null,             // Replicate URL
                   sku,
                   companyId
                 ).run();
@@ -1077,8 +1074,6 @@ export default {
                       reference_object = ?,
                       measurement_image_url = ?,
                       mask_image_url = ?,
-                      measurement_image_url_r2 = ?,
-                      mask_image_url_r2 = ?,
                       updated_at = CURRENT_TIMESTAMP
                     WHERE id = (
                       SELECT id FROM product_items 
@@ -1090,10 +1085,8 @@ export default {
                     parsed.measurements ? JSON.stringify(parsed.measurements) : null,
                     parsed.ai_landmarks ? JSON.stringify(parsed.ai_landmarks) : null,
                     parsed.reference_object ? JSON.stringify(parsed.reference_object) : null,
-                    parsed.measurement_image_url || null,      // Replicate URL (バックアップ)
-                    parsed.mask_image_url || null,             // Replicate URL (バックアップ)
-                    measurementR2Url || null,                  // 🆕 R2 URL (永続保存)
-                    maskR2Url || null,                         // 🆕 R2 URL (永続保存)
+                    parsed.measurement_image_url || null,      // Replicate URL
+                    parsed.mask_image_url || null,             // Replicate URL
                     sku
                   ).run();
                   
