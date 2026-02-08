@@ -145,21 +145,30 @@ async function uploadImageToR2ViaWorker(replicateUrl, sku, companyId, type) {
     formData.append('company_id', companyId);
     formData.append('sku', sku);
     
+    console.log(`📤 FormData構築完了:`);
+    console.log(`   - file: [Blob ${imageBlob.size} bytes]`);
+    console.log(`   - fileName: ${fileName}`);
+    console.log(`   - company_id: ${companyId}`);
+    console.log(`   - sku: ${sku}`);
     console.log(`📤 POST先: https://image-upload-api.jinkedon2.workers.dev/upload`);
     console.log(`   ファイル名: ${fileName}, company_id: ${companyId}, sku: ${sku}`);
+    console.log(`   画像サイズ: ${imageBlob.size} bytes, 拡張子: ${ext}`);
     
     // Step 3: image-upload-apiへPOST
     const uploadResponse = await fetch('https://image-upload-api.jinkedon2.workers.dev/upload', {
       method: 'POST',
       body: formData,
+      // Content-Typeは自動設定されるため明示的に指定しない
     });
     
-    console.log(`📡 image-upload-api レスポンス: ${uploadResponse.status}`);
+    console.log(`📡 image-upload-api レスポンス: ${uploadResponse.status} ${uploadResponse.statusText}`);
+    console.log(`   Content-Type: ${uploadResponse.headers.get('content-type')}`);
     
     if (!uploadResponse.ok) {
       const errorText = await uploadResponse.text();
       console.error(`❌ R2アップロード失敗 (${type}): ${uploadResponse.status}`);
-      console.error(`   エラー: ${errorText}`);
+      console.error(`❌ エラー詳細: ${errorText}`);
+      console.error(`❌ レスポンスURL: ${uploadResponse.url}`);
       return null;
     }
     
