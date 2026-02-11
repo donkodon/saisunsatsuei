@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品データ受信 - WEBアプリサンプル</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e3c72;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .data-item {
+            background: #f5f7fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .data-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        
+        .data-value {
+            font-size: 16px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .image-item {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            aspect-ratio: 1;
+        }
+        
+        .image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .no-data-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        
+        .json-viewer {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📦 商品データ受信システム</h1>
+            <p>Flutterアプリから送信された商品データを表示・処理します</p>
+        </div>
+        
+        <div class="content">
+            <div id="dataDisplay"></div>
+        </div>
+    </div>
+
+    <script>
+        // 🔍 URLパラメータからデータを取得
+        function getProductData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const encodedData = urlParams.get('data');
+            
+            if (!encodedData) {
+                return null;
+            }
+            
+            try {
+                // Base64デコード
+                const jsonString = atob(encodedData.replace(/-/g, '+').replace(/_/g, '/'));
+                // JSONパース
+                const productData = JSON.parse(jsonString);
+                return productData;
+            } catch (error) {
+                console.error('データのデコードに失敗しました:', error);
+                return null;
+            }
+        }
+        
+        // 📊 商品データを表示
+        function displayProductData(data) {
+            const container = document.getElementById('dataDisplay');
+            
+            if (!data) {
+                container.innerHTML = `
+                    <div class="no-data">
+                        <div class="no-data-icon">📭</div>
+                        <h2>データが見つかりません</h2>
+                        <p style="margin-top: 10px;">Flutterアプリから商品データを送信してください</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 受信成功メッセージ
+            let html = `
+                <div class="alert alert-success">
+                    <span style="font-size: 24px;">✅</span>
+                    <div>
+                        <strong>商品データを受信しました!</strong><br>
+                        <small>受信時刻: ${new Date().toLocaleString('ja-JP')}</small>
+                    </div>
+                </div>
+            `;
+            
+            // 基本情報
+            html += `
+                <div class="section">
+                    <div class="section-title">📝 基本情報</div>
+                    <div class="data-grid">
+                        <div class="data-item">
+                            <div class="data-label">SKU</div>
+                            <div class="data-value">${data.sku || '未設定'}</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">バーコード</div>
+                            <div class="data-value">${data.barcode || '未設定'}</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">商品名</div>
+                            <div class="data-value">${data.name}</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">ブランド</div>
+                            <div class="data-value">${data.brand || '未設定'}</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">カテゴリー</div>
+                            <div class="data-value">${data.category}</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">サイズ</div>
+                            <div class="data-value">${data.size || '未設定'}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 商品詳細
+            html += `
+                <div class="section">
+                    <div class="section-title">🔍 商品詳細</div>
+                    <div class="data-grid">
+                        <div class="data-item">
+                            <div class="data-label">カラー</div>
+                            <div class="data-value">${data.color}</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">素材</div>
+                            <div class="data-value">${data.material}</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">商品の状態</div>
+                            <div class="data-value">${data.condition}</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">商品ランク</div>
+                            <div class="data-value">${data.productRank || '未設定'}</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">販売価格</div>
+                            <div class="data-value">¥${data.price || '0'}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 商品説明
+            if (data.description) {
+                html += `
+                    <div class="section">
+                        <div class="section-title">📄 商品説明</div>
+                        <div class="data-item">
+                            <div class="data-value" style="white-space: pre-wrap;">${data.description}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // 画像
+            if (data.images && data.images.length > 0) {
+                html += `
+                    <div class="section">
+                        <div class="section-title">📸 商品画像 (${data.images.length}枚)</div>
+                        <div class="alert alert-warning">
+                            <span>⚠️</span>
+                            <div>
+                                <small>画像パスが表示されています。実際の画像を表示するには、画像URLをサーバーにアップロードする必要があります。</small>
+                            </div>
+                        </div>
+                        <div class="images-grid">
+                            ${data.images.map((img, index) => `
+                                <div class="data-item">
+                                    <div class="data-label">画像 ${index + 1}</div>
+                                    <div class="data-value" style="font-size: 11px; word-break: break-all;">${img}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // RAW JSONデータ
+            html += `
+                <div class="section">
+                    <div class="section-title">🔧 RAW JSONデータ</div>
+                    <div class="json-viewer">
+${JSON.stringify(data, null, 2)}
+                    </div>
+                </div>
+            `;
+            
+            // アクションボタン
+            html += `
+                <div class="section" style="text-align: center;">
+                    <button class="btn" onclick="processData()">✅ データを処理する</button>
+                    <button class="btn" onclick="downloadJSON()" style="margin-left: 10px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">💾 JSONをダウンロード</button>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        // 📦 データ処理関数（カスタマイズ可能）
+        function processData() {
+            const data = getProductData();
+            if (!data) return;
+            
+            alert('✅ データ処理を開始します!\n\nここに実際の処理ロジックを追加してください:\n- データベース保存\n- API送信\n- 画像アップロード\n- など');
+            
+            console.log('処理するデータ:', data);
+        }
+        
+        // 💾 JSONダウンロード
+        function downloadJSON() {
+            const data = getProductData();
+            if (!data) return;
+            
+            const jsonString = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `product_${data.sku || Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // 🚀 ページ読み込み時に実行
+        window.onload = function() {
+            const productData = getProductData();
+            displayProductData(productData);
+        };
+    </script>
+</body>
+</html>
