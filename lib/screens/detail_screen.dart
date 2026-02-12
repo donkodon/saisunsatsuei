@@ -497,22 +497,6 @@ class _DetailScreenState extends State<DetailScreen> {
                 ),
               ],
             ),
-            SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: _buildMeasureCard("着丈", "68", true)),
-                SizedBox(width: 12),
-                Expanded(child: _buildMeasureCard("身幅", "52", true)),
-              ],
-            ),
-            SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: _buildMeasureCard("肩幅", "44", false)),
-                SizedBox(width: 12),
-                Expanded(child: _buildMeasureCard("袖丈", "21", false)),
-              ],
-            ),
             SizedBox(height: 24),
 
             // Details
@@ -556,8 +540,53 @@ class _DetailScreenState extends State<DetailScreen> {
                     ),
                     onTap: () => _showColorPicker(),
                   ),
+                  Divider(height: 1),
+                  ListTile(
+                    title: Text("サイズ", style: TextStyle(fontSize: 12, color: AppConstants.primaryCyan)),
+                    subtitle: Text(widget.size.isEmpty ? "未設定" : widget.size, style: TextStyle(fontWeight: FontWeight.bold, color: AppConstants.textDark)),
+                    trailing: Icon(Icons.chevron_right),
+                  ),
                 ],
               ),
+            ),
+            SizedBox(height: 24),
+
+            // Size Measurement Section
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text("サイズ (cm)", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppConstants.primaryCyan.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.auto_awesome, size: 12, color: AppConstants.primaryCyan),
+                      SizedBox(width: 4),
+                      Text("AI自動採寸", style: TextStyle(fontSize: 10, color: AppConstants.primaryCyan, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: _buildMeasureCard("着丈", "68", true)),
+                SizedBox(width: 12),
+                Expanded(child: _buildMeasureCard("身幅", "52", true)),
+              ],
+            ),
+            SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: _buildMeasureCard("肩幅", "44", false)),
+                SizedBox(width: 12),
+                Expanded(child: _buildMeasureCard("袖丈", "21", false)),
+              ],
             ),
             SizedBox(height: 24),
 

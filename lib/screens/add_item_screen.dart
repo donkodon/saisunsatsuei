@@ -994,6 +994,8 @@ class _AddItemScreenState extends State<AddItemScreen> {
                         Divider(),
                         _buildColorSelectTile(),
                         Divider(),
+                        _buildInputField("サイズ", _sizeController, "サイズを入力してください (例: M, L, XL)"),
+                        Divider(),
                         _buildSwitchTile("AI自動採寸", "撮影時に自動でサイズを計測します", _aiMeasure, (v) => setState(() => _aiMeasure = v)),
                         Divider(),
                         _buildOcrButton(),
@@ -1040,23 +1042,6 @@ class _AddItemScreenState extends State<AddItemScreen> {
                         '$count/1000',
                         style: TextStyle(fontSize: 12, color: AppConstants.textGrey),
                       ),
-                    ),
-                  ),
-                  SizedBox(height: 24),
-                  
-                  // Size Section
-                  Text("サイズ (cm)", style: TextStyle(fontWeight: FontWeight.bold, color: AppConstants.textGrey)),
-                  SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        _buildInputField("サイズ", _sizeController, "サイズを入力してください (例: M, L, XL)"),
-                      ],
                     ),
                   ),
                   SizedBox(height: 24),
