@@ -385,7 +385,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
   Future<void> _performOcrAnalysis(ImageItem imageItem) async {
     try {
       if (kDebugMode) {
-        debugPrint('🔍 OCR解析開始: ${imageItem.uuid}');
+        debugPrint('🔍 OCR解析開始: ${imageItem.id}');
       }
       
       // ローディング表示
@@ -476,17 +476,24 @@ class _AddItemScreenState extends State<AddItemScreen> {
   /// 画像データをバイト配列で取得
   Future<Uint8List?> _getImageBytes(ImageItem imageItem) async {
     try {
+      // bytesが直接ある場合はそれを使用
+      if (imageItem.bytes != null) {
+        return imageItem.bytes;
+      }
+      
       // Webの場合はURLから取得、モバイルの場合はファイルから取得
       if (kIsWeb) {
         // URLから画像データを取得
-        final response = await http.get(Uri.parse(imageItem.thumbnailUrl));
-        if (response.statusCode == 200) {
-          return response.bodyBytes;
+        if (imageItem.url != null) {
+          final response = await http.get(Uri.parse(imageItem.url!));
+          if (response.statusCode == 200) {
+            return response.bodyBytes;
+          }
         }
       } else {
         // ローカルファイルから取得
-        if (imageItem.localFile != null) {
-          final file = File(imageItem.localFile!.path);
+        if (imageItem.file != null) {
+          final file = File(imageItem.file!.path);
           if (await file.exists()) {
             return await file.readAsBytes();
           }

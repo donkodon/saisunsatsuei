@@ -8,7 +8,8 @@ import 'package:flutter/foundation.dart';
 /// Google Cloud Vision + Gemini 2.5 Flash による高精度OCR
 class OcrService {
   // Cloudflare Workers API エンドポイント
-  static const String _ocrApiUrl = 'https://measure-master-api.jinkedon2.workers.dev/api/ocr';
+  // TODO: デプロイしたWorker URLに変更してください
+  static const String _ocrApiUrl = 'https://YOUR_WORKER_NAME.YOUR_SUBDOMAIN.workers.dev/api/ocr';
   
   /// タグ画像からテキスト情報を抽出
   /// 
