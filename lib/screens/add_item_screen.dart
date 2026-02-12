@@ -46,6 +46,12 @@ class _AddItemScreenState extends State<AddItemScreen> {
   final TextEditingController _skuController = TextEditingController();
   final TextEditingController _sizeController = TextEditingController();
   
+  // 📏 実寸入力用コントローラー
+  final TextEditingController _lengthController = TextEditingController(); // 着丈
+  final TextEditingController _widthController = TextEditingController();  // 身幅
+  final TextEditingController _shoulderController = TextEditingController(); // 肩幅
+  final TextEditingController _sleeveController = TextEditingController();  // 袖丈
+  
   String _selectedCategory = '選択してください';
   String _selectedCondition = '選択してください';
   String _selectedRank = '選択してください'; // 🆕 商品ランク
@@ -1046,6 +1052,56 @@ class _AddItemScreenState extends State<AddItemScreen> {
                   ),
                   SizedBox(height: 24),
                   
+                  // Measurements Section
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("サイズ (cm)", style: TextStyle(fontWeight: FontWeight.bold, color: AppConstants.textGrey)),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppConstants.primaryCyan.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.auto_awesome, size: 12, color: AppConstants.primaryCyan),
+                            SizedBox(width: 4),
+                            Text("AI自動採寸", style: TextStyle(fontSize: 10, color: AppConstants.primaryCyan, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(child: _buildMeasurementField("着丈", _lengthController)),
+                            SizedBox(width: 12),
+                            Expanded(child: _buildMeasurementField("身幅", _widthController)),
+                          ],
+                        ),
+                        SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(child: _buildMeasurementField("肩幅", _shoulderController)),
+                            SizedBox(width: 12),
+                            Expanded(child: _buildMeasurementField("袖丈", _sleeveController)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 24),
+                  
                   // Price
                   Text("価格と配送", style: TextStyle(fontWeight: FontWeight.bold, color: AppConstants.textGrey)),
                   SizedBox(height: 8),
@@ -1122,6 +1178,11 @@ class _AddItemScreenState extends State<AddItemScreen> {
                       priceList: widget.prefillData?.priceList,
                       location: widget.prefillData?.location,
                       stockQuantity: widget.prefillData?.stockQuantity,
+                      // 📏 実寸データ
+                      length: _lengthController.text,
+                      width: _widthController.text,
+                      shoulder: _shoulderController.text,
+                      sleeve: _sleeveController.text,
                     ),
                     transitionsBuilder: (context, animation, secondaryAnimation, child) {
                       return FadeTransition(opacity: animation, child: child);
@@ -1365,6 +1426,68 @@ class _AddItemScreenState extends State<AddItemScreen> {
             activeTrackColor: AppConstants.primaryCyan.withValues(alpha: 0.5),
             activeColor: AppConstants.primaryCyan,
           ),
+        ],
+      ),
+    );
+  }
+
+  // 📏 実寸入力フィールド
+  Widget _buildMeasurementField(String label, TextEditingController controller) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: controller.text.isNotEmpty 
+              ? AppConstants.primaryCyan 
+              : Colors.grey[300]!,
+          width: controller.text.isNotEmpty ? 2 : 1,
+        ),
+      ),
+      padding: EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: AppConstants.textGrey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          SizedBox(height: 8),
+          TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppConstants.primaryCyan,
+            ),
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              hintText: "0",
+              hintStyle: TextStyle(color: Colors.grey[400]),
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(3),
+            ],
+            onChanged: (value) {
+              setState(() {}); // 枠線の色を更新
+            },
+          ),
+          SizedBox(height: 4),
+          if (controller.text.isNotEmpty)
+            Icon(
+              Icons.check_circle,
+              size: 16,
+              color: AppConstants.primaryCyan,
+            ),
         ],
       ),
     );

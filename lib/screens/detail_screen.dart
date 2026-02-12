@@ -51,6 +51,12 @@ class DetailScreen extends StatefulWidget {
   final int? priceList;           // 価格表
   final String? location;         // 位置
   final int? stockQuantity;       // 在庫数量
+  
+  // 📏 実寸データ
+  final String? length;           // 着丈
+  final String? width;            // 身幅
+  final String? shoulder;         // 肩幅
+  final String? sleeve;           // 袖丈
 
   DetailScreen({
     required this.itemName,
@@ -79,6 +85,11 @@ class DetailScreen extends StatefulWidget {
     this.priceList,
     this.location,
     this.stockQuantity,
+    // 📏 実寸データ（オプション）
+    this.length,
+    this.width,
+    this.shoulder,
+    this.sleeve,
   });
 
   @override
@@ -575,17 +586,17 @@ class _DetailScreenState extends State<DetailScreen> {
             SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: _buildMeasureCard("着丈", "68", true)),
+                Expanded(child: _buildMeasureCard("着丈", widget.length ?? "", widget.length != null && widget.length!.isNotEmpty)),
                 SizedBox(width: 12),
-                Expanded(child: _buildMeasureCard("身幅", "52", true)),
+                Expanded(child: _buildMeasureCard("身幅", widget.width ?? "", widget.width != null && widget.width!.isNotEmpty)),
               ],
             ),
             SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: _buildMeasureCard("肩幅", "44", false)),
+                Expanded(child: _buildMeasureCard("肩幅", widget.shoulder ?? "", widget.shoulder != null && widget.shoulder!.isNotEmpty)),
                 SizedBox(width: 12),
-                Expanded(child: _buildMeasureCard("袖丈", "21", false)),
+                Expanded(child: _buildMeasureCard("袖丈", widget.sleeve ?? "", widget.sleeve != null && widget.sleeve!.isNotEmpty)),
               ],
             ),
             SizedBox(height: 24),
