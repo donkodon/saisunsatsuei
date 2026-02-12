@@ -31,7 +31,6 @@ class AddItemScreen extends StatefulWidget {
 
 class _AddItemScreenState extends State<AddItemScreen> {
   bool _aiMeasure = true;
-  bool _ocrEnabled = true;  // OCR文字認識機能
   
   // 📸 画像アイテムのリスト（UUID管理）
   List<ImageItem> _images = [];
@@ -371,15 +370,192 @@ class _AddItemScreenState extends State<AddItemScreen> {
           backgroundColor: AppConstants.successGreen,
         ),
       );
+    }
+  }
+  
+  /// 🆕 OCRプロセスを開始（ボタンからの呼び出し）
+  /// 
+  /// カメラを起動 → 撮影 → OCR解析 → 結果ダイアログ
+  Future<void> _startOcrProcess() async {
+    // ステップ1: カメラ起動（画像ピッカーを使用してシンプルに）
+    final ImagePicker picker = ImagePicker();
+    final XFile? photo = await picker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: 1920,
+      maxHeight: 1080,
+      imageQuality: 85,
+    );
+    
+    if (photo == null) {
+      if (kDebugMode) {
+        debugPrint('❌ 撮影がキャンセルされました');
+      }
+      return;
+    }
+    
+    // ステップ2: OCR解析開始
+    try {
+      // ローディング表示
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+              SizedBox(width: 16),
+              Text('🔍 タグを解析中...'),
+            ],
+          ),
+          duration: Duration(hours: 1), // OCR完了まで表示
+          backgroundColor: AppConstants.primaryCyan,
+        ),
+      );
       
-      // 🔍 OCR文字認識が有効な場合、タグ画像を解析
-      if (_ocrEnabled && result.isNotEmpty) {
-        _performOcrAnalysis(result.first);
+      // 画像データ取得
+      final imageBytes = await photo.readAsBytes();
+      
+      // OCR実行
+      final ocrService = OcrService();
+      final ocrResult = await ocrService.analyzeTag(imageBytes);
+      
+      // ローディング非表示
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      
+      // ステップ3: 結果ダイアログ表示
+      _showOcrResultDialog(ocrResult);
+      
+    } catch (e) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ OCR解析エラー: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      if (kDebugMode) {
+        debugPrint('❌ OCR解析エラー: $e');
       }
     }
   }
   
-  /// OCR文字認識処理
+  /// 🆕 OCR結果ダイアログ表示
+  /// 
+  /// ユーザーが結果を確認して登録できるUI
+  void _showOcrResultDialog(OcrResult ocrResult) {
+    final brand = ocrResult.brand ?? '';
+    final material = ocrResult.material ?? '';
+    final country = ocrResult.country ?? '';
+    final size = ocrResult.size ?? '';
+    final confidence = ocrResult.confidence;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.check_circle, color: AppConstants.successGreen),
+            SizedBox(width: 8),
+            Text("OCR解析結果"),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (brand.isNotEmpty) _buildResultRow("ブランド", brand),
+            if (material.isNotEmpty) _buildResultRow("素材", material),
+            if (country.isNotEmpty) _buildResultRow("原産国", country),
+            if (size.isNotEmpty) _buildResultRow("サイズ", size),
+            SizedBox(height: 12),
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: confidence > 0.7 ? Colors.green[50] : Colors.orange[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    confidence > 0.7 ? Icons.check_circle : Icons.warning,
+                    size: 16,
+                    color: confidence > 0.7 ? Colors.green : Colors.orange,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    "信頼度: ${(confidence * 100).toStringAsFixed(0)}%",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: confidence > 0.7 ? Colors.green[700] : Colors.orange[700],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("キャンセル", style: TextStyle(color: Colors.grey[600])),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // 結果を登録
+              setState(() {
+                if (brand.isNotEmpty) _brandController.text = brand;
+                if (material.isNotEmpty) _selectedMaterial = material;
+                if (size.isNotEmpty) _sizeController.text = size;
+              });
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('✅ タグ情報を登録しました'),
+                  backgroundColor: AppConstants.successGreen,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppConstants.primaryCyan,
+            ),
+            child: Text("登録する", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 🆕 OCR結果行ウィジェット
+  Widget _buildResultRow(String label, String value) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 60,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: AppConstants.textGrey,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                color: AppConstants.textDark,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// OCR文字認識処理（旧トグル方式 - 後方互換性のため残す）
   /// 
   /// タグ画像から素材・ブランド情報を自動抽出
   Future<void> _performOcrAnalysis(ImageItem imageItem) async {
@@ -822,7 +998,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                         Divider(),
                         _buildSwitchTile("AI自動採寸", "撮影時に自動でサイズを計測します", _aiMeasure, (v) => setState(() => _aiMeasure = v)),
                         Divider(),
-                        _buildSwitchTile("OCR文字認識", "タグから素材・ブランド情報を自動抽出", _ocrEnabled, (v) => setState(() => _ocrEnabled = v)),
+                        _buildOcrButton(),
                       ],
                     ),
                   ),
@@ -1428,6 +1604,33 @@ class _AddItemScreenState extends State<AddItemScreen> {
           ),
         );
       },
+    );
+  }
+  
+  // 🆕 OCR文字認識ボタン
+  Widget _buildOcrButton() {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 8),
+      child: ElevatedButton.icon(
+        onPressed: _startOcrProcess,
+        icon: Icon(Icons.camera_alt, color: Colors.white),
+        label: Text(
+          "📷 タグを撮影してOCR読み取り",
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppConstants.primaryCyan,
+          padding: EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 2,
+        ),
+      ),
     );
   }
   
