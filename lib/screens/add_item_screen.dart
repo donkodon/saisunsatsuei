@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'dart:io';
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/screens/camera_screen_v2.dart';
@@ -12,9 +12,12 @@ import 'package:measure_master/models/image_item.dart';
 import 'package:measure_master/providers/inventory_provider.dart';
 import 'package:measure_master/services/cloudflare_storage_service.dart';
 import 'package:measure_master/services/image_cache_service.dart';
+import 'package:measure_master/services/ocr_service.dart';
 import 'package:measure_master/widgets/smart_image_viewer.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'dart:typed_data';
 
 class AddItemScreen extends StatefulWidget {
   final ApiProduct? prefillData; // 🔍 検索結果からの自動入力データ
@@ -28,7 +31,7 @@ class AddItemScreen extends StatefulWidget {
 
 class _AddItemScreenState extends State<AddItemScreen> {
   bool _aiMeasure = true;
-  bool _aiBgRemove = true;
+  bool _ocrEnabled = true;  // OCR文字認識機能
   
   // 📸 画像アイテムのリスト（UUID管理）
   List<ImageItem> _images = [];
@@ -368,6 +371,133 @@ class _AddItemScreenState extends State<AddItemScreen> {
           backgroundColor: AppConstants.successGreen,
         ),
       );
+      
+      // 🔍 OCR文字認識が有効な場合、タグ画像を解析
+      if (_ocrEnabled && result.isNotEmpty) {
+        _performOcrAnalysis(result.first);
+      }
+    }
+  }
+  
+  /// OCR文字認識処理
+  /// 
+  /// タグ画像から素材・ブランド情報を自動抽出
+  Future<void> _performOcrAnalysis(ImageItem imageItem) async {
+    try {
+      if (kDebugMode) {
+        debugPrint('🔍 OCR解析開始: ${imageItem.uuid}');
+      }
+      
+      // ローディング表示
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+              SizedBox(width: 16),
+              Text('🔍 タグを解析中...'),
+            ],
+          ),
+          duration: Duration(seconds: 30),
+        ),
+      );
+      
+      // 画像データを取得
+      final imageBytes = await _getImageBytes(imageItem);
+      if (imageBytes == null) {
+        throw Exception('画像データの取得に失敗しました');
+      }
+      
+      // OCR解析実行
+      final ocrService = OcrService();
+      final result = await ocrService.analyzeTag(imageBytes);
+      
+      // ローディングを閉じる
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      
+      if (result.hasValidData) {
+        // 結果を入力欄に反映
+        setState(() {
+          if (result.brand != null && result.brand!.isNotEmpty) {
+            _brandController.text = result.brand!;
+          }
+          if (result.material != null && result.material!.isNotEmpty) {
+            _selectedMaterial = result.material!;
+          }
+          if (result.size != null && result.size!.isNotEmpty) {
+            _sizeController.text = result.size!;
+          }
+        });
+        
+        // 成功メッセージ
+        String successMessage = '✅ タグ情報を自動入力しました';
+        if (result.confidence < 0.7) {
+          successMessage += '\n（信頼度: ${(result.confidence * 100).toStringAsFixed(0)}% - 内容を確認してください）';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(successMessage),
+            backgroundColor: AppConstants.successGreen,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        
+        if (kDebugMode) {
+          debugPrint('✅ OCR解析成功: $result');
+        }
+      } else {
+        // データが抽出できなかった
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⚠️ タグ情報を読み取れませんでした\n手動で入力してください'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      // エラー処理
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ OCR解析エラー: $e\n手動で入力してください'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      
+      if (kDebugMode) {
+        debugPrint('❌ OCR解析エラー: $e');
+      }
+    }
+  }
+  
+  /// 画像データをバイト配列で取得
+  Future<Uint8List?> _getImageBytes(ImageItem imageItem) async {
+    try {
+      // Webの場合はURLから取得、モバイルの場合はファイルから取得
+      if (kIsWeb) {
+        // URLから画像データを取得
+        final response = await http.get(Uri.parse(imageItem.thumbnailUrl));
+        if (response.statusCode == 200) {
+          return response.bodyBytes;
+        }
+      } else {
+        // ローカルファイルから取得
+        if (imageItem.localFile != null) {
+          final file = File(imageItem.localFile!.path);
+          if (await file.exists()) {
+            return await file.readAsBytes();
+          }
+        }
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ 画像データ取得エラー: $e');
+      }
+      return null;
     }
   }
   
@@ -685,7 +815,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                         Divider(),
                         _buildSwitchTile("AI自動採寸", "撮影時に自動でサイズを計測します", _aiMeasure, (v) => setState(() => _aiMeasure = v)),
                         Divider(),
-                        _buildSwitchTile("AI自動白抜き", "撮影時に自動で背景を削除します", _aiBgRemove, (v) => setState(() => _aiBgRemove = v)),
+                        _buildSwitchTile("OCR文字認識", "タグから素材・ブランド情報を自動抽出", _ocrEnabled, (v) => setState(() => _ocrEnabled = v)),
                       ],
                     ),
                   ),
