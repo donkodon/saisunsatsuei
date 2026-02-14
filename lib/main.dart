@@ -14,36 +14,152 @@ import 'package:measure_master/models/item.dart';
 import 'package:measure_master/services/image_cache_service.dart';
 import 'package:measure_master/services/company_service.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  try {
-    // 🔥 Firebase初期化（Web対応）
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    debugPrint('✅ Firebase初期化成功');
-  } catch (e) {
-    debugPrint('❌ Firebase初期化エラー: $e');
-    // Firebase初期化に失敗してもアプリは起動
-  }
-  
-  // 🔧 Hive初期化
-  await Hive.initFlutter();
-  
-  // 📦 TypeAdapterを登録
-  Hive.registerAdapter(InventoryItemAdapter());
-  
-  // 📸 画像キャッシュサービスを初期化
-  await ImageCacheService.initialize();
-  
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool _initialized = false;
+  bool _error = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    try {
+      // 🔥 Firebase初期化（Web対応）
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      
+      // 🔧 Hive初期化
+      await Hive.initFlutter();
+      
+      // 📦 TypeAdapterを登録
+      Hive.registerAdapter(InventoryItemAdapter());
+      
+      // 📸 画像キャッシュサービスを初期化
+      await ImageCacheService.initialize();
+      
+      if (mounted) {
+        setState(() {
+          _initialized = true;
+        });
+      }
+      
+      if (kDebugMode) {
+        debugPrint('✅ アプリ初期化成功');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ アプリ初期化エラー: $e');
+      }
+      if (mounted) {
+        setState(() {
+          _error = true;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // 初期化中の表示
+    if (!_initialized && !_error) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          backgroundColor: Colors.white,
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    AppConstants.primaryCyan,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'アプリを初期化中...',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 初期化エラーの表示
+    if (_error) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          backgroundColor: Colors.white,
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Colors.red,
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  '初期化エラー',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'アプリの初期化に失敗しました\nページを再読み込みしてください',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppConstants.primaryCyan,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _initialized = false;
+                      _error = false;
+                    });
+                    _initializeApp();
+                  },
+                  child: const Text('再試行'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 初期化完了後の通常のアプリ表示
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
