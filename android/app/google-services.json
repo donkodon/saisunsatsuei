@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "788734188363",
+    "project_id": "saisunsatsuei-950cf",
+    "storage_bucket": "saisunsatsuei-950cf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:788734188363:android:ac1412c0b47a6cdfdda6ce",
+        "android_client_info": {
+          "package_name": "com.measuremaster.measure_master"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCwX78eJSDWS6Jat8yx-w3lh8IFS3Xyb08"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

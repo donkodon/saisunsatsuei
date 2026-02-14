@@ -57,6 +57,11 @@ dependencies:
   url_launcher: ^6.3.1
   photo_view: ^0.15.0
   mobile_scanner: ^6.0.2
+  
+  # Firebase packages (LOCKED versions for stability)
+  firebase_core: 3.6.0               # Firebase Core SDK
+  firebase_auth: 5.3.1               # Authentication
+  cloud_firestore: 5.4.3             # Firestore Database
 
 dev_dependencies:
   flutter_test:

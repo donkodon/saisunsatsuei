@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:measure_master/constants.dart';
-import 'package:measure_master/screens/landing_screen.dart';
-import 'package:measure_master/screens/login_screen.dart';
 import 'package:measure_master/screens/dashboard_screen.dart';
+import 'package:measure_master/screens/firebase_login_screen.dart';
+import 'package:measure_master/firebase_options.dart';
 import 'package:provider/provider.dart';
 import 'package:measure_master/providers/inventory_provider.dart';
 import 'package:measure_master/providers/api_product_provider.dart';
@@ -14,6 +16,11 @@ import 'package:measure_master/services/company_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // 🔥 Firebase初期化（Web対応）
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  
   // 🔧 Hive初期化
   await Hive.initFlutter();
   
@@ -23,10 +30,11 @@ void main() async {
   // 📸 画像キャッシュサービスを初期化
   await ImageCacheService.initialize();
   
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -39,6 +47,7 @@ class MyApp extends StatelessWidget {
           },
         ),
         ChangeNotifierProvider(create: (_) => ApiProductProvider()),
+        Provider<CompanyService>(create: (_) => CompanyService()),
       ],
       child: MaterialApp(
         title: 'Measure Master',
@@ -51,80 +60,42 @@ class MyApp extends StatelessWidget {
             secondary: AppConstants.primaryCyan,
           ),
         ),
-        home: const AuthCheckScreen(),
+        home: const FirebaseAuthCheckScreen(),
       ),
     );
   }
 }
 
-/// 🔐 認証チェック画面
-/// ログイン状態を確認して、適切な画面に遷移する
-class AuthCheckScreen extends StatefulWidget {
-  const AuthCheckScreen({Key? key}) : super(key: key);
-
-  @override
-  _AuthCheckScreenState createState() => _AuthCheckScreenState();
-}
-
-class _AuthCheckScreenState extends State<AuthCheckScreen> {
-  final CompanyService _companyService = CompanyService();
-
-  @override
-  void initState() {
-    super.initState();
-    _checkLoginStatus();
-  }
-
-  /// ログイン状態をチェック
-  Future<void> _checkLoginStatus() async {
-    // 少し待機してスプラッシュ画面風にする
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    final isLoggedIn = await _companyService.isLoggedIn();
-
-    if (mounted) {
-      if (isLoggedIn) {
-        // ログイン済み → DashboardScreenへ
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
-        );
-      } else {
-        // 未ログイン → LandingScreenへ
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LandingScreen()),
-        );
-      }
-    }
-  }
+/// 🔥 Firebase認証チェック画面
+/// Firebase Authentication の状態に応じて画面を切り替え
+class FirebaseAuthCheckScreen extends StatelessWidget {
+  const FirebaseAuthCheckScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.straighten,
-              size: 80,
-              color: AppConstants.primaryCyan,
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        // 認証状態を確認中
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            backgroundColor: Colors.white,
+            body: Center(
+              child: CircularProgressIndicator(),
             ),
-            const SizedBox(height: 24),
-            Text(
-              'Measure Master',
-              style: AppConstants.headerStyle.copyWith(
-                fontSize: 28,
-                color: AppConstants.textDark,
-              ),
-            ),
-            const SizedBox(height: 32),
-            const CircularProgressIndicator(),
-          ],
-        ),
-      ),
+          );
+        }
+
+        // ログイン済み
+        if (snapshot.hasData && snapshot.data != null) {
+          return const DashboardScreen();
+        }
+
+        // 未ログイン
+        return const FirebaseLoginScreen();
+      },
     );
   }
 }
+
+// 既存の AuthCheckScreen は削除（Firebase認証に置き換え）

@@ -8,9 +8,11 @@ import 'package:measure_master/screens/add_item_screen.dart';
 import 'package:measure_master/screens/api_products_screen.dart';
 import 'package:measure_master/screens/barcode_scanner_screen.dart';
 import 'package:measure_master/screens/login_screen.dart';
+import 'package:measure_master/screens/firebase_login_screen.dart';
 import 'package:measure_master/models/item.dart';
 import 'package:measure_master/services/api_service.dart';
 import 'package:measure_master/services/company_service.dart';
+import 'package:measure_master/services/auth_service.dart';
 import 'package:measure_master/models/api_product.dart';
 import 'package:measure_master/services/image_cache_service.dart';
 import 'package:measure_master/screens/image_preview_screen.dart';
@@ -28,6 +30,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ApiService _apiService = ApiService();
   final CompanyService _companyService = CompanyService();
+  final AuthService _authService = AuthService();
   bool _isSearching = false;
   String _companyId = '';
   String _companyName = '';
@@ -55,7 +58,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  /// ログアウト処理
+  /// ログアウト処理（Firebase対応）
   Future<void> _handleLogout() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -70,18 +73,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('ログアウト'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
           ),
         ],
       ),
     );
 
     if (confirmed == true) {
+      // Firebase Authからログアウト
+      await _authService.signOut();
+      
+      // CompanyServiceからもログアウト
       await _companyService.logout();
       
       if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          MaterialPageRoute(builder: (_) => const FirebaseLoginScreen()),
           (route) => false,
         );
       }
