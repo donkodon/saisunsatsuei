@@ -38,19 +38,34 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _initializeApp() async {
     try {
-      // 🔥 Firebase初期化（Web対応）
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+      debugPrint('🔄 Step 1: Firebase初期化開始...');
       
+      // 🔥 Firebase初期化（Web対応）
+      if (kIsWeb) {
+        // Web: index.htmlで初期化済み
+        debugPrint('🌐 Web環境: Firebase は index.html で初期化済み');
+      } else {
+        // Android/iOS: Dart側で初期化
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      }
+      debugPrint('✅ Step 1: Firebase初期化成功');
+      
+      debugPrint('🔄 Step 2: Hive初期化開始...');
       // 🔧 Hive初期化
       await Hive.initFlutter();
+      debugPrint('✅ Step 2: Hive初期化成功');
       
+      debugPrint('🔄 Step 3: TypeAdapter登録開始...');
       // 📦 TypeAdapterを登録
       Hive.registerAdapter(InventoryItemAdapter());
+      debugPrint('✅ Step 3: TypeAdapter登録成功');
       
+      debugPrint('🔄 Step 4: 画像キャッシュサービス初期化開始...');
       // 📸 画像キャッシュサービスを初期化
       await ImageCacheService.initialize();
+      debugPrint('✅ Step 4: 画像キャッシュサービス初期化成功');
       
       if (mounted) {
         setState(() {
@@ -58,13 +73,11 @@ class _MyAppState extends State<MyApp> {
         });
       }
       
-      if (kDebugMode) {
-        debugPrint('✅ アプリ初期化成功');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('❌ アプリ初期化エラー: $e');
-      }
+      debugPrint('🎉 アプリ初期化完了！');
+    } catch (e, stackTrace) {
+      debugPrint('❌ アプリ初期化エラー: $e');
+      debugPrint('📍 スタックトレース: $stackTrace');
+      
       if (mounted) {
         setState(() {
           _error = true;
