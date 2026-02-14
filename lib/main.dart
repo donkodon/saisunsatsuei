@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -16,10 +17,16 @@ import 'package:measure_master/services/company_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // 🔥 Firebase初期化（Web対応）
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    // 🔥 Firebase初期化（Web対応）
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint('✅ Firebase初期化成功');
+  } catch (e) {
+    debugPrint('❌ Firebase初期化エラー: $e');
+    // Firebase初期化に失敗してもアプリは起動
+  }
   
   // 🔧 Hive初期化
   await Hive.initFlutter();
