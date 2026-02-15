@@ -22,6 +22,12 @@ import 'package:measure_master/features/inventory/logic/image_upload_coordinator
 import 'package:measure_master/features/inventory/logic/image_diff_manager.dart';
 import 'package:measure_master/features/inventory/logic/inventory_saver.dart';
 
+// 📏 AI自動採寸機能をインポート
+import 'package:measure_master/features/measurement/logic/measurement_service.dart';
+import 'package:measure_master/features/measurement/data/measurement_api_client.dart';
+import 'package:measure_master/features/measurement/data/measurement_repository.dart';
+import 'package:measure_master/services/api_service.dart';
+
 class DetailScreen extends StatefulWidget {
   final String itemName;
   final String brand;
@@ -56,6 +62,9 @@ class DetailScreen extends StatefulWidget {
   final String? width;            // 身幅
   final String? shoulder;         // 肩幅
   final String? sleeve;           // 袖丈
+  
+  // 📏 AI自動採寸フラグ
+  final bool aiMeasureEnabled;    // AI自動採寸を実行するかどうか
 
   DetailScreen({
     required this.itemName,
@@ -89,6 +98,8 @@ class DetailScreen extends StatefulWidget {
     this.width,
     this.shoulder,
     this.sleeve,
+    // 📏 AI自動採寸フラグ（デフォルト: false）
+    this.aiMeasureEnabled = false,
   });
 
   @override
@@ -118,6 +129,9 @@ class _DetailScreenState extends State<DetailScreen> {
   late final ImageDiffManager _diffManager;
   late final InventorySaver _inventorySaver;
   
+  // 📏 AI自動採寸サービス
+  late final MeasurementService _measurementService;
+  
   // ✨ アップロード進捗
   int _uploadProgress = 0;
   int _uploadTotal = 0;
@@ -140,6 +154,14 @@ class _DetailScreenState extends State<DetailScreen> {
     // 🆕 新しいロジッククラスの初期化
     _uploadCoordinator = ImageUploadCoordinator();
     _diffManager = ImageDiffManager();
+    
+    // 📏 AI自動採寸サービスの初期化
+    _measurementService = MeasurementService(
+      apiClient: MeasurementApiClient(
+        d1ApiUrl: ApiService.d1ApiUrl,
+      ),
+      repository: MeasurementRepository(),
+    );
     _inventorySaver = InventorySaver(inventoryProvider: _inventoryProvider);
     
     // 初期値を設定（サンプルデータなし）
@@ -166,6 +188,7 @@ class _DetailScreenState extends State<DetailScreen> {
     _skuController.dispose();
     _sizeController.dispose();
     _charCount.dispose();
+    _measurementService.dispose();  // 📏 AI自動採寸サービスのクリーンアップ
     super.dispose();
   }
 
@@ -882,6 +905,26 @@ class _DetailScreenState extends State<DetailScreen> {
       Navigator.pop(context); // プログレスダイアログを閉じる
 
       // ========================================
+      // Phase 6.5: AI自動採寸（Fire & Forget - バックグラウンド実行）
+      // ========================================
+      if (widget.aiMeasureEnabled && uploadResult.allUrls.isNotEmpty) {
+        if (kDebugMode) {
+          debugPrint('📏 AI自動採寸開始（バックグラウンド）');
+        }
+        
+        // 企業IDを取得（null時は空文字）
+        final companyId = await _companyService.getCompanyId() ?? '';
+        
+        // バックグラウンドで採寸実行（ユーザーを待たせない）
+        _measurementService.measureGarmentAsync(
+          imageUrl: uploadResult.allUrls.first,  // 最初の画像を使用
+          sku: widget.sku.isNotEmpty ? widget.sku : 'NOSKU',
+          companyId: companyId,
+          category: widget.category,
+        );
+      }
+
+      // ========================================
       // Phase 7: 結果表示
       // ========================================
       if (saveResult.bothSuccess) {
@@ -924,77 +967,8 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   /// D1保存（リトライ機能付き）
-  Future<bool> _saveToD1WithRetry({
-    required String sku,
-    required List<String> imageUrls,
-    required InventoryItem newItem,
-  }) async {
-    const maxRetries = 3;
-    
-    for (int retryCount = 0; retryCount < maxRetries; retryCount++) {
-      try {
-        debugPrint('🌐 D1保存試行 ${retryCount + 1}/$maxRetries');
-        
-        final itemCode = '${newItem.sku}_${DateTime.now().millisecondsSinceEpoch}';
-        
-        // 🏢 企業IDを取得（null時は空文字）
-        final companyId = await _companyService.getCompanyId() ?? '';
-        
-        // 🔍 デバッグログ: 企業ID取得結果
-        debugPrint('═══════════════════════════════════════');
-        debugPrint('🏢 D1保存時の企業ID検証');
-        debugPrint('   企業ID (companyId): "$companyId"');
-        debugPrint('   SKU: "${newItem.sku}"');
-        debugPrint('   Firebase UID: "${FirebaseAuth.instance.currentUser?.uid}"');
-        debugPrint('   Firebase Email: "${FirebaseAuth.instance.currentUser?.email}"');
-        debugPrint('═══════════════════════════════════════');
-        
-        final itemData = <String, dynamic>{
-          'sku': newItem.sku ?? '',
-          'itemCode': itemCode,
-          'name': newItem.name,
-          'barcode': newItem.barcode ?? _barcodeController.text,
-          'brand': newItem.brand,
-          'category': newItem.category,
-          'color': newItem.color ?? _selectedColor,
-          'size': newItem.size ?? _sizeController.text,
-          'material': newItem.material ?? _selectedMaterial,
-          'price': newItem.salePrice,
-          'imageUrls': imageUrls,
-          'actualMeasurements': {
-            'length': newItem.length,
-            'width': newItem.width,
-          },
-          'condition': newItem.condition ?? widget.condition,
-          'productRank': newItem.productRank ?? widget.productRank,
-          'inspectionNotes': newItem.description ?? _descriptionController.text,
-          'photographedAt': DateTime.now().toIso8601String(),
-          'photographedBy': 'mobile_app_user',
-          'status': 'Ready',
-          'company_id': companyId,  // ✅ 企業IDを追加
-          'upsert': true,
-        };
-
-        final d1Result = await _apiService.saveProductItemToD1(itemData);
-
-        if (d1Result != null) {
-          debugPrint('✅ D1保存成功');
-          return true;
-        }
-        
-      } catch (e) {
-        debugPrint('❌ D1保存失敗（${retryCount + 1}/$maxRetries）: $e');
-        
-        if (retryCount < maxRetries - 1) {
-          // 指数バックオフ: 1秒 → 2秒 → 4秒
-          await Future.delayed(Duration(seconds: 1 << retryCount));
-        }
-      }
-    }
-    
-    debugPrint('❌ D1保存: 最大リトライ回数に到達');
-    return false;
-  }
+  // ⚠️ このメソッドは削除されました
+  // InventorySaver クラスに移行済み（lib/features/inventory/logic/inventory_saver.dart）
 
   /// リトライボタン付き警告表示
   void _showWarningWithRetry(String message, InventoryItem item) {
@@ -1020,15 +994,16 @@ class _DetailScreenState extends State<DetailScreen> {
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
-    final success = await _saveToD1WithRetry(
-      sku: item.sku ?? 'NOSKU',
+    // InventorySaver を使用してD1に再保存
+    final saveResult = await _inventorySaver.saveToHiveAndD1(
+      item: item,
       imageUrls: item.imageUrls ?? [],
-      newItem: item,
+      additionalData: {},
     );
 
     Navigator.pop(context);
 
-    if (success) {
+    if (saveResult.bothSuccess) {
       _showSuccess('✅ クラウド同期完了');
     } else {
       _showError('❌ 同期失敗。後で再試行してください。');

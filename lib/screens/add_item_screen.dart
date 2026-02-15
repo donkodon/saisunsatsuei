@@ -353,6 +353,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
           material: _selectedMaterial,
           description: _descriptionController.text,
           existingImages: _images.isNotEmpty ? _images : null,  // 🎯 既存の ImageItem リスト
+          aiMeasure: _aiMeasure,  // 📏 AI自動採寸フラグを渡す
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);

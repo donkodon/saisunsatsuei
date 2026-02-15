@@ -28,6 +28,7 @@ class CameraScreenV2 extends StatefulWidget {
   final String material;
   final String description;
   final List<ImageItem>? existingImages;  // 📸 既存の画像アイテム（編集時）
+  final bool aiMeasure;  // 📏 AI自動採寸フラグ
 
   const CameraScreenV2({
     Key? key,
@@ -44,6 +45,7 @@ class CameraScreenV2 extends StatefulWidget {
     required this.material,
     required this.description,
     this.existingImages,
+    this.aiMeasure = false,  // 📏 デフォルトはfalse
   }) : super(key: key);
 
   @override
