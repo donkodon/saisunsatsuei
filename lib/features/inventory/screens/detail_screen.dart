@@ -6,13 +6,20 @@ import 'package:measure_master/screens/dashboard_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:measure_master/providers/inventory_provider.dart';
 import 'package:measure_master/models/item.dart';
+import 'package:measure_master/services/cloudflare_storage_service.dart';
 import 'package:measure_master/services/image_cache_service.dart';
+import 'package:measure_master/services/api_service.dart';
 import 'package:measure_master/auth/company_service.dart';
 import 'package:measure_master/screens/image_preview_screen.dart';
 import 'package:measure_master/services/batch_image_upload_service.dart';
 import 'package:measure_master/services/white_background_service.dart';
+import 'package:measure_master/models/product_image.dart';
+import 'package:measure_master/models/result.dart';
 import 'package:measure_master/models/image_item.dart';
 import 'package:measure_master/widgets/smart_image_viewer.dart';
+import 'package:http/http.dart' as http;
+import 'dart:typed_data';
+import 'dart:io' show File;
 import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -110,6 +117,7 @@ class _DetailScreenState extends State<DetailScreen> {
   // ✨ 一括アップロードサービス
   late final BatchImageUploadService _batchUploadService;
   late final WhiteBackgroundService _whiteBackgroundService;
+  late final ApiService _apiService;
   late final InventoryProvider _inventoryProvider;
   final CompanyService _companyService = CompanyService();
   
@@ -135,6 +143,7 @@ class _DetailScreenState extends State<DetailScreen> {
     // ✨ サービス初期化
     _batchUploadService = BatchImageUploadService();
     _whiteBackgroundService = WhiteBackgroundService();
+    _apiService = ApiService();
     _inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
     
     // 🆕 新しいロジッククラスの初期化

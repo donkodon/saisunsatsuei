@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 class CompanyService {
   static const String _companyIdKey = 'company_id';
   static const String _companyNameKey = 'company_name';
-  static const String _defaultCompanyId = 'test_company';
+  // デフォルト値なし（管理者招待制：Firestoreに登録されたcompanyIdのみ使用）
   
   // メモリ内フォールバック（Web版SharedPreferences失敗時用）
   static String? _memoryCompanyId;
@@ -47,12 +47,12 @@ class CompanyService {
     return true;
   }
   
-  /// 企業IDを取得
-  Future<String> getCompanyId() async {
+  /// 企業IDを取得（未設定の場合はnullを返す）
+  Future<String?> getCompanyId() async {
     // まずメモリから取得を試みる
     if (_memoryCompanyId != null && _memoryCompanyId!.isNotEmpty) {
       if (kDebugMode) {
-        debugPrint('🏢 企業ID取得（メモリ）: $_memoryCompanyId');
+        debugPrint('💾 CompanyService.getCompanyId() - メモリキャッシュから取得: "$_memoryCompanyId"');
       }
       return _memoryCompanyId!;
     }
@@ -65,7 +65,7 @@ class CompanyService {
       if (companyId != null && companyId.isNotEmpty) {
         _memoryCompanyId = companyId; // メモリにキャッシュ
         if (kDebugMode) {
-          debugPrint('🏢 企業ID取得（SharedPreferences）: $companyId');
+          debugPrint('💾 CompanyService.getCompanyId() - SharedPreferencesから取得: "$companyId"');
         }
         return companyId;
       }
@@ -75,11 +75,12 @@ class CompanyService {
       }
     }
     
-    // どちらも失敗した場合はデフォルト値
+    // どちらも失敗した場合はnullを返す（デフォルト値なし）
     if (kDebugMode) {
-      debugPrint('🏢 企業ID取得（デフォルト）: $_defaultCompanyId');
+      debugPrint('⚠️ CompanyService.getCompanyId() - 企業ID未設定（nullを返却）');
+      debugPrint('   → Firestoreからの取得が必要です。ログインし直してください。');
     }
-    return _defaultCompanyId;
+    return null;
   }
   
   /// 企業名を取得

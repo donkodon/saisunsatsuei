@@ -320,11 +320,14 @@ class CloudflareWorkersStorageService {
   static Future<String> uploadImage(
     Uint8List imageBytes, 
     String itemId, 
-    {String? sku, bool useUniqueFileName = true}
+    {String? sku, String? companyId, bool useUniqueFileName = true}
   ) async {
     try {
       // 🆕 SKU情報を取得（itemIdから抽出 or 引数から取得）
       String skuFolder = sku ?? itemId.split('_')[0];
+      
+      // 🏢 企業ID（未指定の場合は"default"を使用）
+      String company = companyId ?? 'default';
       
       // 🎯 Phase 1: UUID形式の場合はそのまま使用、旧形式のみタイムスタンプ付与
       String fileName;
@@ -344,16 +347,18 @@ class CloudflareWorkersStorageService {
         fileName = '$itemId.jpg';
       }
       
-      debugPrint('📤 Uploading to Cloudflare Workers: $uploadEndpoint');
-      debugPrint('📁 SKU Folder: $skuFolder');
-      debugPrint('📦 File name: $fileName');
-      debugPrint('📊 File size: ${imageBytes.length} bytes');
-      debugPrint('🔑 Unique mode: $useUniqueFileName');
+      debugPrint('📤 Cloudflare Workers アップロード開始');
+      debugPrint('🏢 Company ID: $company (パラメータ名: company_id)');
+      debugPrint('📦 SKU: $skuFolder');
+      debugPrint('📄 ファイル名: $fileName');
+      debugPrint('📊 ファイルサイズ: ${imageBytes.length} bytes');
+      debugPrint('🔑 ユニークモード: $useUniqueFileName');
       
       // Multipartリクエストを作成
       final request = http.MultipartRequest('POST', Uri.parse(uploadEndpoint));
       
-      // 🆕 SKU情報をフォームデータに追加
+      // 🏢 企業ID、SKU情報をフォームデータに追加
+      request.fields['company_id'] = company;  // Workers側のパラメータ名に合わせる
       request.fields['sku'] = skuFolder;
       request.fields['fileName'] = fileName;
       
@@ -381,7 +386,20 @@ class CloudflareWorkersStorageService {
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
         final imageUrl = jsonResponse['url'] as String;
-        debugPrint('✅ Workers経由でアップロード成功（SKUフォルダ: $skuFolder）: $imageUrl');
+        
+        // 🔍 URLから保存パスを確認（R2フォルダ構造検証）
+        final expectedPath = '$company/$skuFolder/$fileName';
+        if (imageUrl.contains('$company/$skuFolder/')) {
+          debugPrint('✅ アップロード成功 (Company: $company, SKU: $skuFolder)');
+          debugPrint('   R2パス: $expectedPath');
+          debugPrint('   公開URL: $imageUrl');
+        } else {
+          debugPrint('⚠️ 企業IDフォルダが作成されていない可能性');
+          debugPrint('   期待パス: $expectedPath');
+          debugPrint('   実際URL: $imageUrl');
+          debugPrint('   → Workers側でcompany_idが正しく受信されているか確認が必要');
+        }
+        
         return imageUrl;
       } else {
         throw Exception('アップロードに失敗しました: ${response.statusCode} - ${response.body}');

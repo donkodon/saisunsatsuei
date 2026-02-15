@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:measure_master/services/api_service.dart';
+import 'package:measure_master/auth/company_service.dart';
 import 'package:measure_master/models/api_product.dart';
 import 'package:measure_master/screens/add_item_screen.dart';
 import 'web_barcode_scanner_screen_v2.dart';
@@ -310,8 +311,16 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     setState(() => _isSearching = true);
 
     try {
-      // D1 API で商品検索
-      final product = await ApiService.searchByBarcode(barcode);
+      // 🏢 企業IDを取得
+      final companyService = CompanyService();
+      final companyId = await companyService.getCompanyId();
+      
+      if (kIsWeb) {
+        debugPrint('🔍 バーコード検索: $barcode, 企業ID: ${companyId ?? "未指定"}');
+      }
+      
+      // D1 API で商品検索（企業IDを渡す）
+      final product = await ApiService.searchByBarcode(barcode, companyId: companyId);
 
       if (!mounted) return;
 

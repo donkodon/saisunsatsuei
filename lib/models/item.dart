@@ -70,6 +70,9 @@ class InventoryItem {
   @HiveField(20)
   final List<Map<String, dynamic>>? imagesJson;  // 📸 新形式: ProductImageのJSONリスト
 
+  @HiveField(21)
+  final String? companyId;  // 🏢 企業ID（マルチテナント対応）
+
   InventoryItem({
     required this.id,
     required this.name,
@@ -93,6 +96,7 @@ class InventoryItem {
     this.material,
     this.imageUrls,  // 📸 複数画像
     this.imagesJson,  // 📸 新形式画像データ
+    this.companyId,  // 🏢 企業ID
   });
 
   /// 🔄 新形式の画像リストを取得（ProductImageオブジェクト）

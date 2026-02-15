@@ -7,12 +7,11 @@ import 'package:measure_master/providers/inventory_provider.dart';
 import 'package:measure_master/screens/add_item_screen.dart';
 import 'package:measure_master/screens/api_products_screen.dart';
 import 'package:measure_master/screens/barcode_scanner_screen.dart';
-import 'package:measure_master/screens/login_screen.dart';
-import 'package:measure_master/screens/firebase_login_screen.dart';
+// firebase_login_screen は不要（ログアウトはStreamBuilderが自動処理）
 import 'package:measure_master/models/item.dart';
 import 'package:measure_master/services/api_service.dart';
-import 'package:measure_master/services/company_service.dart';
-import 'package:measure_master/services/auth_service.dart';
+import 'package:measure_master/auth/company_service.dart';
+import 'package:measure_master/auth/auth_service.dart';
 import 'package:measure_master/models/api_product.dart';
 import 'package:measure_master/services/image_cache_service.dart';
 import 'package:measure_master/screens/image_preview_screen.dart';
@@ -53,9 +52,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final companyName = await _companyService.getCompanyName();
     
     setState(() {
-      _companyId = companyId;
+      _companyId = companyId ?? '';
       _companyName = companyName ?? '';
     });
+    
+    // 🏢 InventoryProviderに企業IDを設定して再読み込み
+    if (companyId != null && companyId.isNotEmpty && mounted) {
+      final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
+      inventoryProvider.setCompanyId(companyId);
+      
+      if (kDebugMode) {
+        debugPrint('🏢 DashboardScreen: 企業ID設定完了 ($companyId)');
+      }
+    }
   }
 
   /// ログアウト処理（Firebase対応）
@@ -82,19 +91,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
 
     if (confirmed == true) {
-      // Firebase Authからログアウト
-      await _authService.signOut();
-      
-      // CompanyServiceからもログアウト
+      // CompanyServiceからまずログアウト（メモリ・永続化クリア）
       await _companyService.logout();
       
-      if (mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const FirebaseLoginScreen()),
-          (route) => false,
-        );
-      }
+      // Firebase Authからログアウト
+      // → authStateChanges が null を発火
+      // → main.dart の StreamBuilder が自動的に FirebaseLoginScreen を表示
+      await _authService.signOut();
+      
+      // ⚠️ Navigator不要: StreamBuilderが自動的にログイン画面に切り替える
+      // pushAndRemoveUntil は StreamBuilder と競合するため使わない
     }
   }
 
@@ -148,7 +154,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
       
       // 🌐 ステップ2: 統合検索API（product_items → product_master）
-      final searchResult = await _apiService.searchByBarcodeOrSku(query);
+      // 🏢 企業IDを取得して検索（企業別にデータを分離）
+      final companyId = await _companyService.getCompanyId();
+      debugPrint('🔍 SKU検索開始: query=$query, companyId=$companyId');
+      
+      final searchResult = await _apiService.searchByBarcodeOrSku(query, companyId: companyId);
 
       setState(() {
         _isSearching = false;
@@ -158,8 +168,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final source = searchResult['source'];
         final data = searchResult['data'];
         
+        // 🔒 最終防衛ライン: 企業IDの再検証
+        final dataCompanyId = data['company_id'] ?? data['companyId'];
+        if (companyId != null && dataCompanyId != null && dataCompanyId != companyId) {
+          if (kDebugMode) {
+            debugPrint('🚫 企業IDが一致しません: ログイン=$companyId, データ=$dataCompanyId');
+          }
+          
+          setState(() {
+            _isSearching = false;
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('この商品はあなたの企業のデータではありません'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          
+          _searchController.clear();
+          return;
+        }
+        
         if (kDebugMode) {
-          debugPrint('✅ 検索成功: source=$source, data=$data');
+          debugPrint('✅ 検索成功: source=$source, 企業ID検証OK');
         }
         
         // データソースに応じてメッセージを変更

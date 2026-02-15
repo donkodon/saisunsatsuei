@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 /// Firebase Authentication サービス
@@ -120,6 +121,56 @@ class AuthService {
         print('❌ AuthService: パスワードリセットメール送信エラー - ${e.code}');
       }
       rethrow;
+    }
+  }
+
+  /// Firestore users/{uid} からユーザープロフィールを取得
+  /// 
+  /// 返り値: Map<String, dynamic>? (null = ドキュメント未作成)
+  /// 含まれるフィールド: email, companyId, displayName, role, createdAt
+  Future<Map<String, dynamic>?> getUserProfile(String uid) async {
+    try {
+      if (kDebugMode) {
+        debugPrint('🔍 AuthService: ユーザープロフィール取得 - UID: $uid');
+      }
+      
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      
+      if (!doc.exists) {
+        if (kDebugMode) {
+          debugPrint('⚠️ AuthService: ユーザードキュメント未作成 - UID: $uid');
+        }
+        return null;
+      }
+      
+      final data = doc.data();
+      if (kDebugMode) {
+        debugPrint('✅ AuthService: プロフィール取得成功 - companyId: ${data?['companyId']}');
+      }
+      
+      return data;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ AuthService: プロフィール取得エラー - $e');
+      }
+      return null;
+    }
+  }
+
+  /// Firestore users/{uid} の lastLoginAt を更新
+  Future<void> updateLastLogin(String uid) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .update({'lastLoginAt': FieldValue.serverTimestamp()});
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('⚠️ AuthService: lastLoginAt更新失敗 - $e');
+      }
     }
   }
 

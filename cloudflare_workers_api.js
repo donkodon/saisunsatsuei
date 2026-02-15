@@ -1,56 +1,122 @@
 // Cloudflare Workers API for Measure Master
 // D1 Database integration with 2-table architecture
+// 🏢 マルチテナント対応: company_id が最優先キー
 
-// 🔧 テーブル初期化関数
+// ============================================
+// 🔧 テーブル初期化 (マイグレーション対応)
+// ============================================
 async function initializeDatabase(env) {
   try {
-    // product_master テーブルを作成
-    await env.DB.prepare(`
-      CREATE TABLE IF NOT EXISTS product_master (
-        sku TEXT PRIMARY KEY,
-        barcode TEXT,
-        name TEXT NOT NULL,
-        brand TEXT,
-        category TEXT,
-        size TEXT,
-        color TEXT,
-        price INTEGER,
-        description TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `).run();
-    
-    // product_items テーブルを作成
-    await env.DB.prepare(`
-      CREATE TABLE IF NOT EXISTS product_items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        sku TEXT NOT NULL,
-        item_code TEXT UNIQUE NOT NULL,
-        image_urls TEXT,
-        actual_measurements TEXT,
-        condition TEXT,
-        material TEXT,
-        product_rank TEXT,
-        inspection_notes TEXT,
-        photographed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        photographed_by TEXT,
-        status TEXT DEFAULT 'Ready',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (sku) REFERENCES product_master(sku)
-      )
-    `).run();
-    
-    // インデックスを作成
-    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_master_barcode ON product_master(barcode)').run();
-    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_items_sku ON product_items(sku)').run();
-    await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_items_code ON product_items(item_code)').run();
-    
-    console.log('✅ Database initialized successfully');
+    // 既存テーブルの存在チェック
+    const tableCheck = await env.DB.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='product_master'"
+    ).first();
+
+    if (tableCheck) {
+      // 既存テーブルにcompany_idカラムがあるか確認
+      const colCheck = await env.DB.prepare(
+        "PRAGMA table_info(product_master)"
+      ).all();
+      
+      const hasCompanyId = colCheck.results.some(col => col.name === 'company_id');
+      
+      if (!hasCompanyId) {
+        // 🔄 マイグレーション: 既存テーブルにcompany_idを追加
+        console.log('🔄 マイグレーション開始: company_id カラム追加');
+        
+        // 1. 旧テーブルをリネーム
+        await env.DB.prepare('ALTER TABLE product_master RENAME TO product_master_old').run();
+        await env.DB.prepare('ALTER TABLE product_items RENAME TO product_items_old').run();
+        
+        // 2. 新テーブル作成
+        await createTables(env);
+        
+        // 3. 旧データ移行（company_id = '' でデフォルト）
+        await env.DB.prepare(`
+          INSERT INTO product_master (company_id, sku, barcode, name, brand, category, size, color, price, description, created_at, updated_at)
+          SELECT '', sku, barcode, name, brand, category, size, color, price, description, created_at, updated_at
+          FROM product_master_old
+        `).run();
+        
+        await env.DB.prepare(`
+          INSERT INTO product_items (company_id, sku, item_code, image_urls, actual_measurements, condition, material, product_rank, inspection_notes, photographed_at, photographed_by, status, created_at, updated_at)
+          SELECT '', sku, item_code, image_urls, actual_measurements, condition, material, product_rank, inspection_notes, photographed_at, photographed_by, status, created_at, updated_at
+          FROM product_items_old
+        `).run();
+        
+        // 4. 旧テーブル削除
+        await env.DB.prepare('DROP TABLE IF EXISTS product_items_old').run();
+        await env.DB.prepare('DROP TABLE IF EXISTS product_master_old').run();
+        
+        console.log('✅ マイグレーション完了');
+      } else {
+        console.log('✅ テーブルは最新状態です');
+      }
+    } else {
+      // 新規作成
+      await createTables(env);
+      console.log('✅ Database initialized successfully');
+    }
   } catch (error) {
     console.error('❌ Database initialization error:', error);
+    throw error;
   }
+}
+
+async function createTables(env) {
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS product_master (
+      company_id TEXT NOT NULL DEFAULT '',
+      sku TEXT NOT NULL,
+      barcode TEXT,
+      name TEXT NOT NULL,
+      brand TEXT,
+      category TEXT,
+      size TEXT,
+      color TEXT,
+      price INTEGER,
+      description TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (company_id, sku)
+    )
+  `).run();
+  
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS product_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      company_id TEXT NOT NULL DEFAULT '',
+      sku TEXT NOT NULL,
+      item_code TEXT UNIQUE NOT NULL,
+      image_urls TEXT,
+      actual_measurements TEXT,
+      condition TEXT,
+      material TEXT,
+      product_rank TEXT,
+      inspection_notes TEXT,
+      photographed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      photographed_by TEXT,
+      status TEXT DEFAULT 'Ready',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (company_id, sku) REFERENCES product_master(company_id, sku)
+    )
+  `).run();
+  
+  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_master_company ON product_master(company_id)').run();
+  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_master_barcode ON product_master(company_id, barcode)').run();
+  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_items_company_sku ON product_items(company_id, sku)').run();
+  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_items_code ON product_items(item_code)').run();
+}
+
+// ============================================
+// 🏢 company_id 抽出ヘルパー
+// ============================================
+function getCompanyId(request, url) {
+  // 優先順: 1. ヘッダー → 2. クエリパラメータ → 3. ボディ
+  return request.headers.get('X-Company-Id') 
+    || url.searchParams.get('companyId') 
+    || null;
 }
 
 export default {
@@ -58,50 +124,52 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
     
-    // CORS設定
+    // CORS設定（X-Company-Idヘッダーを明示的に許可）
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, X-Company-Id, x-company-id',
+      'Access-Control-Max-Age': '86400',
     };
     
-    // OPTIONSリクエスト
     if (request.method === 'OPTIONS') {
-      return new Response(null, { headers: corsHeaders });
+      return new Response(null, { 
+        status: 204,
+        headers: corsHeaders 
+      });
     }
 
-    // 🔧 初回実行時にテーブルを自動作成
+    // 🔧 DB初期化/マイグレーション
     if (path === '/api/init' && request.method === 'GET') {
       await initializeDatabase(env);
-      return new Response(JSON.stringify({ 
+      return Response.json({ 
         success: true, 
         message: 'Database initialized successfully' 
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      }, { headers: corsHeaders });
     }
 
     try {
       // ================================================
-      // 📋 商品一覧取得 (マスタ + 実物データ結合)
+      // 📋 商品一覧取得 (企業ID必須)
       // ================================================
       if (path === '/api/products' && request.method === 'GET') {
+        const companyId = getCompanyId(request, url) || '';
         const limit = parseInt(url.searchParams.get('limit') || '100');
         const offset = parseInt(url.searchParams.get('offset') || '0');
         
-        // マスタ情報を取得
+        // 🏢 企業IDでフィルタリング
         const { results: masters } = await env.DB.prepare(`
           SELECT * FROM product_master 
+          WHERE company_id = ?
           ORDER BY updated_at DESC 
           LIMIT ? OFFSET ?
-        `).bind(limit, offset).all();
+        `).bind(companyId, limit, offset).all();
         
-        // 各マスタに対して実物データを取得
         const products = await Promise.all(
           masters.map(async (master) => {
             const { results: items } = await env.DB.prepare(
-              'SELECT * FROM product_items WHERE sku = ? ORDER BY photographed_at DESC'
-            ).bind(master.sku).all();
+              'SELECT * FROM product_items WHERE company_id = ? AND sku = ? ORDER BY photographed_at DESC'
+            ).bind(companyId, master.sku).all();
             
             return {
               ...master,
@@ -116,14 +184,16 @@ export default {
         return Response.json({ 
           success: true, 
           products: products,
-          total: masters.length
+          total: masters.length,
+          companyId: companyId,
         }, { headers: corsHeaders });
       }
       
       // ================================================
-      // 🔍 SKU検索 (マスタ + 実物データ結合)
+      // 🔍 SKU検索 (企業ID優先)
       // ================================================
       if (path === '/api/products/search' && request.method === 'GET') {
+        const companyId = getCompanyId(request, url) || '';
         const sku = url.searchParams.get('sku');
         
         if (!sku) {
@@ -133,25 +203,24 @@ export default {
           }, { status: 400, headers: corsHeaders });
         }
         
-        // 1️⃣ マスタ情報を取得
+        // 🏢 企業ID + SKU で検索
         const master = await env.DB.prepare(
-          'SELECT * FROM product_master WHERE sku = ?'
-        ).bind(sku).first();
+          'SELECT * FROM product_master WHERE company_id = ? AND sku = ?'
+        ).bind(companyId, sku).first();
         
         if (!master) {
           return Response.json({ 
             success: false, 
             error: '商品マスタが見つかりません',
-            sku: sku
+            sku: sku,
+            companyId: companyId,
           }, { status: 404, headers: corsHeaders });
         }
         
-        // 2️⃣ 実物データを取得
         const { results: items } = await env.DB.prepare(
-          'SELECT * FROM product_items WHERE sku = ? ORDER BY photographed_at DESC'
-        ).bind(sku).all();
+          'SELECT * FROM product_items WHERE company_id = ? AND sku = ? ORDER BY photographed_at DESC'
+        ).bind(companyId, sku).all();
         
-        // 3️⃣ 結合して返す
         return Response.json({ 
           success: true,
           product: {
@@ -165,10 +234,11 @@ export default {
       }
       
       // ================================================
-      // 💾 商品マスタ一括登録 (CSV import用)
+      // 💾 商品マスタ一括登録 (企業ID付き)
       // ================================================
       if (path === '/api/products/bulk-import' && request.method === 'POST') {
         const data = await request.json();
+        const companyId = data.companyId || getCompanyId(request, url) || '';
         const products = data.products || [];
         
         let insertedCount = 0;
@@ -176,15 +246,16 @@ export default {
         
         for (const product of products) {
           const existing = await env.DB.prepare(
-            'SELECT sku FROM product_master WHERE sku = ?'
-          ).bind(product.sku).first();
+            'SELECT sku FROM product_master WHERE company_id = ? AND sku = ?'
+          ).bind(companyId, product.sku).first();
           
+          // 🏢 company_id + sku の複合キーで UPSERT
           await env.DB.prepare(`
             INSERT INTO product_master (
-              sku, barcode, name, brand, category, size, color, 
+              company_id, sku, barcode, name, brand, category, size, color, 
               price, description, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(sku) DO UPDATE SET
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(company_id, sku) DO UPDATE SET
               barcode = excluded.barcode,
               name = excluded.name,
               brand = excluded.brand,
@@ -195,6 +266,7 @@ export default {
               description = excluded.description,
               updated_at = CURRENT_TIMESTAMP
           `).bind(
+            companyId,
             product.sku,
             product.barcode || null,
             product.name,
@@ -216,6 +288,7 @@ export default {
         return Response.json({ 
           success: true, 
           message: `マスタデータを更新しました`,
+          companyId: companyId,
           inserted: insertedCount,
           updated: updatedCount,
           total: products.length
@@ -223,34 +296,46 @@ export default {
       }
       
       // ================================================
-      // 📸 商品実物データ保存 (スマホアプリ用)
+      // 📸 商品実物データ保存 (企業ID付き)
       // ================================================
       if (path === '/api/products/items' && request.method === 'POST') {
         const data = await request.json();
+        const companyId = data.company_id || data.companyId || getCompanyId(request, url) || '';
         
-        // SKUの存在確認
-        const master = await env.DB.prepare(
-          'SELECT sku FROM product_master WHERE sku = ?'
-        ).bind(data.sku).first();
+        // 🏢 企業ID + SKU でマスタの存在確認
+        let master = await env.DB.prepare(
+          'SELECT sku FROM product_master WHERE company_id = ? AND sku = ?'
+        ).bind(companyId, data.sku).first();
         
         if (!master) {
-          return Response.json({ 
-            success: false, 
-            error: '商品マスタが見つかりません。先にマスタを登録してください。',
-            sku: data.sku
-          }, { status: 404, headers: corsHeaders });
+          // 🔧 マスタが未登録 → 自動作成（アプリからの保存を止めない）
+          await env.DB.prepare(`
+            INSERT INTO product_master (company_id, sku, barcode, name, brand, category, size, color, price, description, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+          `).bind(
+            companyId,
+            data.sku,
+            data.barcode || null,
+            data.name || data.sku,
+            data.brand || null,
+            data.category || null,
+            data.size || null,
+            data.color || null,
+            data.price || null,
+            data.inspectionNotes || null
+          ).run();
+          
+          console.log(`✅ マスタ自動作成: company_id=${companyId}, sku=${data.sku}`);
         }
         
-        // item_code生成 (SKU_タイムスタンプ)
-        const itemCode = data.item_code || `${data.sku}_${Date.now()}`;
+        const itemCode = data.item_code || data.itemCode || `${data.sku}_${Date.now()}`;
         
-        // 実物データ保存
         await env.DB.prepare(`
           INSERT INTO product_items (
-            sku, item_code, image_urls, actual_measurements, 
+            company_id, sku, item_code, image_urls, actual_measurements, 
             condition, material, product_rank, inspection_notes,
             photographed_by, status, photographed_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
           ON CONFLICT(item_code) DO UPDATE SET
             image_urls = excluded.image_urls,
             actual_measurements = excluded.actual_measurements,
@@ -261,6 +346,7 @@ export default {
             status = excluded.status,
             updated_at = CURRENT_TIMESTAMP
         `).bind(
+          companyId,
           data.sku,
           itemCode,
           JSON.stringify(data.imageUrls || []),
@@ -276,15 +362,17 @@ export default {
         return Response.json({ 
           success: true, 
           message: '商品実物データを保存しました',
+          companyId: companyId,
           sku: data.sku,
           itemCode: itemCode
         }, { headers: corsHeaders });
       }
       
       // ================================================
-      // 🔍 バーコード検索
+      // 🔍 バーコード検索 (企業ID優先)
       // ================================================
       if (path === '/api/products/search-barcode' && request.method === 'GET') {
+        const companyId = getCompanyId(request, url) || '';
         const barcode = url.searchParams.get('barcode');
         
         if (!barcode) {
@@ -294,20 +382,22 @@ export default {
           }, { status: 400, headers: corsHeaders });
         }
         
+        // 🏢 企業ID + バーコードで検索
         const master = await env.DB.prepare(
-          'SELECT * FROM product_master WHERE barcode = ?'
-        ).bind(barcode).first();
+          'SELECT * FROM product_master WHERE company_id = ? AND barcode = ?'
+        ).bind(companyId, barcode).first();
         
         if (!master) {
           return Response.json({ 
             success: false, 
-            error: '商品が見つかりません' 
+            error: '商品が見つかりません',
+            companyId: companyId,
           }, { status: 404, headers: corsHeaders });
         }
         
         const { results: items } = await env.DB.prepare(
-          'SELECT * FROM product_items WHERE sku = ? ORDER BY photographed_at DESC'
-        ).bind(master.sku).all();
+          'SELECT * FROM product_items WHERE company_id = ? AND sku = ? ORDER BY photographed_at DESC'
+        ).bind(companyId, master.sku).all();
         
         return Response.json({ 
           success: true,
@@ -317,6 +407,105 @@ export default {
             capturedItems: items,
             latestItem: items[0] || null,
           }
+        }, { headers: corsHeaders });
+      }
+      
+      // ================================================
+      // 🔍 統合検索 (企業ID優先)
+      // ================================================
+      if (path === '/api/search' && request.method === 'GET') {
+        const companyId = getCompanyId(request, url) || '';
+        const query = url.searchParams.get('query');
+        
+        if (!query) {
+          return Response.json({ 
+            success: false, 
+            error: '検索クエリが指定されていません' 
+          }, { status: 400, headers: corsHeaders });
+        }
+        
+        // 1. product_items から検索（企業ID + SKU or item_code）
+        const item = await env.DB.prepare(`
+          SELECT * FROM product_items 
+          WHERE company_id = ? AND (sku = ? OR item_code = ?)
+          ORDER BY photographed_at DESC LIMIT 1
+        `).bind(companyId, query, query).first();
+        
+        if (item) {
+          // マスタ情報も取得
+          const master = await env.DB.prepare(
+            'SELECT * FROM product_master WHERE company_id = ? AND sku = ?'
+          ).bind(companyId, item.sku).first();
+          
+          return Response.json({ 
+            success: true,
+            source: 'product_items',
+            data: { ...item, master: master },
+            companyId: companyId,
+          }, { headers: corsHeaders });
+        }
+        
+        // 2. product_master から検索（企業ID + SKU or バーコード）
+        const master = await env.DB.prepare(`
+          SELECT * FROM product_master 
+          WHERE company_id = ? AND (sku = ? OR barcode = ?)
+        `).bind(companyId, query, query).first();
+        
+        if (master) {
+          return Response.json({ 
+            success: true,
+            source: 'product_master',
+            data: master,
+            companyId: companyId,
+          }, { headers: corsHeaders });
+        }
+        
+        return Response.json({ 
+          success: false, 
+          error: '商品が見つかりません',
+          query: query,
+          companyId: companyId,
+        }, { status: 404, headers: corsHeaders });
+      }
+      
+      // ================================================
+      // 🔄 商品実物データ更新 (PUT)
+      // ================================================
+      if (path.startsWith('/api/products/items/') && request.method === 'PUT') {
+        const sku = path.replace('/api/products/items/', '');
+        const data = await request.json();
+        const companyId = data.company_id || data.companyId || getCompanyId(request, url) || '';
+        
+        // 🏢 企業ID + SKU で最新の item を更新
+        const result = await env.DB.prepare(`
+          UPDATE product_items SET
+            image_urls = COALESCE(?, image_urls),
+            actual_measurements = COALESCE(?, actual_measurements),
+            condition = COALESCE(?, condition),
+            material = COALESCE(?, material),
+            product_rank = COALESCE(?, product_rank),
+            inspection_notes = COALESCE(?, inspection_notes),
+            status = COALESCE(?, status),
+            updated_at = CURRENT_TIMESTAMP
+          WHERE company_id = ? AND sku = ?
+        `).bind(
+          data.imageUrls ? JSON.stringify(data.imageUrls) : null,
+          data.actualMeasurements ? JSON.stringify(data.actualMeasurements) : null,
+          data.condition || null,
+          data.material || null,
+          data.productRank || null,
+          data.inspectionNotes || null,
+          data.status || null,
+          companyId,
+          sku
+        ).run();
+        
+        return Response.json({ 
+          success: true, 
+          message: '商品実物データを更新しました',
+          companyId: companyId,
+          sku: sku,
+          changes: result.meta.changes,
         }, { headers: corsHeaders });
       }
       

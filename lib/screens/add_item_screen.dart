@@ -363,6 +363,26 @@ class _AddItemScreenState extends State<AddItemScreen> {
     
     // ✨ カメラ画面から戻ってきた時の処理（ImageItemリスト）
     if (result != null && result.isNotEmpty) {
+      if (kDebugMode) {
+        debugPrint('📸 カメラから戻った: ${result.length}枚');
+        debugPrint('   前回の_images: ${_images.length}枚');
+        
+        // 🔍 重複チェック
+        final idCounts = <String, int>{};
+        for (var img in result) {
+          idCounts[img.id] = (idCounts[img.id] ?? 0) + 1;
+        }
+        final duplicates = idCounts.entries.where((e) => e.value > 1).toList();
+        if (duplicates.isNotEmpty) {
+          debugPrint('⚠️ resultに重複検出: ${duplicates.length}個');
+          for (var dup in duplicates) {
+            debugPrint('   - UUID: ${dup.key} (${dup.value}回)');
+          }
+        } else {
+          debugPrint('✅ resultに重複なし');
+        }
+      }
+      
       setState(() {
         _images = result;  // ✨ ImageItemリストを保存
       });

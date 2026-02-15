@@ -27,12 +27,14 @@ class BatchImageUploadService {
   /// 
   /// [imageItems] - ImageItemのリスト（UUIDを含む）
   /// [sku] - SKUコード
+  /// [companyId] - 企業ID（R2フォルダ構造用）
   /// [onProgress] - 進捗コールバック (current, total)
   /// 
   /// Returns: Result<List<ProductImage>>
   Future<Result<List<ProductImage>>> uploadImagesFromImageItems({
     required List<ImageItem> imageItems,
     required String sku,
+    String? companyId,  // 🏢 企業ID追加
     void Function(int current, int total)? onProgress,
   }) async {
     try {
@@ -57,21 +59,11 @@ class BatchImageUploadService {
         debugPrint('     isNew=${imageItem.isNew}');
         
         // 既存画像の場合はスキップ（再アップロード不要）
+        // ✅ 既存画像はDetailScreenの existingUrls で管理されているため
+        //    ここでは uploadedImages に追加しない
         if (imageItem.isExisting) {
-          debugPrint('  ⏭️ 既存画像をスキップ（再アップロード不要）');
+          debugPrint('  ⏭️ 既存画像を完全スキップ（DetailScreenでexistingUrlsとして管理済み）');
           debugPrint('     url=${imageItem.url}');
-          
-          // 既存画像をProductImageとして追加
-          uploadedImages.add(ProductImage(
-            id: imageItem.id,
-            url: imageItem.url!,
-            fileName: imageItem.id, // UUIDをファイル名として使用
-            sequence: imageItem.sequence,
-            isMain: imageItem.isMain,
-            capturedAt: imageItem.createdAt,
-            source: ImageSource.camera,
-            uploadStatus: UploadStatus.uploaded,
-          ));
           
           onProgress?.call(i + 1, imageItems.length);
           continue;
@@ -100,11 +92,13 @@ class BatchImageUploadService {
 
           // ImageRepositoryを使ってアップロード（ImageItem.idを渡す）
           debugPrint('     🚀 ImageRepository.saveImage()を呼び出し（imageId=${imageItem.id}）');
+          debugPrint('     🏢 企業ID: ${companyId ?? "未指定"}');
           
           final result = await _repository.saveImage(
             imageBytes: imageBytes,
             sku: sku,
             imageId: imageItem.id, // 🎯 Phase 3: ImageItem.idをUUIDとして渡す
+            companyId: companyId,  // 🏢 企業IDを渡す
             sequence: imageItem.sequence,
             source: ImageSource.camera,
             isMain: imageItem.isMain,

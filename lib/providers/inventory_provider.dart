@@ -7,14 +7,22 @@ class InventoryProvider with ChangeNotifier {
   Box<InventoryItem>? _box;
   
   List<InventoryItem> _items = [];
+  String? _currentCompanyId;  // 🏢 現在の企業ID
 
   // 🔄 Hive初期化
-  Future<void> initialize() async {
+  Future<void> initialize({String? companyId}) async {
     _box = await Hive.openBox<InventoryItem>(_boxName);
+    _currentCompanyId = companyId;
     _loadItemsFromBox();
   }
   
-  // 📦 Hiveから商品データを読み込み
+  // 🏢 企業IDを設定して再読み込み
+  void setCompanyId(String companyId) {
+    _currentCompanyId = companyId;
+    _loadItemsFromBox();
+  }
+  
+  // 📦 Hiveから商品データを読み込み（企業IDでフィルタリング）
   void _loadItemsFromBox() {
     if (_box != null && _box!.isNotEmpty) {
       // Hiveからすべてのアイテムを取得
@@ -26,12 +34,23 @@ class InventoryProvider with ChangeNotifier {
         uniqueItems[item.id] = item;
       }
       
-      _items = uniqueItems.values.toList();
+      var filteredItems = uniqueItems.values.toList();
+      
+      // 🏢 企業IDでフィルタリング
+      if (_currentCompanyId != null && _currentCompanyId!.isNotEmpty) {
+        filteredItems = filteredItems.where((item) {
+          return item.companyId == _currentCompanyId;
+        }).toList();
+        
+        print('📦 Hiveから読み込み完了（企業ID: $_currentCompanyId）: ${filteredItems.length}件');
+      } else {
+        print('📦 Hiveから読み込み完了（全データ）: ${filteredItems.length}件');
+      }
+      
+      _items = filteredItems;
       
       // 日付順にソート（新しい順）
       _items.sort((a, b) => b.date.compareTo(a.date));
-      
-      print('📦 Hiveから読み込み完了: ${_items.length}件');
     }
     notifyListeners();
   }
@@ -45,19 +64,47 @@ class InventoryProvider with ChangeNotifier {
 
   // 💾 商品を追加してHiveに保存（SKUベースの上書き保存）
   Future<void> addItem(InventoryItem item) async {
+    // 🏢 企業IDが未設定の場合は現在の企業IDを設定
+    final itemToSave = (item.companyId == null || item.companyId!.isEmpty)
+        ? InventoryItem(
+            id: item.id,
+            name: item.name,
+            brand: item.brand,
+            imageUrl: item.imageUrl,
+            category: item.category,
+            status: item.status,
+            date: item.date,
+            length: item.length,
+            width: item.width,
+            size: item.size,
+            hasAlert: item.hasAlert,
+            barcode: item.barcode,
+            sku: item.sku,
+            color: item.color,
+            productRank: item.productRank,
+            salePrice: item.salePrice,
+            condition: item.condition,
+            description: item.description,
+            material: item.material,
+            imageUrls: item.imageUrls,
+            imagesJson: item.imagesJson,
+            companyId: _currentCompanyId,  // 🏢 現在の企業IDを設定
+          )
+        : item;
+    
     // 🔍 SKUで既存アイテムを検索
     final existingItem = _items.cast<InventoryItem?>().firstWhere(
       (existingItem) => 
         existingItem != null &&
         existingItem.sku != null && 
         existingItem.sku!.isNotEmpty && 
-        existingItem.sku == item.sku,
+        existingItem.sku == itemToSave.sku,
       orElse: () => null,
     );
     
     if (existingItem != null) {
       // 🔄 既存アイテムを更新（SKUが同じ場合）
-      print('🔄 既存のSKU (${item.sku}) を更新します');
+      print('🔄 既存のSKU (${itemToSave.sku}) を更新します');
       print('   古いID: ${existingItem.id}');
       print('   新しいデータで上書きします');
       
@@ -66,7 +113,7 @@ class InventoryProvider with ChangeNotifier {
         final keysToDelete = <dynamic>[];
         for (var key in _box!.keys) {
           final boxItem = _box!.get(key);
-          if (boxItem != null && boxItem.sku == item.sku) {
+          if (boxItem != null && boxItem.sku == itemToSave.sku) {
             keysToDelete.add(key);
           }
         }
@@ -78,28 +125,29 @@ class InventoryProvider with ChangeNotifier {
       }
       
       // リストから古いアイテムを削除
-      _items.removeWhere((i) => i.sku == item.sku);
+      _items.removeWhere((i) => i.sku == itemToSave.sku);
       
       // 新しいアイテムを先頭に追加
-      _items.insert(0, item);
+      _items.insert(0, itemToSave);
     } else {
       // ✨ 新規アイテムとしてリストの先頭に追加
-      print('✨ 新規アイテムとして追加します（SKU: ${item.sku}）');
-      _items.insert(0, item);
+      print('✨ 新規アイテムとして追加します（SKU: ${itemToSave.sku}）');
+      _items.insert(0, itemToSave);
     }
     
     // ローカル保存 (Hive) - IDをキーとして使用
     if (_box != null) {
-      await _box!.put(item.id, item);
-      print('✅ Hiveに保存成功: ID=${item.id}');
+      await _box!.put(itemToSave.id, itemToSave);
+      print('✅ Hiveに保存成功: ID=${itemToSave.id}');
       print('📦 保存データ:');
-      print('   - 商品名: ${item.name}');
-      print('   - カテゴリ: ${item.category}');
-      print('   - 商品の状態: ${item.condition}');
-      print('   - 説明: ${item.description}');
-      print('   - SKU: ${item.sku}');
-      print('   - バーコード: ${item.barcode}');
-      print('   - 画像URL: ${item.imageUrl}');
+      print('   - 商品名: ${itemToSave.name}');
+      print('   - カテゴリ: ${itemToSave.category}');
+      print('   - 商品の状態: ${itemToSave.condition}');
+      print('   - 説明: ${itemToSave.description}');
+      print('   - SKU: ${itemToSave.sku}');
+      print('   - バーコード: ${itemToSave.barcode}');
+      print('   - 企業ID: ${itemToSave.companyId}');  // 🏢 企業ID表示
+      print('   - 画像URL: ${itemToSave.imageUrl}');
     }
     
     notifyListeners();
@@ -151,6 +199,7 @@ class InventoryProvider with ChangeNotifier {
       description: existingItem.description,
       material: existingItem.material,
       imageUrls: newImageUrls,  // 📸 新しい画像リスト
+      companyId: existingItem.companyId,  // 🏢 企業IDを保持
     );
     
     // リストを更新

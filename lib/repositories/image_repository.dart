@@ -41,6 +41,7 @@ class ImageRepository {
     required String sku,
     required int sequence,
     String? imageId,
+    String? companyId,  // 🏢 企業ID追加
     ImageSource source = ImageSource.camera,
     bool isMain = false,
     String? localPath,
@@ -60,10 +61,12 @@ class ImageRepository {
 
       // Step 1: Cloudflareにアップロード
       debugPrint('  ⏳ Step 1: Cloudflareにアップロード中...');
+      debugPrint('  🏢 企業ID: ${companyId ?? "未指定"}');
       final uploadResult = await _uploadToCloudflare(
         imageBytes: imageBytes,
         fileId: fileId,
         sku: sku,
+        companyId: companyId,  // 🏢 企業IDを渡す
       );
 
       if (uploadResult is Failure<String>) {
@@ -272,12 +275,14 @@ class ImageRepository {
     required Uint8List imageBytes,
     required String fileId,
     required String sku,
+    String? companyId,  // 🏢 企業ID追加
   }) async {
     try {
       final imageUrl = await CloudflareWorkersStorageService.uploadImage(
         imageBytes,
         fileId,
         sku: sku,
+        companyId: companyId,  // 🏢 企業IDを渡す
       );
       return Success(imageUrl);
     } catch (e, stackTrace) {

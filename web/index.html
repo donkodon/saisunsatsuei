@@ -40,26 +40,34 @@
   <!-- Html5-QRCode Library for Web (代替用) -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-  
-  <!-- Firebase Configuration -->
+  <!-- Firebase JS SDK v11.9.1 (ESM) - firebase_core_web が期待するwindow変数に事前設定 -->
+  <!-- flutter_bootstrap.js の前に同期的に完了させる -->
   <script>
-    // Firebase configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyAAak1Xn9NM0rhhmLsLT7FOxdHSbzrJcK0",
-      authDomain: "saisunsatsuei-950cf.firebaseapp.com",
-      projectId: "saisunsatsuei-950cf",
-      storageBucket: "saisunsatsuei-950cf.firebasestorage.app",
-      messagingSenderId: "788734188363",
-      appId: "1:788734188363:web:9a8c2c8f89f4554bdda6ce",
-      measurementId: "G-S94RCKLC4M"
+    // firebase_core_web の injectSrcScript と同じ方式で事前ロード
+    // window.firebase_core が存在すれば _initializeCore() はスキップする
+    const _fbVersion = '11.9.1';
+    const _fbBaseUrl = 'https://www.gstatic.com/firebasejs/' + _fbVersion;
+    
+    // window変数名のマッピング: service名 → window変数名
+    const _fbModules = {
+      'app': 'firebase_core',
+      'auth': 'firebase_auth', 
+      'firestore': 'firebase_firestore'
     };
     
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
+    // Promise を作成して flutter_bootstrap.js のロード前に完了を保証
+    window._firebaseLoadPromise = (async function() {
+      for (const [mod, windowVar] of Object.entries(_fbModules)) {
+        const url = _fbBaseUrl + '/firebase-' + mod + '.js';
+        try {
+          const m = await import(url);
+          window[windowVar] = m;
+          console.log('✅ Firebase ' + mod + ' pre-loaded → window.' + windowVar);
+        } catch (e) {
+          console.error('❌ Failed to pre-load Firebase ' + mod + ':', e);
+        }
+      }
+    })();
   </script>
   
   <style>
@@ -76,6 +84,19 @@
   </style>
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <!-- Firebase SDKのロード完了を待ってからFlutterを起動 -->
+  <script>
+    (async function() {
+      // Firebase SDKの事前ロード完了を待つ
+      if (window._firebaseLoadPromise) {
+        await window._firebaseLoadPromise;
+        console.log('✅ All Firebase modules ready, starting Flutter...');
+      }
+      // flutter_bootstrap.js を動的にロード
+      const script = document.createElement('script');
+      script.src = 'flutter_bootstrap.js';
+      document.body.appendChild(script);
+    })();
+  </script>
 </body>
 </html>
