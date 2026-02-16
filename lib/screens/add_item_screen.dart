@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'dart:io';
+import 'dart:developer' as developer;
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/screens/camera_screen_v2.dart';
 import 'package:measure_master/screens/detail_screen.dart';
@@ -1112,24 +1113,16 @@ class _AddItemScreenState extends State<AddItemScreen> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    padding: EdgeInsets.all(12),
+                    padding: EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        Row(
-                          children: [
-                            Expanded(child: _buildMeasurementField("着丈", _lengthController)),
-                            SizedBox(width: 12),
-                            Expanded(child: _buildMeasurementField("身幅", _widthController)),
-                          ],
-                        ),
-                        SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(child: _buildMeasurementField("肩幅", _shoulderController)),
-                            SizedBox(width: 12),
-                            Expanded(child: _buildMeasurementField("袖丈", _sleeveController)),
-                          ],
-                        ),
+                        _buildInputField("着丈", _lengthController, "cm"),
+                        Divider(),
+                        _buildInputField("身幅", _widthController, "cm"),
+                        Divider(),
+                        _buildInputField("肩幅", _shoulderController, "cm"),
+                        Divider(),
+                        _buildInputField("袖丈", _sleeveController, "cm"),
                       ],
                     ),
                   ),
@@ -1146,7 +1139,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                     padding: EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        _buildPriceField("販売価格", _priceController),
+                        _buildInputField("販売価格", _priceController, "¥ 販売価格を入力"),
                         Divider(),
                         _buildSelectTile("配送料の負担", "送料込み(出品者負担)", () {}),
                       ],
@@ -1320,6 +1313,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
           child: TextFormField(
             controller: controller,
             style: TextStyle(fontSize: 16, color: AppConstants.textDark),
+            enableInteractiveSelection: true,
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: TextStyle(color: AppConstants.textGrey, fontSize: 16),
@@ -1364,46 +1358,51 @@ class _AddItemScreenState extends State<AddItemScreen> {
     );
   }
 
+  // 🔧 v4.0: _buildInputField と同じ TextFormField パターンに統一（Web互換性）
   Widget _buildPriceField(String label, TextEditingController controller) {
-    return InkWell(
-      onTap: () => _showPricePicker(controller),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: TextStyle(fontSize: 12, color: AppConstants.textGrey)),
-          SizedBox(height: 8),
-          Container(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      "¥",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppConstants.textDark,
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      controller.text.isEmpty ? "0" : controller.text,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: controller.text.isEmpty ? AppConstants.textGrey : AppConstants.textDark,
-                      ),
-                    ),
-                  ],
-                ),
-                Icon(Icons.edit, color: AppConstants.textGrey, size: 18),
-              ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 12, color: AppConstants.textGrey)),
+        SizedBox(height: 8),
+        Container(
+          padding: EdgeInsets.symmetric(vertical: 4),
+          child: TextFormField(
+            controller: controller,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppConstants.textDark,
             ),
+            enableInteractiveSelection: true,
+            decoration: InputDecoration(
+              prefixText: "¥ ",
+              prefixStyle: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppConstants.textDark,
+              ),
+              hintText: "0",
+              hintStyle: TextStyle(color: AppConstants.textGrey, fontSize: 18),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+              isDense: true,
+            ),
+            onChanged: (value) {
+              developer.log('[PRICE] $label onChanged raw=$value');
+              // 数字のみ抽出してセット
+              final digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
+              if (digitsOnly != value) {
+                controller.text = digitsOnly;
+                controller.selection = TextSelection.fromPosition(
+                  TextPosition(offset: digitsOnly.length),
+                );
+              }
+              setState(() {});
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1481,6 +1480,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
   }
 
   // 📏 実寸入力フィールド
+  // 🔧 v4.0: _buildInputField と同じ TextFormField パターンに統一（Web互換性）
   Widget _buildMeasurementField(String label, TextEditingController controller) {
     return Container(
       decoration: BoxDecoration(
@@ -1506,29 +1506,38 @@ class _AddItemScreenState extends State<AddItemScreen> {
             ),
           ),
           SizedBox(height: 8),
-          TextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppConstants.primaryCyan,
+          Container(
+            padding: EdgeInsets.symmetric(vertical: 4),
+            child: TextFormField(
+              controller: controller,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppConstants.primaryCyan,
+              ),
+              enableInteractiveSelection: true,
+              decoration: InputDecoration(
+                hintText: "0",
+                hintStyle: TextStyle(color: Colors.grey[400], fontSize: 24),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                isDense: true,
+              ),
+              onChanged: (value) {
+                developer.log('[MEASURE] $label onChanged raw=$value');
+                // 数字のみ抽出してセット（3桁まで）
+                final digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
+                final truncated = digitsOnly.length > 3 ? digitsOnly.substring(0, 3) : digitsOnly;
+                if (truncated != value) {
+                  controller.text = truncated;
+                  controller.selection = TextSelection.fromPosition(
+                    TextPosition(offset: truncated.length),
+                  );
+                }
+                setState(() {}); // 枠線の色を更新
+              },
             ),
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              hintText: "0",
-              hintStyle: TextStyle(color: Colors.grey[400]),
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
-            ),
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(3),
-            ],
-            onChanged: (value) {
-              setState(() {}); // 枠線の色を更新
-            },
           ),
           SizedBox(height: 4),
           if (controller.text.isNotEmpty)
@@ -2080,17 +2089,21 @@ class _PricePickerDialogState extends State<_PricePickerDialog> {
     if (!_hasFocused) {
       _hasFocused = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !_focusNode.hasFocus) {
+        if (mounted) {
+          // 🔧 フォーカスをリクエスト
           _focusNode.requestFocus();
-          // 🔧 少し遅延させてから全選択
-          Future.delayed(const Duration(milliseconds: 100), () {
-            if (mounted && widget.tempController.text.isNotEmpty) {
-              widget.tempController.selection = TextSelection(
-                baseOffset: 0,
-                extentOffset: widget.tempController.text.length,
-              );
-            }
-          });
+          
+          // 🔧 既存のテキストがあれば全選択
+          if (widget.tempController.text.isNotEmpty) {
+            Future.delayed(const Duration(milliseconds: 200), () {
+              if (mounted) {
+                widget.tempController.selection = TextSelection(
+                  baseOffset: 0,
+                  extentOffset: widget.tempController.text.length,
+                );
+              }
+            });
+          }
         }
       });
     }
@@ -2099,18 +2112,26 @@ class _PricePickerDialogState extends State<_PricePickerDialog> {
       title: Text("販売価格を入力"),
       content: SizedBox(
         width: 280,  // 🔧 固定幅を設定
-        child: TextField(
+        child: TextFormField(
           controller: widget.tempController,
           focusNode: _focusNode,
-          keyboardType: kIsWeb ? TextInputType.text : TextInputType.number,  // 🔧 Web環境ではtextに変更
+          keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          autofocus: false,  // 🔧 autofocusを無効化（手動でフォーカス管理）
-          enableInteractiveSelection: true,  // 🔧 選択を有効化
+          autofocus: true,
+          enableInteractiveSelection: true,
           style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           onChanged: (value) {
-            // 🔧 入力変更をログ出力（デバッグ用）
             if (kDebugMode) {
               debugPrint('💰 Price input changed: $value');
+            }
+          },
+          onTap: () {
+            // タップ時に全選択
+            if (widget.tempController.text.isNotEmpty) {
+              widget.tempController.selection = TextSelection(
+                baseOffset: 0,
+                extentOffset: widget.tempController.text.length,
+              );
             }
           },
           decoration: InputDecoration(
