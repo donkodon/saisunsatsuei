@@ -6,7 +6,7 @@ import 'package:measure_master/constants.dart';
 import 'package:measure_master/providers/inventory_provider.dart';
 import 'package:measure_master/screens/add_item_screen.dart';
 import 'package:measure_master/screens/api_products_screen.dart';
-import 'package:measure_master/screens/barcode_scanner_screen.dart';
+import 'package:measure_master/features/ocr/presentation/barcode_scanner_screen.dart';
 // firebase_login_screen は不要（ログアウトはStreamBuilderが自動処理）
 import 'package:measure_master/models/item.dart';
 import 'package:measure_master/services/api_service.dart';

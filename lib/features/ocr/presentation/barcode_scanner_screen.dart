@@ -5,7 +5,7 @@ import 'package:measure_master/services/api_service.dart';
 import 'package:measure_master/auth/company_service.dart';
 import 'package:measure_master/models/api_product.dart';
 import 'package:measure_master/screens/add_item_screen.dart';
-import 'web_barcode_scanner_screen_v2.dart';
+import 'package:measure_master/features/ocr/presentation/web_barcode_scanner_screen_v2.dart';
 
 class BarcodeScannerScreen extends StatefulWidget {
   const BarcodeScannerScreen({Key? key}) : super(key: key);
