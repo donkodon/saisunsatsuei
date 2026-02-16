@@ -25,6 +25,15 @@ class GarmentMeasurementModel with _$GarmentMeasurementModel {
     /// Replicate出力画像URL（採寸線が描画された画像）
     String? measurementImageUrl,
     
+    /// マスク画像URL（セグメンテーション結果）
+    String? maskImageUrl,
+    
+    /// AIランドマーク座標（JSON文字列）
+    String? aiLandmarks,
+    
+    /// 基準物体情報（JSON文字列）
+    String? referenceObject,
+    
     /// 採寸日時
     required DateTime timestamp,
     

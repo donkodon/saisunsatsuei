@@ -67,6 +67,16 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
   @override
   void initState() {
     super.initState();
+    
+    if (kDebugMode) {
+      debugPrint('🔍 ========== CameraScreenV2 初期化 ==========');
+      debugPrint('📏 AI自動採寸フラグ: ${widget.aiMeasure ? "ON" : "OFF"}');
+      debugPrint('📸 既存画像数: ${widget.existingImages?.length ?? 0}枚');
+      debugPrint('📦 商品名: ${widget.itemName}');
+      debugPrint('🏷️ SKU: ${widget.sku}');
+      debugPrint('==========================================');
+    }
+    
     _initializeCamera();
     _initializeExistingImages();
   }

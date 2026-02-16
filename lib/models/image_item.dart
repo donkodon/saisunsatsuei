@@ -77,7 +77,7 @@ class ImageItem {
   bool get isExisting => url != null;
   
   /// 新規画像かどうか（まだアップロードされていない）
-  bool get isNew => file != null && url == null;
+  bool get isNew => (file != null || bytes != null) && url == null;
   
   /// 順序を更新した新しいインスタンスを作成
   ImageItem copyWithSequence(int newSequence, {bool? isMain}) {

@@ -114,6 +114,7 @@ class InventorySaver {
           'photographedBy': companyId.isNotEmpty ? companyId : 'unknown',
           'photographedAt': DateTime.now().toIso8601String(),
           'status': 'available',
+          'company_id': companyId.isNotEmpty ? companyId : 'unknown',  // 🔥 company_id を追加
         };
 
         // 追加データをマージ

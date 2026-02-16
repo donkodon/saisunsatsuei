@@ -676,6 +676,11 @@ class _DetailScreenState extends State<DetailScreen> {
             CustomButton(
               text: "商品確定", 
               onPressed: () async {
+                print('');
+                print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+                print('🔘 商品確定ボタンがタップされました');
+                print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+                print('');
                 await _saveProduct();
               }
             ),
@@ -746,6 +751,13 @@ class _DetailScreenState extends State<DetailScreen> {
   /// - InventorySaver: Hive + D1保存
   /// - コード量を約400行 → 約200行に削減
   Future<void> _saveProduct() async {
+    // 🔥 関数実行確認ログ（最優先）
+    print('');
+    print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+    print('🚀 _saveProduct() 関数が呼ばれました！');
+    print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+    print('');
+    
     try {
       // ========================================
       // Phase 1: 古い画像URLを取得（差分削除用）
@@ -907,21 +919,75 @@ class _DetailScreenState extends State<DetailScreen> {
       // ========================================
       // Phase 6.5: AI自動採寸（Fire & Forget - バックグラウンド実行）
       // ========================================
+      
+      // 🔍 強制デバッグログ（kDebugModeに関係なく必ず出力）
+      print('');
+      print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+      print('✅ 商品確定ボタンが押されました');
+      print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+      print('📏 AI自動採寸トグル: ${widget.aiMeasureEnabled ? "✅ ON" : "❌ OFF"}');
+      print('📸 アップロード済み画像: ${uploadResult.allUrls.isNotEmpty ? "✅ あり" : "❌ なし"}');
+      print('📸 画像数: ${uploadResult.allUrls.length}枚');
+      if (uploadResult.allUrls.isNotEmpty) {
+        print('🎯 最初の画像URL: ${uploadResult.allUrls.first}');
+      }
+      print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+      print('');
+      
       if (widget.aiMeasureEnabled && uploadResult.allUrls.isNotEmpty) {
         if (kDebugMode) {
-          debugPrint('📏 AI自動採寸開始（バックグラウンド）');
+          debugPrint('🔍 ========== AI自動採寸デバッグ情報 ==========');
+          debugPrint('📏 AI自動採寸トグル: ${widget.aiMeasureEnabled ? "ON" : "OFF"}');
+          debugPrint('📸 アップロード済み画像数: ${uploadResult.allUrls.length}枚');
+          debugPrint('🎯 採寸対象画像（シーケンス1）: ${uploadResult.allUrls.first}');
+          debugPrint('📦 SKU: ${widget.sku.isNotEmpty ? widget.sku : "NOSKU"}');
+          debugPrint('🏢 企業ID取得中...');
         }
         
         // 企業IDを取得（null時は空文字）
         final companyId = await _companyService.getCompanyId() ?? '';
         
+        if (kDebugMode) {
+          debugPrint('🏢 企業ID: $companyId');
+          debugPrint('📂 カテゴリ: ${widget.category}');
+          debugPrint('🚀 Replicate API呼び出し開始...');
+        }
+        
         // バックグラウンドで採寸実行（ユーザーを待たせない）
-        _measurementService.measureGarmentAsync(
-          imageUrl: uploadResult.allUrls.first,  // 最初の画像を使用
-          sku: widget.sku.isNotEmpty ? widget.sku : 'NOSKU',
-          companyId: companyId,
-          category: widget.category,
-        );
+        try {
+          await _measurementService.measureGarmentAsync(
+            imageUrl: uploadResult.allUrls.first,  // 最初の画像を使用
+            sku: widget.sku.isNotEmpty ? widget.sku : 'NOSKU',
+            companyId: companyId,
+            category: widget.category,
+          );
+          
+          if (kDebugMode) {
+            debugPrint('✅ AI採寸リクエスト送信成功');
+            debugPrint('⏳ Webhook経由でD1に結果が保存されます');
+            debugPrint('   - measurements (肩幅/袖丈/着丈/身幅)');
+            debugPrint('   - ai_landmarks (ランドマーク座標)');
+            debugPrint('   - reference_object (基準物体情報)');
+            debugPrint('   - measurement_image_url (採寸画像URL)');
+            debugPrint('   - mask_image_url (マスク画像URL)');
+            debugPrint('==========================================');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('❌ AI採寸リクエスト送信エラー: $e');
+            debugPrint('==========================================');
+          }
+        }
+      } else {
+        if (kDebugMode) {
+          debugPrint('⚠️ AI自動採寸スキップ:');
+          if (!widget.aiMeasureEnabled) {
+            debugPrint('   理由: AI自動採寸トグルがOFF');
+          }
+          if (uploadResult.allUrls.isEmpty) {
+            debugPrint('   理由: アップロード済み画像が0枚');
+          }
+        }
       }
 
       // ========================================
@@ -960,6 +1026,18 @@ class _DetailScreenState extends State<DetailScreen> {
 
     } catch (e, stackTrace) {
       Navigator.pop(context);
+      
+      // 🔥 強制エラーログ
+      print('');
+      print('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
+      print('❌ _saveProduct() でエラー発生！');
+      print('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
+      print('エラー: $e');
+      print('スタックトレース:');
+      print('$stackTrace');
+      print('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
+      print('');
+      
       debugPrint('❌ 保存エラー: $e');
       debugPrint('スタックトレース: $stackTrace');
       _showError('保存エラー: $e');
@@ -1151,37 +1229,22 @@ class _DetailScreenState extends State<DetailScreen> {
         height: 120,
         fit: BoxFit.cover,
       );
-    } else if (imageItem.file != null) {
-      // ローカルファイルがある場合
-      imageWidget = kIsWeb
-          ? Image.network(
-              imageItem.file!.path,
-              width: 100,
-              height: 120,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  width: 100,
-                  height: 120,
-                  color: Colors.grey[200],
-                  child: Icon(Icons.image, size: 40, color: Colors.grey[400]),
-                );
-              },
-            )
-          : Image.file(
-              File(imageItem.file!.path),
-              width: 100,
-              height: 120,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  width: 100,
-                  height: 120,
-                  color: Colors.grey[200],
-                  child: Icon(Icons.image, size: 40, color: Colors.grey[400]),
-                );
-              },
-            );
+    } else if (imageItem.bytes != null) {
+      // ローカルファイル（bytes）がある場合
+      imageWidget = Image.memory(
+        imageItem.bytes!,
+        width: 100,
+        height: 120,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: 100,
+            height: 120,
+            color: Colors.grey[200],
+            child: Icon(Icons.image, size: 40, color: Colors.grey[400]),
+          );
+        },
+      );
     } else if (displayUrl != null) {
       // 🔧 URLからの読み込み - キャッシュバスティングを適用
       // 🎨 Phase 5: displayUrl（元画像 or 白抜き画像）を使用
@@ -1324,41 +1387,23 @@ class _DetailScreenState extends State<DetailScreen> {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: kIsWeb
-            ? Image.network(
-                imagePath,  // Web環境では blob: URL をそのまま使用
-                width: 100, 
-                height: 120, 
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  if (kDebugMode) {
-                    debugPrint('❌ Web画像読み込みエラー: $error');
-                  }
-                  return Container(
-                    width: 100,
-                    height: 120,
-                    color: Colors.grey[200],
-                    child: Icon(Icons.image, size: 40, color: Colors.grey[400]),
-                  );
-                },
-              )
-            : Image.file(
-                File(imagePath),
+          child: Image.network(
+            imagePath,  // Web環境では blob: URL をそのまま使用
+            width: 100, 
+            height: 120, 
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              if (kDebugMode) {
+                debugPrint('❌ 画像読み込みエラー: $error');
+              }
+              return Container(
                 width: 100,
                 height: 120,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  if (kDebugMode) {
-                    debugPrint('❌ 画像読み込みエラー: $error');
-                  }
-                  return Container(
-                    width: 100,
-                    height: 120,
-                    color: Colors.grey[200],
-                    child: Icon(Icons.image, size: 40, color: Colors.grey[400]),
-                  );
-                },
-              ),
+                color: Colors.grey[200],
+                child: Icon(Icons.image, size: 40, color: Colors.grey[400]),
+              );
+            },
+          ),
         ),
         if (isMain)
           Positioned(

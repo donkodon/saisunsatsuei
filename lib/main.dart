@@ -13,6 +13,18 @@ import 'package:measure_master/auth/auth_gate.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // 🔥 アプリ起動確認ログ（必ず出力される）
+  print('');
+  print('=' * 60);
+  print('🚀🚀🚀 Cargo Measure アプリ起動！ 🚀🚀🚀');
+  print('=' * 60);
+  print('⏰ 起動時刻: ${DateTime.now()}');
+  print('🔍 このログが見えていれば、ログ出力は正常です');
+  print('📱 これからログを監視してください');
+  print('=' * 60);
+  print('');
+  
   runApp(const MyApp());
 }
 

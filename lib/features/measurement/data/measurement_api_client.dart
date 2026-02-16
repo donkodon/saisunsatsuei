@@ -49,7 +49,9 @@ class MeasurementApiClient {
   }) async {
     try {
       if (kDebugMode) {
-        debugPrint('📏 AI自動採寸開始');
+        debugPrint('🔍 ========== MeasurementApiClient デバッグ ==========');
+        debugPrint('📏 AI自動採寸API呼び出し開始');
+        debugPrint('🎯 リクエスト詳細:');
         debugPrint('   画像URL: $imageUrl');
         debugPrint('   SKU: $sku');
         debugPrint('   企業ID: $companyId');
@@ -64,9 +66,11 @@ class MeasurementApiClient {
       };
 
       if (kDebugMode) {
-        debugPrint('📤 採寸APIリクエスト送信');
-        debugPrint('   URL: $d1ApiUrl/api/measure');
+        debugPrint('📤 Workers APIリクエスト送信:');
+        debugPrint('   エンドポイント: $d1ApiUrl/api/measure');
+        debugPrint('   メソッド: POST');
         debugPrint('   Body: ${json.encode(requestBody)}');
+        debugPrint('   タイムアウト: 10秒');
       }
 
       final response = await httpClient
@@ -77,11 +81,12 @@ class MeasurementApiClient {
             },
             body: json.encode(requestBody),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 10)); // Workers即レスポンス（prediction作成のみ）
 
       if (kDebugMode) {
-        debugPrint('📡 採寸APIレスポンス (${response.statusCode})');
-        debugPrint('   Body: ${response.body}');
+        debugPrint('📡 Workers APIレスポンス受信:');
+        debugPrint('   HTTPステータス: ${response.statusCode}');
+        debugPrint('   レスポンスBody: ${response.body}');
       }
 
       if (response.statusCode == 200) {
@@ -90,17 +95,52 @@ class MeasurementApiClient {
         if (jsonData['success'] == true) {
           if (kDebugMode) {
             debugPrint('✅ 採寸リクエスト受付成功');
+            debugPrint('📊 レスポンス詳細:');
             debugPrint('   status: ${jsonData['status']}');
             debugPrint('   prediction_id: ${jsonData['prediction_id']}');
+            debugPrint('   message: ${jsonData['message']}');
+            debugPrint('🔗 Webhook URL設定済み:');
+            debugPrint('   /api/webhook/replicate?sku=$sku&company_id=$companyId');
           }
 
+          // 採寸結果を抽出（同期ポーリング方式の場合、結果が即座に返る）
+          final measurementsData = jsonData['measurements'] as Map<String, dynamic>?;
+
+          if (kDebugMode) {
+            debugPrint('📦 採寸結果データ確認:');
+            debugPrint('   measurements: ${measurementsData != null ? "あり" : "null"}');
+            debugPrint('   measurement_image_url: ${jsonData['measurement_image_url'] != null ? "あり" : "null"}');
+            debugPrint('   mask_image_url: ${jsonData['mask_image_url'] != null ? "あり" : "null"}');
+            debugPrint('   ai_landmarks: ${jsonData['ai_landmarks'] != null ? "あり" : "null"}');
+            debugPrint('   reference_object: ${jsonData['reference_object'] != null ? "あり" : "null"}');
+            debugPrint('==========================================');
+          }
+          
           return MeasurementApiResponse(
             success: true,
-            predictionId: jsonData['prediction_id'] as String,
+            predictionId: jsonData['prediction_id'] as String? ?? '',
             status: jsonData['status'] as String? ?? 'processing',
             message: jsonData['message'] as String? ?? 'AI採寸リクエストを受け付けました',
+            // 採寸結果フィールド
+            measurements: measurementsData,
+            measurementImageUrl: jsonData['measurement_image_url'] as String?,
+            maskImageUrl: jsonData['mask_image_url'] as String?,
+            aiLandmarks: jsonData['ai_landmarks'] is String
+                ? jsonData['ai_landmarks'] as String
+                : jsonData['ai_landmarks'] != null
+                    ? json.encode(jsonData['ai_landmarks'])
+                    : null,
+            referenceObject: jsonData['reference_object'] is String
+                ? jsonData['reference_object'] as String
+                : jsonData['reference_object'] != null
+                    ? json.encode(jsonData['reference_object'])
+                    : null,
           );
         } else {
+          if (kDebugMode) {
+            debugPrint('❌ Workers API エラー: success=false');
+            debugPrint('   message: ${jsonData['message']}');
+          }
           throw MeasurementApiException(
             '採寸API失敗: ${jsonData['message'] ?? '不明なエラー'}',
             statusCode: response.statusCode,
@@ -109,8 +149,9 @@ class MeasurementApiClient {
       } else if (response.statusCode == 400) {
         final errorData = json.decode(response.body) as Map<String, dynamic>;
         if (kDebugMode) {
-          debugPrint('❌ 採寸リクエストエラー (400)');
-          debugPrint('   エラー: ${errorData['message'] ?? '不明なエラー'}');
+          debugPrint('❌ 採寸リクエストエラー (HTTP 400)');
+          debugPrint('   エラーメッセージ: ${errorData['message'] ?? '不明なエラー'}');
+          debugPrint('   リクエストBody: ${json.encode(requestBody)}');
         }
         throw MeasurementApiException(
           '不正なリクエスト: ${errorData['message'] ?? '不明なエラー'}',
@@ -157,12 +198,35 @@ class MeasurementApiResponse {
   /// メッセージ
   final String message;
 
+  /// 採寸結果（shoulder_width, sleeve_length, body_length, body_width）
+  final Map<String, dynamic>? measurements;
+
+  /// 採寸結果の可視化画像URL
+  final String? measurementImageUrl;
+
+  /// マスク画像URL（セグメンテーション結果）
+  final String? maskImageUrl;
+
+  /// AIランドマーク座標（JSON文字列）
+  final String? aiLandmarks;
+
+  /// 基準物体情報（JSON文字列）
+  final String? referenceObject;
+
   MeasurementApiResponse({
     required this.success,
     required this.predictionId,
     required this.status,
     required this.message,
+    this.measurements,
+    this.measurementImageUrl,
+    this.maskImageUrl,
+    this.aiLandmarks,
+    this.referenceObject,
   });
+
+  /// 採寸が完了しているか
+  bool get isCompleted => status == 'completed' && measurements != null;
 }
 
 /// 採寸API例外クラス

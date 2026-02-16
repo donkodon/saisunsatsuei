@@ -108,6 +108,12 @@ class _AddItemScreenState extends State<AddItemScreen> {
   void initState() {
     super.initState();
     
+    // 🔍 初期化時の強制ログ
+    print('========================================');
+    print('AddItemScreen 初期化');
+    print('AI自動採寸トグル初期値: $_aiMeasure');
+    print('========================================');
+    
     // 📝 既存商品データから読み込み（編集モード）
     if (widget.existingItem != null) {
       _loadExistingItem(widget.existingItem!);
@@ -1023,7 +1029,12 @@ class _AddItemScreenState extends State<AddItemScreen> {
                         Divider(),
                         _buildInputField("サイズ", _sizeController, "サイズを入力してください (例: M, L, XL)"),
                         Divider(),
-                        _buildSwitchTile("AI自動採寸", "撮影時に自動でサイズを計測します", _aiMeasure, (v) => setState(() => _aiMeasure = v)),
+                        _buildSwitchTile("AI自動採寸", "撮影時に自動でサイズを計測します", _aiMeasure, (v) {
+                          setState(() => _aiMeasure = v);
+                          print('========================================');
+                          print('AI自動採寸トグル変更: ${v ? "ON" : "OFF"}');
+                          print('========================================');
+                        }),
                         Divider(),
                         _buildOcrButton(),
                       ],
@@ -1168,6 +1179,20 @@ class _AddItemScreenState extends State<AddItemScreen> {
                   );
                   return;
                 }
+                
+                // 🔍 AI自動採寸トグルの状態をデバッグ出力（強制出力）
+                print('');
+                print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+                print('📱 商品詳細画面への遷移');
+                print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+                print('📏 AI自動採寸トグル: ${_aiMeasure ? "✅ ON" : "❌ OFF"}');
+                print('📸 画像数: ${_images.length}枚');
+                print('📦 商品名: ${_nameController.text}');
+                print('🏷️  SKU: ${_skuController.text}');
+                print('→ DetailScreen に aiMeasureEnabled=${_aiMeasure} を渡す');
+                print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+                print('');
+                
                 // 🚀 商品詳細画面へ直接遷移
                 Navigator.push(
                   context,
@@ -1204,6 +1229,8 @@ class _AddItemScreenState extends State<AddItemScreen> {
                       width: _widthController.text,
                       shoulder: _shoulderController.text,
                       sleeve: _sleeveController.text,
+                      // 📏 AI自動採寸フラグ（ユーザーのスイッチ設定を反映）
+                      aiMeasureEnabled: _aiMeasure,
                     ),
                     transitionsBuilder: (context, animation, secondaryAnimation, child) {
                       return FadeTransition(opacity: animation, child: child);

@@ -36,6 +36,15 @@ mixin _$GarmentMeasurementModel {
   /// Replicate出力画像URL（採寸線が描画された画像）
   String? get measurementImageUrl => throw _privateConstructorUsedError;
 
+  /// マスク画像URL（セグメンテーション結果）
+  String? get maskImageUrl => throw _privateConstructorUsedError;
+
+  /// AIランドマーク座標（JSON文字列）
+  String? get aiLandmarks => throw _privateConstructorUsedError;
+
+  /// 基準物体情報（JSON文字列）
+  String? get referenceObject => throw _privateConstructorUsedError;
+
   /// 採寸日時
   DateTime get timestamp => throw _privateConstructorUsedError;
 
@@ -63,6 +72,9 @@ abstract class $GarmentMeasurementModelCopyWith<$Res> {
       String companyId,
       GarmentMeasurements measurements,
       String? measurementImageUrl,
+      String? maskImageUrl,
+      String? aiLandmarks,
+      String? referenceObject,
       DateTime timestamp,
       MeasurementStatus status,
       String? errorMessage});
@@ -89,6 +101,9 @@ class _$GarmentMeasurementModelCopyWithImpl<$Res,
     Object? companyId = null,
     Object? measurements = null,
     Object? measurementImageUrl = freezed,
+    Object? maskImageUrl = freezed,
+    Object? aiLandmarks = freezed,
+    Object? referenceObject = freezed,
     Object? timestamp = null,
     Object? status = null,
     Object? errorMessage = freezed,
@@ -113,6 +128,18 @@ class _$GarmentMeasurementModelCopyWithImpl<$Res,
       measurementImageUrl: freezed == measurementImageUrl
           ? _value.measurementImageUrl
           : measurementImageUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      maskImageUrl: freezed == maskImageUrl
+          ? _value.maskImageUrl
+          : maskImageUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      aiLandmarks: freezed == aiLandmarks
+          ? _value.aiLandmarks
+          : aiLandmarks // ignore: cast_nullable_to_non_nullable
+              as String?,
+      referenceObject: freezed == referenceObject
+          ? _value.referenceObject
+          : referenceObject // ignore: cast_nullable_to_non_nullable
               as String?,
       timestamp: null == timestamp
           ? _value.timestamp
@@ -153,6 +180,9 @@ abstract class _$$GarmentMeasurementModelImplCopyWith<$Res>
       String companyId,
       GarmentMeasurements measurements,
       String? measurementImageUrl,
+      String? maskImageUrl,
+      String? aiLandmarks,
+      String? referenceObject,
       DateTime timestamp,
       MeasurementStatus status,
       String? errorMessage});
@@ -179,6 +209,9 @@ class __$$GarmentMeasurementModelImplCopyWithImpl<$Res>
     Object? companyId = null,
     Object? measurements = null,
     Object? measurementImageUrl = freezed,
+    Object? maskImageUrl = freezed,
+    Object? aiLandmarks = freezed,
+    Object? referenceObject = freezed,
     Object? timestamp = null,
     Object? status = null,
     Object? errorMessage = freezed,
@@ -203,6 +236,18 @@ class __$$GarmentMeasurementModelImplCopyWithImpl<$Res>
       measurementImageUrl: freezed == measurementImageUrl
           ? _value.measurementImageUrl
           : measurementImageUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      maskImageUrl: freezed == maskImageUrl
+          ? _value.maskImageUrl
+          : maskImageUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      aiLandmarks: freezed == aiLandmarks
+          ? _value.aiLandmarks
+          : aiLandmarks // ignore: cast_nullable_to_non_nullable
+              as String?,
+      referenceObject: freezed == referenceObject
+          ? _value.referenceObject
+          : referenceObject // ignore: cast_nullable_to_non_nullable
               as String?,
       timestamp: null == timestamp
           ? _value.timestamp
@@ -229,6 +274,9 @@ class _$GarmentMeasurementModelImpl implements _GarmentMeasurementModel {
       required this.companyId,
       required this.measurements,
       this.measurementImageUrl,
+      this.maskImageUrl,
+      this.aiLandmarks,
+      this.referenceObject,
       required this.timestamp,
       required this.status,
       this.errorMessage});
@@ -256,6 +304,18 @@ class _$GarmentMeasurementModelImpl implements _GarmentMeasurementModel {
   @override
   final String? measurementImageUrl;
 
+  /// マスク画像URL（セグメンテーション結果）
+  @override
+  final String? maskImageUrl;
+
+  /// AIランドマーク座標（JSON文字列）
+  @override
+  final String? aiLandmarks;
+
+  /// 基準物体情報（JSON文字列）
+  @override
+  final String? referenceObject;
+
   /// 採寸日時
   @override
   final DateTime timestamp;
@@ -270,7 +330,7 @@ class _$GarmentMeasurementModelImpl implements _GarmentMeasurementModel {
 
   @override
   String toString() {
-    return 'GarmentMeasurementModel(id: $id, sku: $sku, companyId: $companyId, measurements: $measurements, measurementImageUrl: $measurementImageUrl, timestamp: $timestamp, status: $status, errorMessage: $errorMessage)';
+    return 'GarmentMeasurementModel(id: $id, sku: $sku, companyId: $companyId, measurements: $measurements, measurementImageUrl: $measurementImageUrl, maskImageUrl: $maskImageUrl, aiLandmarks: $aiLandmarks, referenceObject: $referenceObject, timestamp: $timestamp, status: $status, errorMessage: $errorMessage)';
   }
 
   @override
@@ -286,6 +346,12 @@ class _$GarmentMeasurementModelImpl implements _GarmentMeasurementModel {
                 other.measurements == measurements) &&
             (identical(other.measurementImageUrl, measurementImageUrl) ||
                 other.measurementImageUrl == measurementImageUrl) &&
+            (identical(other.maskImageUrl, maskImageUrl) ||
+                other.maskImageUrl == maskImageUrl) &&
+            (identical(other.aiLandmarks, aiLandmarks) ||
+                other.aiLandmarks == aiLandmarks) &&
+            (identical(other.referenceObject, referenceObject) ||
+                other.referenceObject == referenceObject) &&
             (identical(other.timestamp, timestamp) ||
                 other.timestamp == timestamp) &&
             (identical(other.status, status) || other.status == status) &&
@@ -296,7 +362,7 @@ class _$GarmentMeasurementModelImpl implements _GarmentMeasurementModel {
   @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(runtimeType, id, sku, companyId, measurements,
-      measurementImageUrl, timestamp, status, errorMessage);
+      measurementImageUrl, maskImageUrl, aiLandmarks, referenceObject, timestamp, status, errorMessage);
 
   @JsonKey(ignore: true)
   @override
@@ -320,6 +386,9 @@ abstract class _GarmentMeasurementModel implements GarmentMeasurementModel {
       required final String companyId,
       required final GarmentMeasurements measurements,
       final String? measurementImageUrl,
+      final String? maskImageUrl,
+      final String? aiLandmarks,
+      final String? referenceObject,
       required final DateTime timestamp,
       required final MeasurementStatus status,
       final String? errorMessage}) = _$GarmentMeasurementModelImpl;
@@ -347,6 +416,18 @@ abstract class _GarmentMeasurementModel implements GarmentMeasurementModel {
 
   /// Replicate出力画像URL（採寸線が描画された画像）
   String? get measurementImageUrl;
+  @override
+
+  /// マスク画像URL
+  String? get maskImageUrl;
+  @override
+
+  /// AIランドマーク座標
+  String? get aiLandmarks;
+  @override
+
+  /// 基準物体情報
+  String? get referenceObject;
   @override
 
   /// 採寸日時
