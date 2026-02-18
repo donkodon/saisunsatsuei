@@ -1,0 +1,47 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  analyze:
+    name: Flutter Analyze (Phase 1 – warn on issues)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.35.4"
+          channel: "stable"
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run flutter analyze
+        run: |
+          flutter analyze --no-fatal-warnings --no-fatal-infos 2>&1 | tee analyze_output.txt
+          if grep -q "^  error " analyze_output.txt; then
+            echo "❌ flutter analyze: ERROR found. Fix errors before merging."
+            grep "^  error " analyze_output.txt
+            exit 1
+          fi
+          echo "✅ flutter analyze: No errors found."
+          WARNINGS=$(grep -c "^warning " analyze_output.txt || true)
+          INFOS=$(grep -c "^   info " analyze_output.txt || true)
+          echo "📊 Warnings: ${WARNINGS}, Info: ${INFOS}"
+
+      - name: Upload analyze output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-analyze-output
+          path: analyze_output.txt
+          retention-days: 7
