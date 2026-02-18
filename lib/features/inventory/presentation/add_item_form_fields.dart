@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/features/inventory/domain/image_item.dart';
-import 'package:measure_master/core/services/image_cache_service.dart';
 
 /// AddItemScreen で使われる純粋 UI ビルダーを mixin として切り出し。
 ///
@@ -217,55 +217,65 @@ mixin AddItemFormFieldsMixin<T extends StatefulWidget> on State<T> {
 
   /// ImageItem から表示用 Widget を生成する。
   Widget buildImageWidget(ImageItem imageItem) {
+    // ⚡ RepaintBoundaryでドラッグ時の再描画を最適化
+    return RepaintBoundary(
+      child: _buildImageContent(imageItem),
+    );
+  }
+
+  Widget _buildImageContent(ImageItem imageItem) {
     if (imageItem.bytes != null) {
       return Image.memory(
         imageItem.bytes!,
         width: 100,
         height: 120,
         fit: BoxFit.cover,
+        gaplessPlayback: true, // ⚡ スムーズな画像切替
       );
     } else if (imageItem.file != null) {
       return kIsWeb
-          ? Image.network(
-              imageItem.file!.path,
+          ? CachedNetworkImage(
+              imageUrl: imageItem.file!.path,
               width: 100,
               height: 120,
               fit: BoxFit.cover,
-              cacheWidth: 200,   // ⚡ Retina対応(2x)
-              cacheHeight: 240,
+              memCacheWidth: 200,  // ⚡ メモリキャッシュ
+              memCacheHeight: 240,
+              placeholder: (context, url) => Container(
+                width: 100, height: 120,
+                color: Colors.grey[200],
+              ),
+              errorWidget: (context, url, error) => Container(
+                width: 100, height: 120,
+                color: Colors.grey[200],
+                child: Icon(Icons.broken_image,
+                    size: 40, color: Colors.grey[400]),
+              ),
             )
           : Image.file(
               File(imageItem.file!.path),
               width: 100,
               height: 120,
               fit: BoxFit.cover,
+              gaplessPlayback: true,
             );
     } else if (imageItem.url != null) {
-      final cacheBustedUrl =
-          ImageCacheService.getCacheBustedUrl(imageItem.url!);
-      return Image.network(
-        cacheBustedUrl,
+      // ⚡ CachedNetworkImageで確実にキャッシュ
+      return CachedNetworkImage(
+        imageUrl: imageItem.url!,
         width: 100,
         height: 120,
         fit: BoxFit.cover,
-        cacheWidth: 200,   // ⚡ Retina対応(2x)
-        cacheHeight: 240,
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          return Container(
-            width: 100, height: 120,
-            color: Colors.grey[200],
-            child: const Center(child: SizedBox(
-              width: 20, height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) {
+        memCacheWidth: 200,  // ⚡ メモリキャッシュ
+        memCacheHeight: 240,
+        placeholder: (context, url) => Container(
+          width: 100, height: 120,
+          color: Colors.grey[200],
+        ),
+        errorWidget: (context, url, error) {
           if (kDebugMode) debugPrint('❌ 画像読み込みエラー: $error');
           return Container(
-            width: 100,
-            height: 120,
+            width: 100, height: 120,
             color: Colors.grey[200],
             child: Icon(Icons.broken_image,
                 size: 40, color: Colors.grey[400]),

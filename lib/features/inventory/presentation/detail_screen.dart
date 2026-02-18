@@ -110,6 +110,7 @@ class _DetailScreenState extends State<DetailScreen>
   late String _selectedMaterial;
   late String _selectedColor;
   Color _colorPreview = Colors.white;
+  late List<ImageItem> _currentImages; // 🆕 画像リスト（並び替え対応）
 
   final TextEditingController _descriptionController =
       TextEditingController();
@@ -182,7 +183,7 @@ class _DetailScreenState extends State<DetailScreen>
   @override String? get widgetShoulder => widget.shoulder;
   @override String? get widgetSleeve => widget.sleeve;
   @override bool get widgetAiMeasureEnabled => widget.aiMeasureEnabled;
-  @override List<ImageItem>? get widgetImages => widget.images;
+  @override List<ImageItem>? get widgetImages => _currentImages; // 🆕 並び替え後の画像を使用
 
   @override TextEditingController get skuController => _skuController;
   @override TextEditingController get sizeController => _sizeController;
@@ -273,6 +274,9 @@ class _DetailScreenState extends State<DetailScreen>
     _descriptionController
         .addListener(() => _charCount.value = _descriptionController.text.length);
 
+    // 🆕 画像リストの初期化
+    _currentImages = widget.images != null ? List.from(widget.images!) : [];
+
     _initializeWhiteImages();
   }
 
@@ -351,7 +355,9 @@ class _DetailScreenState extends State<DetailScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 🎨 画像カルーセル + 白抜き切替
-            DetailScreenImageSection(images: widget.images),
+            DetailScreenImageSection(
+              images: _currentImages,
+            ),
             const SizedBox(height: 24),
 
             // 📋 商品情報・詳細・実寸・説明

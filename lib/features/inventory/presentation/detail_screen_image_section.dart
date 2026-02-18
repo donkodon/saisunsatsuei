@@ -12,7 +12,10 @@ import 'package:measure_master/features/inventory/presentation/detail_image_widg
 class DetailScreenImageSection extends StatefulWidget {
   final List<ImageItem>? images;
 
-  const DetailScreenImageSection({super.key, this.images});
+  const DetailScreenImageSection({
+    super.key, 
+    this.images,
+  });
 
   @override
   State<DetailScreenImageSection> createState() =>

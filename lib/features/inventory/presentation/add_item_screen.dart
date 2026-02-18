@@ -14,6 +14,9 @@ import 'package:measure_master/features/inventory/presentation/add_item_pickers.
 import 'package:measure_master/features/inventory/presentation/add_item_form_fields.dart';
 // 🆕 OCR セクション mixin
 import 'package:measure_master/features/inventory/presentation/add_item_ocr_section.dart';
+// 🔄 リファクタリング: 並び替え可能な画像カルーセル
+import 'package:measure_master/features/inventory/presentation/widgets/reorderable_image_carousel.dart';
+import 'package:measure_master/core/utils/image_reorder_helper.dart';
 import 'package:measure_master/core/utils/app_feedback.dart';
 
 class AddItemScreen extends StatefulWidget {
@@ -436,55 +439,34 @@ class _AddItemScreenState extends State<AddItemScreen>
         child: Column(children: children),
       );
 
+  /// 🔄 ドラッグ&ドロップで画像順番変更
+  void _onImageReorder(List<ImageItem> reorderedImages) {
+    setState(() {
+      _images = reorderedImages;
+    });
+    AppFeedback.showSuccess(context, '画像の順番を変更しました');
+  }
+
+  /// ❌ 画像削除
+  void _onImageDelete(int index) {
+    setState(() {
+      _images = ImageReorderHelper.removeImageAt(_images, index);
+    });
+  }
+
   Widget _buildImageSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // サムネイル一覧
-        if (_images.isNotEmpty) ...[
-          SizedBox(
-            height: 120,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _images.length,
-              itemBuilder: (ctx, index) {
-                final imageItem = _images[index];
-                return Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  child: Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: buildImageWidget(imageItem), // ← mixin 提供
-                      ),
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() => _images.removeAt(index));
-                            AppFeedback.showWarning(context, '画像を削除しました',
-                                duration: const Duration(seconds: 2));
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.close,
-                                color: Colors.white, size: 16),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
+        // サムネイル一覧（ドラッグ&ドロップ対応）
+        ReorderableImageCarousel(
+          images: _images,
+          onReorder: _onImageReorder,
+          onDelete: _onImageDelete,
+          imageBuilder: (imageItem) => buildImageWidget(imageItem),
+          height: 120,
+        ),
+        if (_images.isNotEmpty) const SizedBox(height: 16),
 
         // 写真を追加ボタン
         GestureDetector(

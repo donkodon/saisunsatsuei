@@ -47,12 +47,15 @@ class _MyAppState extends State<MyApp> {
         Hive.registerAdapter(InventoryItemAdapter());
       }
 
-      // ImageCacheService は Hive 完了後に開始（Hive ボックスを開くため）
-      await ImageCacheService.initialize();
-
       if (mounted) {
         setState(() => _initialized = true);
       }
+
+      // ⚡ ImageCacheService は遅延初期化（バックグラウンドで実行）
+      // UI表示を優先し、画像キャッシュは後から初期化
+      ImageCacheService.initialize().catchError((e) {
+        debugPrint('⚠️ ImageCacheService初期化エラー（継続可能）: $e');
+      });
     } catch (e, stack) {
       debugPrint('❌ アプリ初期化エラー: $e');
       FlutterError.reportError(FlutterErrorDetails(
