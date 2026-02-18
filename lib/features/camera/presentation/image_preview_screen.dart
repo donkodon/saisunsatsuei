@@ -305,10 +305,11 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
         },
       );
     } else {
-      // ローカル画像の場合
+      // ローカル画像の場合（フルビュー・上限800pxでデコード）
       return Image.network(
         imageUrl,
         fit: BoxFit.contain,
+        cacheWidth: 800,  // フル表示でも800px上限でメモリ節約
         errorBuilder: (context, error, stackTrace) {
           // 🎨 Phase 5: エラー時のフォールバック
           if (isWhite && widget.imageUrls.isNotEmpty) {

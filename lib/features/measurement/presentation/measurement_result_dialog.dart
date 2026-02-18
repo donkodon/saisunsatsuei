@@ -81,6 +81,7 @@ class MeasurementResultDialog extends StatelessWidget {
                 child: Image.network(
                   measurement.measurementImageUrl!,
                   fit: BoxFit.contain,
+                  cacheWidth: 800,  // ダイアログ内表示・上限800pxでメモリ節約
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
                     return const Center(

@@ -32,6 +32,10 @@ class LocalImageFile {
     double? height,
     BoxFit fit = BoxFit.cover,
   }) {
+    // 表示サイズの2倍でデコード（Retina対応・メモリ節約）
+    final int? cW = width != null ? (width * 2).toInt() : null;
+    final int? cH = height != null ? (height * 2).toInt() : null;
+
     if (url != null) {
       // アップロード済み: URLから表示
       return Image.network(
@@ -39,6 +43,8 @@ class LocalImageFile {
         width: width,
         height: height,
         fit: fit,
+        cacheWidth: cW,    // 表示サイズに合わせてデコード解像度を制限
+        cacheHeight: cH,
         errorBuilder: (context, error, stackTrace) {
           return Container(
             width: width,
@@ -56,6 +62,8 @@ class LocalImageFile {
           width: width,
           height: height,
           fit: fit,
+          cacheWidth: cW,
+          cacheHeight: cH,
         );
       } else {
         return Image.file(

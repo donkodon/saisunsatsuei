@@ -231,6 +231,8 @@ mixin AddItemFormFieldsMixin<T extends StatefulWidget> on State<T> {
               width: 100,
               height: 120,
               fit: BoxFit.cover,
+              cacheWidth: 200,   // ⚡ Retina対応(2x)
+              cacheHeight: 240,
             )
           : Image.file(
               File(imageItem.file!.path),
@@ -246,6 +248,19 @@ mixin AddItemFormFieldsMixin<T extends StatefulWidget> on State<T> {
         width: 100,
         height: 120,
         fit: BoxFit.cover,
+        cacheWidth: 200,   // ⚡ Retina対応(2x)
+        cacheHeight: 240,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            width: 100, height: 120,
+            color: Colors.grey[200],
+            child: const Center(child: SizedBox(
+              width: 20, height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )),
+          );
+        },
         errorBuilder: (context, error, stackTrace) {
           if (kDebugMode) debugPrint('❌ 画像読み込みエラー: $error');
           return Container(

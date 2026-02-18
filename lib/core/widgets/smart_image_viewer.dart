@@ -163,20 +163,25 @@ class SmartImageViewer extends StatelessWidget {
     // 🔧 キャッシュバスティング適用
     final cacheBustedUrl = ImageCacheService.getCacheBustedUrl(url);
     
+    // 表示サイズからデコードサイズを算出（高DPIデバイス対応でx2、最大800px上限）
+    final devicePixelRatio = WidgetsBinding
+            .instance.platformDispatcher.views.first.devicePixelRatio;
+    final cacheW = (width * devicePixelRatio).clamp(1, 800).toInt();
+    final cacheH = (height * devicePixelRatio).clamp(1, 800).toInt();
+
     return Image.network(
       cacheBustedUrl,
       width: width,
       height: height,
       fit: fit,
+      cacheWidth: cacheW,
+      cacheHeight: cacheH,
       loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) {
-          return child;
-        }
+        if (loadingProgress == null) return child;
         return _buildLoading(loadingProgress);
       },
       errorBuilder: (context, error, stackTrace) {
-        
-        // 🎨 Phase 5: 白抜き画像のエラー時は元画像にフォールバック
+        // 🎨 白抜き画像のエラー時は元画像にフォールバック
         if (showWhiteBackground && imageUrl != null && url == whiteImageUrl) {
           final fallbackUrl = ImageCacheService.getCacheBustedUrl(imageUrl!);
           return Image.network(
@@ -184,10 +189,11 @@ class SmartImageViewer extends StatelessWidget {
             width: width,
             height: height,
             fit: fit,
+            cacheWidth: cacheW,
+            cacheHeight: cacheH,
             errorBuilder: (_, __, ___) => _buildError(),
           );
         }
-        
         return _buildError();
       },
     );

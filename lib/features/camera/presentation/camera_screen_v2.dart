@@ -321,9 +321,19 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
         width: 80,
         height: 80,
         fit: BoxFit.cover,
-        // ✅ Phase 1のUUID形式でキャッシュ衝突は回避済み
-        // ✅ ?t=timestamp パラメータでキャッシュバスティング実現
-        // ❌ Cache-Controlヘッダーは削除（CORS問題回避）
+        cacheWidth: 160,  // ⚡ Retina対応(2x)でメモリ・デコード負荷削減
+        cacheHeight: 160,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            width: 80, height: 80,
+            color: Colors.grey[200],
+            child: const Center(child: SizedBox(
+              width: 20, height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )),
+          );
+        },
         errorBuilder: (context, error, stackTrace) {
           return Container(
             width: 80,
@@ -341,6 +351,8 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
               width: 80,
               height: 80,
               fit: BoxFit.cover,
+              cacheWidth: 160,
+              cacheHeight: 160,
             )
           : Image.file(
               File(imageItem.file!.path),
