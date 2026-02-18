@@ -928,6 +928,32 @@ class _DetailScreenState extends State<DetailScreen> {
           : 'https://via.placeholder.com/150';
 
       final uniqueId = '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
+
+      // 🎨 白抜き画像・マスク画像URLを imageUrls に追加（動いていた a5d17e8a と同じ形式に戻す）
+      // リファクタリング前: allImageUrls = [...existingUrls, ...imageUrls] で白抜き・マスクも混在していた
+      // リファクタリング後: uploadResult.allUrls は通常画像のみで白抜き・マスクが欠落していた
+      final seen = <String>{};
+      final allImageUrlsWithDerived = <String>[];
+      // 1. 通常画像（アップロード済み）
+      for (final url in uploadResult.allUrls) {
+        if (seen.add(url)) allImageUrlsWithDerived.add(url);
+      }
+      // 2. 白抜き画像（ImageItem.whiteUrl から収集）
+      if (widget.images != null) {
+        for (final img in widget.images!) {
+          if (img.whiteUrl != null && seen.add(img.whiteUrl!)) {
+            allImageUrlsWithDerived.add(img.whiteUrl!);
+          }
+        }
+      }
+      debugPrint('📦 Phase 5: 保存URLリスト: ${allImageUrlsWithDerived.length}件（通常${uploadResult.allUrls.length}件 + 白抜き${allImageUrlsWithDerived.length - uploadResult.allUrls.length}件）');
+      if (kDebugMode) {
+        for (int i = 0; i < allImageUrlsWithDerived.length; i++) {
+          final url = allImageUrlsWithDerived[i];
+          final type = url.contains('_white.jpg') ? '白抜き' : url.contains('_mask.png') ? 'マスク' : '通常';
+          debugPrint('   [$i] ($type) $url');
+        }
+      }
       
       final newItem = InventoryItem(
         id: uniqueId,
@@ -948,7 +974,7 @@ class _DetailScreenState extends State<DetailScreen> {
         color: (_selectedColor.isEmpty || _selectedColor == '選択してください') ? null : _selectedColor,
         material: (_selectedMaterial.isEmpty || _selectedMaterial == '選択してください') ? null : _selectedMaterial,
         salePrice: widget.price.isNotEmpty ? int.tryParse(widget.price) : null,
-        imageUrls: uploadResult.allUrls,  // 重複除去済みURL
+        imageUrls: allImageUrlsWithDerived,  // 通常 + 白抜き画像を含む完全リスト
       );
 
       // ========================================
@@ -956,7 +982,7 @@ class _DetailScreenState extends State<DetailScreen> {
       // ========================================
       final saveResult = await _inventorySaver.saveToHiveAndD1(
         item: newItem,
-        imageUrls: uploadResult.allUrls,
+        imageUrls: allImageUrlsWithDerived,  // 通常 + 白抜き画像を含む完全リスト
         additionalData: {
           // 実寸データなど追加情報があればここに
           'length': widget.length,
