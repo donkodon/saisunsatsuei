@@ -25,7 +25,7 @@ android {
         applicationId = "com.measuremaster.measure_master"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 21
+        minSdk = 21  // mobile_scanner 6.x requires minSdk 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
