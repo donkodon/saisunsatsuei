@@ -118,23 +118,57 @@ class _DetailScreenState extends State<DetailScreen>
   final TextEditingController _sizeController = TextEditingController();
   final ValueNotifier<int> _charCount = ValueNotifier<int>(0);
 
-  // ─── サービス ────────────────────────────────────────────────
-  late final WhiteBackgroundService _whiteBackgroundService;
+  // ─── サービス（遅延初期化: 使用直前に生成してinitStateを軽量化）───
+  // Provider から直接取得するサービス（initStateで確定）
   late final InventoryProvider _inventoryProvider;
-  // ✅ CompanyService は Provider 経由で取得（直接 new しない）
   late final CompanyService _companyService;
-  late final ImageUploadCoordinator _uploadCoordinator;
-  late final ImageDiffManager _diffManager;
-  late final InventorySaver _inventorySaver;
-  late final MeasurementService _measurementService;
 
-  // ─── DetailSaveMixin が要求する getter ──────────────────────
+  // 💡 Lazy init: 保存ボタン押下時まで生成を遅らせるサービス群
+  WhiteBackgroundService? _whiteBackgroundServiceInstance;
+  ImageUploadCoordinator? _uploadCoordinatorInstance;
+  ImageDiffManager? _diffManagerInstance;
+  InventorySaver? _inventorySaverInstance;
+  MeasurementService? _measurementServiceInstance;
+
+  // ─── DetailSaveMixin が要求する getter（lazy init） ────────
   @override CompanyService get companyService => _companyService;
   @override InventoryProvider get inventoryProvider => _inventoryProvider;
-  @override ImageUploadCoordinator get uploadCoordinator => _uploadCoordinator;
-  @override ImageDiffManager get diffManager => _diffManager;
-  @override InventorySaver get inventorySaver => _inventorySaver;
-  @override MeasurementService get measurementService => _measurementService;
+
+  @override
+  ImageUploadCoordinator get uploadCoordinator {
+    _uploadCoordinatorInstance ??= ImageUploadCoordinator();
+    return _uploadCoordinatorInstance!;
+  }
+
+  @override
+  ImageDiffManager get diffManager {
+    _diffManagerInstance ??= ImageDiffManager();
+    return _diffManagerInstance!;
+  }
+
+  @override
+  InventorySaver get inventorySaver {
+    _inventorySaverInstance ??= InventorySaver(
+      inventoryProvider: _inventoryProvider,
+      companyService: _companyService,
+    );
+    return _inventorySaverInstance!;
+  }
+
+  @override
+  MeasurementService get measurementService {
+    _measurementServiceInstance ??= MeasurementService(
+      apiClient: MeasurementApiClient(d1ApiUrl: ApiService.d1ApiUrl),
+      repository: MeasurementRepository(),
+    );
+    return _measurementServiceInstance!;
+  }
+
+  // WhiteBackgroundService は _initializeWhiteImages でのみ使用
+  WhiteBackgroundService get _whiteBackgroundService {
+    _whiteBackgroundServiceInstance ??= WhiteBackgroundService();
+    return _whiteBackgroundServiceInstance!;
+  }
 
   @override String get widgetSku => widget.sku;
   @override String get widgetItemName => widget.itemName;
@@ -216,21 +250,12 @@ class _DetailScreenState extends State<DetailScreen>
   void initState() {
     super.initState();
 
-    _whiteBackgroundService = WhiteBackgroundService();
+    // ✅ Provider 経由のサービスのみ initState で確定（軽量）
     _inventoryProvider =
         Provider.of<InventoryProvider>(context, listen: false);
-    // ✅ Provider の同一インスタンスを取得
     _companyService = Provider.of<CompanyService>(context, listen: false);
-    _uploadCoordinator = ImageUploadCoordinator();
-    _diffManager = ImageDiffManager();
-    _measurementService = MeasurementService(
-      apiClient: MeasurementApiClient(d1ApiUrl: ApiService.d1ApiUrl),
-      repository: MeasurementRepository(),
-    );
-    _inventorySaver = InventorySaver(
-      inventoryProvider: _inventoryProvider,
-      companyService: _companyService,
-    );
+    // 残りのサービス（Coordinator/DiffManager/Saver/MeasurementService）は
+    // 実際に保存ボタンが押されたときに lazy init される
 
     _selectedMaterial = widget.material.isNotEmpty &&
             widget.material != '選択してください'
@@ -258,7 +283,8 @@ class _DetailScreenState extends State<DetailScreen>
     _skuController.dispose();
     _sizeController.dispose();
     _charCount.dispose();
-    _measurementService.dispose();
+    // 生成済みの場合のみ dispose
+    _measurementServiceInstance?.dispose();
     super.dispose();
   }
 

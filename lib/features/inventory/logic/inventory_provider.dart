@@ -4,123 +4,169 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 class InventoryProvider with ChangeNotifier {
   static const String _boxName = 'inventory_items';
-  Box<InventoryItem>? _box;
-  
-  List<InventoryItem> _items = [];
-  String? _currentCompanyId;  // 🏢 現在の企業ID
 
-  // 🔄 Hive初期化
+  // ─── Hive ────────────────────────────────────────────────
+  Box<InventoryItem>? _box;
+
+  // ─── 全件データ（フィルタ済み・ソート済み） ──────────────
+  List<InventoryItem> _items = [];
+
+  // ─── 企業ID ─────────────────────────────────────────────
+  String? _currentCompanyId;
+
+  // ─── カウントキャッシュ（O(1) アクセス） ─────────────────
+  int _cachedReadyCount = 0;
+  int _cachedDraftCount = 0;
+
+  // ─── ページネーション ─────────────────────────────────────
+  static const int _pageSize = 20; // 1ページあたりの件数
+  int _displayedCount = _pageSize;  // 現在表示中の件数
+
+  // ─── 初期化 ───────────────────────────────────────────────
   Future<void> initialize({String? companyId}) async {
     _box = await Hive.openBox<InventoryItem>(_boxName);
     _currentCompanyId = companyId;
+    _displayedCount = _pageSize; // ページをリセット
     _loadItemsFromBox();
   }
-  
-  // 🏢 企業IDを設定して再読み込み
+
+  // ─── 企業ID セッター ──────────────────────────────────────
   void setCompanyId(String companyId) {
     _currentCompanyId = companyId;
+    _displayedCount = _pageSize;
     _loadItemsFromBox();
   }
 
-  // 🏢 企業IDが変わったときだけ再読み込み（ProxyProvider用・無駄な再描画を防止）
+  // ─── ProxyProvider 用: 同じIDなら何もしない ──────────────
   void setCompanyIdIfChanged(String companyId) {
-    if (_currentCompanyId == companyId) return; // 同じIDなら何もしない
+    if (_currentCompanyId == companyId) return;
     _currentCompanyId = companyId;
+    _displayedCount = _pageSize;
     _loadItemsFromBox();
   }
-  
-  // 📦 Hiveから商品データを読み込み（企業IDでフィルタリング）
+
+  // ─── Hive から全件読み込み + カウントキャッシュ更新 ───────
   void _loadItemsFromBox() {
     if (_box != null && _box!.isNotEmpty) {
-      // Hiveからすべてのアイテムを取得
-      final loadedItems = _box!.values.toList();
-      
-      // 🔍 重複排除: IDでユニークなアイテムのみを保持
+      // 重複排除
       final uniqueItems = <String, InventoryItem>{};
-      for (var item in loadedItems) {
+      for (final item in _box!.values) {
         uniqueItems[item.id] = item;
       }
-      
-      var filteredItems = uniqueItems.values.toList();
-      
-      // 🏢 企業IDでフィルタリング
+
+      var filtered = uniqueItems.values.toList();
+
+      // 企業IDフィルタ
       if (_currentCompanyId != null && _currentCompanyId!.isNotEmpty) {
-        filteredItems = filteredItems.where((item) {
-          return item.companyId == _currentCompanyId;
-        }).toList();
-        
-      } else {
+        filtered = filtered
+            .where((item) => item.companyId == _currentCompanyId)
+            .toList();
       }
-      
-      _items = filteredItems;
-      
-      // 日付順にソート（新しい順）
-      _items.sort((a, b) => b.date.compareTo(a.date));
+
+      // 日付降順ソート
+      filtered.sort((a, b) => b.date.compareTo(a.date));
+      _items = filtered;
+    } else {
+      _items = [];
     }
+
+    // ─── カウントをO(n)で一度だけ計算してキャッシュ ─────────
+    _updateCountCache();
+
     notifyListeners();
   }
-  
 
-  
+  /// キャッシュを _items から一括計算（呼び出し元はO(1)でアクセス可能）
+  void _updateCountCache() {
+    int ready = 0;
+    int draft = 0;
+    for (final item in _items) {
+      if (item.status == 'Ready') {
+        ready++;
+      } else if (item.status == 'Draft') {
+        draft++;
+      }
+    }
+    _cachedReadyCount = ready;
+    _cachedDraftCount = draft;
+  }
+
+  // ─── 公開ゲッター ─────────────────────────────────────────
+
+  /// 全件リスト（フィルタ・ソート済み）
   List<InventoryItem> get items => _items;
-  
-  int get readyCount => _items.where((i) => i.status == 'Ready').length;
-  int get draftCount => _items.where((i) => i.status == 'Draft').length;
 
-  // 💾 商品を追加してHiveに保存（SKUベースの上書き保存）
+  /// 現在表示中のページ分のみ返す（Dashboard の一覧表示用）
+  List<InventoryItem> get pagedItems =>
+      _items.length <= _displayedCount ? _items : _items.sublist(0, _displayedCount);
+
+  /// 次のページを読み込む
+  bool get hasMore => _displayedCount < _items.length;
+
+  void loadNextPage() {
+    if (!hasMore) return;
+    _displayedCount += _pageSize;
+    notifyListeners();
+  }
+
+  /// ページをリセット（画面再表示時などに呼ぶ）
+  void resetPage() {
+    if (_displayedCount == _pageSize) return; // 変化なし
+    _displayedCount = _pageSize;
+    notifyListeners();
+  }
+
+  /// Ready 件数（O(1) — 毎回スキャン不要）
+  int get readyCount => _cachedReadyCount;
+
+  /// Draft 件数（O(1) — 毎回スキャン不要）
+  int get draftCount => _cachedDraftCount;
+
+  // ─── 商品追加 (Upsert by SKU) ────────────────────────────
   Future<void> addItem(InventoryItem item) async {
-    // 🏢 企業IDが未設定の場合は現在の企業IDを設定
     final itemToSave = (item.companyId == null || item.companyId!.isEmpty)
         ? item.copyWith(companyId: _currentCompanyId)
         : item;
-    
-    // 🔍 SKUで既存アイテムを検索
+
+    // SKU重複チェック
     final existingItem = _items.cast<InventoryItem?>().firstWhere(
-      (existingItem) => 
-        existingItem != null &&
-        existingItem.sku != null && 
-        existingItem.sku!.isNotEmpty && 
-        existingItem.sku == itemToSave.sku,
+      (e) =>
+          e != null &&
+          e.sku != null &&
+          e.sku!.isNotEmpty &&
+          e.sku == itemToSave.sku,
       orElse: () => null,
     );
-    
+
     if (existingItem != null) {
-      // 🔄 既存アイテムを更新（SKUが同じ場合）
-      
-      // Hiveから古いエントリをすべて削除（念のため全検索）
+      // Hive から旧エントリを全削除
       if (_box != null) {
         final keysToDelete = <dynamic>[];
-        for (var key in _box!.keys) {
+        for (final key in _box!.keys) {
           final boxItem = _box!.get(key);
           if (boxItem != null && boxItem.sku == itemToSave.sku) {
             keysToDelete.add(key);
           }
         }
-        
-        for (var key in keysToDelete) {
+        for (final key in keysToDelete) {
           await _box!.delete(key);
         }
       }
-      
-      // リストから古いアイテムを削除
       _items.removeWhere((i) => i.sku == itemToSave.sku);
-      
-      // 新しいアイテムを先頭に追加
-      _items.insert(0, itemToSave);
-    } else {
-      // ✨ 新規アイテムとしてリストの先頭に追加
-      _items.insert(0, itemToSave);
     }
-    
-    // ローカル保存 (Hive) - IDをキーとして使用
+
+    _items.insert(0, itemToSave);
+
     if (_box != null) {
       await _box!.put(itemToSave.id, itemToSave);
     }
-    
+
+    // カウントキャッシュを更新
+    _updateCountCache();
     notifyListeners();
   }
-  
-  // 🔍 SKUまたはバーコードで商品を検索
+
+  // ─── SKU / バーコードで検索 ───────────────────────────────
   InventoryItem? findBySku(String sku) {
     try {
       return _items.firstWhere(
@@ -130,50 +176,39 @@ class InventoryProvider with ChangeNotifier {
       return null;
     }
   }
-  
-  // 📸 商品の画像URLを更新
+
+  // ─── 画像URL更新 ──────────────────────────────────────────
   Future<void> updateItemImages(String sku, List<String> newImageUrls) async {
     if (sku.isEmpty) return;
-    
-    // SKUで既存アイテムを検索
+
     final index = _items.indexWhere((item) => item.sku == sku);
-    if (index == -1) {
-      return;
-    }
-    
+    if (index == -1) return;
+
     final existingItem = _items[index];
-    
-    // 新しいアイテムを作成（画像URLのみ更新）
     final updatedItem = existingItem.copyWith(
       imageUrl: newImageUrls.isNotEmpty ? newImageUrls.first : existingItem.imageUrl,
       imageUrls: newImageUrls,
     );
-    
-    // リストを更新
+
     _items[index] = updatedItem;
-    
-    // Hiveを更新
+
     if (_box != null) {
       await _box!.put(existingItem.id, updatedItem);
     }
-    
+
     notifyListeners();
   }
-  
-  // 🗑️ 商品から特定の画像を削除
+
+  // ─── 特定画像を削除 ──────────────────────────────────────
   Future<void> removeImageFromItem(String sku, String imageUrl) async {
     if (sku.isEmpty) return;
-    
+
     final existingItem = findBySku(sku);
-    if (existingItem == null) {
-      return;
-    }
-    
-    // 現在の画像リストから指定の画像を削除
+    if (existingItem == null) return;
+
     final currentImages = List<String>.from(existingItem.imageUrls ?? []);
     currentImages.remove(imageUrl);
-    
-    // 更新
+
     await updateItemImages(sku, currentImages);
   }
 }
