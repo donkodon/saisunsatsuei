@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode, debugPrint;
 import 'package:provider/provider.dart';
 import 'package:measure_master/constants.dart';
-import 'package:measure_master/providers/inventory_provider.dart';
-import 'package:measure_master/screens/add_item_screen.dart';
+import 'package:measure_master/features/inventory/logic/inventory_provider.dart';
+import 'package:measure_master/features/inventory/presentation/add_item_screen.dart';
 import 'package:measure_master/features/ocr/presentation/barcode_scanner_screen.dart';
 // firebase_login_screen は不要（ログアウトはStreamBuilderが自動処理）
-import 'package:measure_master/services/api_service.dart';
-import 'package:measure_master/auth/company_service.dart';
-import 'package:measure_master/auth/auth_service.dart';
-import 'package:measure_master/models/api_product.dart';
-import 'package:measure_master/widgets/smart_image_viewer.dart';
+import 'package:measure_master/core/services/api_service.dart';
+import 'package:measure_master/features/auth/logic/company_service.dart';
+import 'package:measure_master/features/auth/logic/auth_service.dart';
+import 'package:measure_master/features/inventory/domain/api_product.dart';
+import 'package:measure_master/core/widgets/smart_image_viewer.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -609,44 +609,5 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildDimensionTag(String text) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        border: Border.all(color: AppConstants.borderGrey),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(text, style: TextStyle(fontSize: 12, color: AppConstants.textGrey)),
-    );
-  }
 
-  /// 📸 ファイルパスとアセットパスの両方に対応した画像表示
-  /// 
-  /// 🔧 v2.0 改善点:
-  /// - キャッシュバスティングを適用して常に最新画像を表示
-  /// - Image.networkにキャッシュ制御ヘッダーを追加
-  /// 
-  /// 🎨 Phase 5: SmartImageViewerに統一
-  Widget _buildItemImage(String imageUrl) {
-    return SmartImageViewer(
-      imageUrl: imageUrl,
-      width: 80,
-      height: 80,
-      fit: BoxFit.cover,
-      borderRadius: 8,
-    );
-  }
-
-  // 🖼️ プレースホルダー画像を生成
-  Widget _buildPlaceholderImage(IconData icon) {
-    return Container(
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(icon, size: 32, color: Colors.grey[400]),
-    );
-  }
 }

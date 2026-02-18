@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:measure_master/constants.dart';
-import 'package:measure_master/screens/dashboard_screen.dart';
-import 'package:measure_master/auth/login_screen.dart';
-import 'package:measure_master/auth/auth_service.dart';
-import 'package:measure_master/auth/company_service.dart';
+import 'package:measure_master/features/inventory/presentation/dashboard_screen.dart';
+import 'package:measure_master/features/auth/presentation/login_screen.dart';
+import 'package:measure_master/features/auth/logic/auth_service.dart';
+import 'package:measure_master/features/auth/logic/company_service.dart';
 
 /// 🔥 Firebase認証ゲート
 /// Firebase Authentication + Firestore users の状態に応じて画面を切り替え

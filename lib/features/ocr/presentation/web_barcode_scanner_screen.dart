@@ -3,8 +3,8 @@ import 'dart:html' as html;
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
-import 'package:measure_master/services/api_service.dart';
-import 'package:measure_master/screens/detail_screen.dart';
+import 'package:measure_master/core/services/api_service.dart';
+import 'package:measure_master/features/inventory/presentation/detail_screen.dart';
 
 class WebBarcodeScannerScreen extends StatefulWidget {
   const WebBarcodeScannerScreen({super.key});

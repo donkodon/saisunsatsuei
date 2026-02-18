@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
-import 'package:measure_master/models/image_item.dart';
-import 'package:measure_master/models/product_image.dart';
-import 'package:measure_master/models/result.dart';
-import 'package:measure_master/services/batch_image_upload_service.dart';
+import 'package:measure_master/features/inventory/domain/image_item.dart';
+import 'package:measure_master/features/inventory/domain/product_image.dart';
+import 'package:measure_master/core/utils/result.dart';
+import 'package:measure_master/features/inventory/data/batch_image_upload_service.dart';
 
 /// 📤 画像アップロード調整クラス
 /// 

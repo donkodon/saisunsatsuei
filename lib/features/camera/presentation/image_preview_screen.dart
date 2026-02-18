@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'dart:typed_data';
-import '../services/image_cache_service.dart';
+import '../../../core/services/image_cache_service.dart';
 
 /// 📸 フルスクリーン画像プレビュー画面
 /// 

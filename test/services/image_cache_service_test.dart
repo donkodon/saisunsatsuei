@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
-import 'package:measure_master/services/image_cache_service.dart';
+import 'package:measure_master/core/services/image_cache_service.dart';
 import 'dart:typed_data';
 import 'dart:io';
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:measure_master/auth/auth_service.dart';
+import 'package:measure_master/features/auth/logic/auth_service.dart';
 
 /// Firebase 認証ログイン画面（管理者招待制 - ログインのみ）
 /// 

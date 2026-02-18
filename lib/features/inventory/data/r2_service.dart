@@ -1,9 +1,10 @@
 import 'dart:io';
 import 'dart:typed_data'; // Uint8List
+import 'package:flutter/foundation.dart';
 import 'package:minio/minio.dart';
 import 'package:mime/mime.dart';
 import 'package:path/path.dart' as path;
-import '../config/r2_config.dart';
+import '../../../config/r2_config.dart';
 
 class R2Service {
   late Minio _minio;

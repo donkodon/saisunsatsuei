@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:measure_master/models/item.dart';
+import 'package:measure_master/features/inventory/domain/item.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 class InventoryProvider with ChangeNotifier {

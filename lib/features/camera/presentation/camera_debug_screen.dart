@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:measure_master/constants.dart';
-import 'package:measure_master/widgets/image_input.dart';
+import 'package:measure_master/core/widgets/image_input.dart';
 
 class CameraDebugScreen extends StatefulWidget {
   const CameraDebugScreen({super.key});

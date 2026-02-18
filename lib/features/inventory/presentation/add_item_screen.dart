@@ -3,13 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'dart:io';
 import 'package:measure_master/constants.dart';
-import 'package:measure_master/screens/camera_screen_v2.dart';
-import 'package:measure_master/screens/detail_screen.dart';
-import 'package:measure_master/widgets/custom_button.dart';
-import 'package:measure_master/models/api_product.dart';
-import 'package:measure_master/models/item.dart';
-import 'package:measure_master/models/image_item.dart';
-import 'package:measure_master/services/image_cache_service.dart';
+import 'package:measure_master/features/camera/presentation/camera_screen_v2.dart';
+import 'package:measure_master/features/inventory/presentation/detail_screen.dart';
+import 'package:measure_master/core/widgets/custom_button.dart';
+import 'package:measure_master/features/inventory/domain/api_product.dart';
+import 'package:measure_master/features/inventory/domain/item.dart';
+import 'package:measure_master/features/inventory/domain/image_item.dart';
+import 'package:measure_master/core/services/image_cache_service.dart';
 import 'package:measure_master/features/ocr/logic/ocr_service.dart';
 import 'package:measure_master/features/ocr/domain/ocr_result.dart';
 import 'package:image_picker/image_picker.dart';
@@ -584,40 +584,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
     );
   }
   
-  /// 画像データをバイト配列で取得
-  Future<Uint8List?> _getImageBytes(ImageItem imageItem) async {
-    try {
-      // bytesが直接ある場合はそれを使用
-      if (imageItem.bytes != null) {
-        return imageItem.bytes;
-      }
-      
-      // Webの場合はURLから取得、モバイルの場合はファイルから取得
-      if (kIsWeb) {
-        // URLから画像データを取得
-        if (imageItem.url != null) {
-          final response = await http.get(Uri.parse(imageItem.url!));
-          if (response.statusCode == 200) {
-            return response.bodyBytes;
-          }
-        }
-      } else {
-        // ローカルファイルから取得
-        if (imageItem.file != null) {
-          final file = File(imageItem.file!.path);
-          if (await file.exists()) {
-            return await file.readAsBytes();
-          }
-        }
-      }
-      return null;
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('❌ 画像データ取得エラー: $e');
-      }
-      return null;
-    }
-  }
+
   
   // Category options
   final List<String> _categories = [

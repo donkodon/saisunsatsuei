@@ -1,21 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:measure_master/constants.dart';
-import 'package:measure_master/widgets/custom_button.dart';
-import 'package:measure_master/screens/dashboard_screen.dart';
+import 'package:measure_master/core/widgets/custom_button.dart';
+import 'package:measure_master/features/inventory/presentation/dashboard_screen.dart';
 import 'package:provider/provider.dart';
-import 'package:measure_master/providers/inventory_provider.dart';
-import 'package:measure_master/models/item.dart';
-import 'package:measure_master/services/image_cache_service.dart';
-import 'package:measure_master/auth/company_service.dart';
-import 'package:measure_master/screens/image_preview_screen.dart';
-import 'package:measure_master/services/batch_image_upload_service.dart';
-import 'package:measure_master/services/white_background_service.dart';
-import 'package:measure_master/models/image_item.dart';
-import 'package:measure_master/widgets/smart_image_viewer.dart';
-import 'dart:convert';
-import 'package:image_picker/image_picker.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:measure_master/features/inventory/logic/inventory_provider.dart';
+import 'package:measure_master/features/inventory/domain/item.dart';
+import 'package:measure_master/core/services/image_cache_service.dart';
+import 'package:measure_master/features/auth/logic/company_service.dart';
+import 'package:measure_master/features/camera/presentation/image_preview_screen.dart';
+import 'package:measure_master/features/inventory/data/white_background_service.dart';
+import 'package:measure_master/features/inventory/domain/image_item.dart';
+import 'package:measure_master/core/widgets/smart_image_viewer.dart';
 
 // 🆕 新しいロジッククラスをインポート
 import 'package:measure_master/features/inventory/logic/image_upload_coordinator.dart';
@@ -26,7 +22,7 @@ import 'package:measure_master/features/inventory/logic/inventory_saver.dart';
 import 'package:measure_master/features/measurement/logic/measurement_service.dart';
 import 'package:measure_master/features/measurement/data/measurement_api_client.dart';
 import 'package:measure_master/features/measurement/data/measurement_repository.dart';
-import 'package:measure_master/services/api_service.dart';
+import 'package:measure_master/core/services/api_service.dart';
 
 class DetailScreen extends StatefulWidget {
   final String itemName;

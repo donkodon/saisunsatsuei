@@ -4,8 +4,8 @@ import 'package:measure_master/constants.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:measure_master/services/cloudflare_storage_service.dart';
-import 'package:measure_master/services/image_cache_service.dart';
+import 'package:measure_master/features/inventory/data/cloudflare_storage_service.dart';
+import 'package:measure_master/core/services/image_cache_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:async';
 
@@ -89,8 +89,6 @@ class _CameraScreenState extends State<CameraScreen> {
     if (_capturedImages.isEmpty) return 1;
     
     int maxCounter = 0;
-    final skuTrimmed = widget.sku.trim();
-    
     for (final imagePath in _capturedImages) {
       // URLからファイル名を抽出して連番を解析
       // 例: "https://.../{SKU}_3.jpg" → 3

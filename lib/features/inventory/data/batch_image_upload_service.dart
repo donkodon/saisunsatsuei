@@ -3,10 +3,10 @@ import 'package:image_picker/image_picker.dart' hide ImageSource;
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
-import '../models/product_image.dart';
-import '../models/result.dart';
-import '../models/image_item.dart';
-import '../repositories/image_repository.dart';
+import '../domain/product_image.dart';
+import '../../../core/utils/result.dart';
+import '../domain/image_item.dart';
+import './image_repository.dart';
 
 /// 📤 一括画像アップロードサービス
 /// 

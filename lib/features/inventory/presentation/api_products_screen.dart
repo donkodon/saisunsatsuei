@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:measure_master/constants.dart';
-import 'package:measure_master/models/api_product.dart';
+import 'package:measure_master/features/inventory/domain/api_product.dart';
 import 'package:provider/provider.dart';
-import 'package:measure_master/providers/inventory_provider.dart';
-import 'package:measure_master/providers/api_product_provider.dart';
-import 'package:measure_master/models/item.dart';
+import 'package:measure_master/features/inventory/logic/inventory_provider.dart';
+import 'package:measure_master/features/inventory/logic/api_product_provider.dart';
+import 'package:measure_master/features/inventory/domain/item.dart';
 
 class ApiProductsScreen extends StatefulWidget {
   const ApiProductsScreen({super.key});

@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
-import '../models/product_image.dart';
-import '../models/result.dart';
-import '../services/cloudflare_storage_service.dart';
-import '../services/image_cache_service.dart';
+import '../domain/product_image.dart';
+import '../../../core/utils/result.dart';
+import './cloudflare_storage_service.dart';
+import '../../../core/services/image_cache_service.dart';
 
 /// 🖼️ 画像リポジトリ（統一管理層）
 /// 

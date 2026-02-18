@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../services/image_cache_service.dart';
-import '../models/image_item.dart';
+import '../../features/inventory/domain/image_item.dart';
 
 /// 🎨 Phase 5: 統一された画像表示ウィジェット
 /// 

@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import '../models/image_item.dart';
+import '../domain/image_item.dart';
 
 /// 🎨 白抜き画像管理サービス
 /// 
@@ -33,9 +33,6 @@ class WhiteBackgroundService {
         debugPrint('🔍 白抜き画像の存在確認: $whiteUrl');
       }
 
-      // HEADリクエストで存在確認（軽量）
-      final uri = Uri.parse(whiteUrl);
-      
       // Note: Web環境ではHEADリクエストに制限があるため、
       // 実際のチェックはCloudflare Workers側で行う想定
       // ここでは白抜きURLが生成可能かのみ確認

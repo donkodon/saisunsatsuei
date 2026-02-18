@@ -6,9 +6,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:image_picker/image_picker.dart';
-import 'package:measure_master/services/api_service.dart';
-import 'package:measure_master/models/api_product.dart';
-import 'package:measure_master/screens/add_item_screen.dart';
+import 'package:measure_master/core/services/api_service.dart';
+import 'package:measure_master/features/inventory/domain/api_product.dart';
+import 'package:measure_master/features/inventory/presentation/add_item_screen.dart';
 
 /// 静止画ベースのWeb版バーコードスキャナー（image_picker + Html5-QRCode）
 class WebBarcodeScannerScreenV2 extends StatefulWidget {

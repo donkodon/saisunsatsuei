@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:measure_master/models/api_product.dart';
-import 'package:measure_master/services/api_service.dart';
+import 'package:measure_master/features/inventory/domain/api_product.dart';
+import 'package:measure_master/core/services/api_service.dart';
 
 /// API商品データのキャッシュ管理とスマート更新を提供するProvider
 class ApiProductProvider with ChangeNotifier {

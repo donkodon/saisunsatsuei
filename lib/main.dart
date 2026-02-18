@@ -1,15 +1,16 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/firebase_options.dart';
 import 'package:provider/provider.dart';
-import 'package:measure_master/providers/inventory_provider.dart';
-import 'package:measure_master/providers/api_product_provider.dart';
+import 'package:measure_master/features/inventory/logic/inventory_provider.dart';
+import 'package:measure_master/features/inventory/logic/api_product_provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:measure_master/models/item.dart';
-import 'package:measure_master/services/image_cache_service.dart';
-import 'package:measure_master/auth/company_service.dart';
-import 'package:measure_master/auth/auth_gate.dart';
+import 'package:measure_master/features/inventory/domain/item.dart';
+import 'package:measure_master/core/services/image_cache_service.dart';
+import 'package:measure_master/features/auth/logic/company_service.dart';
+import 'package:measure_master/features/auth/presentation/auth_gate.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

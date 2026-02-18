@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:measure_master/constants.dart';
-import 'package:measure_master/models/image_item.dart';
-import 'package:measure_master/services/image_cache_service.dart';
+import 'package:measure_master/features/inventory/domain/image_item.dart';
+import 'package:measure_master/core/services/image_cache_service.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';

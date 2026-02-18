@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:measure_master/models/api_product.dart';
+import 'package:measure_master/features/inventory/domain/api_product.dart';
 
 class ApiService {
   static const String baseUrl = 'https://3000-iuolnmmls4a53d2939w4c-3844e1b6.sandbox.novita.ai';

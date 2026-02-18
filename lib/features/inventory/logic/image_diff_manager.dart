@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:measure_master/models/image_item.dart';
-import 'package:measure_master/services/cloudflare_storage_service.dart';
+import 'package:measure_master/features/inventory/domain/image_item.dart';
+import 'package:measure_master/features/inventory/data/cloudflare_storage_service.dart';
 import 'package:measure_master/features/inventory/models/image_delete_result.dart';
 
 /// 🗑️ 画像差分削除管理クラス

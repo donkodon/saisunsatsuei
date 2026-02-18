@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:measure_master/models/item.dart';
-import 'package:measure_master/providers/inventory_provider.dart';
-import 'package:measure_master/services/api_service.dart';
-import 'package:measure_master/auth/company_service.dart';
+import 'package:measure_master/features/inventory/domain/item.dart';
+import 'package:measure_master/features/inventory/logic/inventory_provider.dart';
+import 'package:measure_master/core/services/api_service.dart';
+import 'package:measure_master/features/auth/logic/company_service.dart';
 
 /// 💾 在庫保存クラス
 /// 

@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:measure_master/services/api_service.dart';
-import 'package:measure_master/auth/company_service.dart';
-import 'package:measure_master/models/api_product.dart';
-import 'package:measure_master/screens/add_item_screen.dart';
+import 'package:measure_master/core/services/api_service.dart';
+import 'package:measure_master/features/auth/logic/company_service.dart';
+import 'package:measure_master/features/inventory/domain/api_product.dart';
+import 'package:measure_master/features/inventory/presentation/add_item_screen.dart';
 import 'package:measure_master/features/ocr/presentation/web_barcode_scanner_screen_v2.dart';
 
 class BarcodeScannerScreen extends StatefulWidget {
@@ -159,16 +159,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
         child: CustomPaint(
           painter: ScannerOverlayPainter(),
         ),
-      ),
-    );
-  }
-
-  Widget _buildInfoItem(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Text(
-        text,
-        style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
       ),
     );
   }
