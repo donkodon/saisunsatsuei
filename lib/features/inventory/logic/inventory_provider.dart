@@ -21,6 +21,13 @@ class InventoryProvider with ChangeNotifier {
     _currentCompanyId = companyId;
     _loadItemsFromBox();
   }
+
+  // 🏢 企業IDが変わったときだけ再読み込み（ProxyProvider用・無駄な再描画を防止）
+  void setCompanyIdIfChanged(String companyId) {
+    if (_currentCompanyId == companyId) return; // 同じIDなら何もしない
+    _currentCompanyId = companyId;
+    _loadItemsFromBox();
+  }
   
   // 📦 Hiveから商品データを読み込み（企業IDでフィルタリング）
   void _loadItemsFromBox() {

@@ -1,24 +1,25 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:hive_flutter/hive_flutter.dart';
 import '../domain/garment_measurement_model.dart';
 
 /// 採寸データの永続化（Hive使用）
-/// 
-/// 採寸履歴の保存、採寸結果のキャッシュ、
-/// オフライン時の採寸結果確認をサポートします。
+///
+/// ⚡ パフォーマンス改善: Hiveボックスをフィールドにキャッシュし、
+/// メソッド呼び出しごとの openBox() を排除。
 class MeasurementRepository {
-  /// Hiveボックス名
   static const String _boxName = 'measurements';
 
+  // ボックスをフィールドにキャッシュ（一度開いたら再利用）
+  Box<Map>? _box;
+
+  /// ボックスを取得（未オープンなら開く）
+  Future<Box<Map>> _getBox() async {
+    if (_box != null && _box!.isOpen) return _box!;
+    _box = await Hive.openBox<Map>(_boxName);
+    return _box!;
+  }
+
   /// 採寸リクエストを保存
-  /// 
-  /// Replicate APIに採寸リクエストを送信した直後に呼び出され、
-  /// prediction_idと初期状態（processing）を保存します。
-  /// 
-  /// **パラメータ:**
-  /// - `sku`: 商品SKU
-  /// - `predictionId`: Replicate prediction ID
-  /// - `companyId`: 企業ID
-  /// - `status`: 初期状態（通常は processing）
   Future<void> saveMeasurement({
     required String sku,
     required String predictionId,
@@ -26,111 +27,62 @@ class MeasurementRepository {
     required MeasurementStatus status,
   }) async {
     try {
-      final box = await Hive.openBox<Map>(_boxName);
-
-      final data = {
+      final box = await _getBox();
+      await box.put(sku, {
         'prediction_id': predictionId,
         'sku': sku,
         'company_id': companyId,
         'status': status.name,
         'timestamp': DateTime.now().toIso8601String(),
-      };
-
-      await box.put(sku, data);
-
+      });
     } catch (e) {
       rethrow;
     }
   }
 
   /// 採寸結果を更新
-  /// 
-  /// Replicate APIから採寸結果を取得した後に呼び出され、
-  /// 完全な採寸データを保存します。
-  /// 
-  /// **パラメータ:**
-  /// - `measurement`: 採寸結果（GarmentMeasurementModel）
   Future<void> updateMeasurement(GarmentMeasurementModel measurement) async {
     try {
-      final box = await Hive.openBox<Map>(_boxName);
-
-      // GarmentMeasurementModelをJSON化して保存
-      final data = measurement.toJson();
-
-      await box.put(measurement.sku, data);
-
+      final box = await _getBox();
+      await box.put(measurement.sku, measurement.toJson());
     } catch (e) {
       rethrow;
     }
   }
 
   /// SKUから採寸結果を取得
-  /// 
-  /// ローカルに保存された採寸結果を取得します。
-  /// オフライン時でも過去の採寸結果を確認できます。
-  /// 
-  /// **パラメータ:**
-  /// - `sku`: 商品SKU
-  /// 
-  /// **戻り値:**
-  /// - 採寸結果が存在する場合: `GarmentMeasurementModel`
-  /// - 存在しない場合: `null`
   Future<GarmentMeasurementModel?> getMeasurementBySku(String sku) async {
     try {
-      final box = await Hive.openBox<Map>(_boxName);
-
+      final box = await _getBox();
       final data = box.get(sku);
-      if (data == null) {
-        return null;
-      }
+      if (data == null) return null;
 
-      // Map<dynamic, dynamic> を Map<String, dynamic> に変換
       final jsonData = Map<String, dynamic>.from(data);
-
-      // statusフィールドがあるかチェック（完全な採寸結果かどうか）
       if (jsonData.containsKey('measurements')) {
-        // 完全な採寸結果
-        final measurement = GarmentMeasurementModel.fromJson(jsonData);
-
-
-        return measurement;
-      } else {
-        // まだ採寸リクエストの初期状態のみ
-        return null;
+        return GarmentMeasurementModel.fromJson(jsonData);
       }
+      return null;
     } catch (e) {
       return null;
     }
   }
 
   /// prediction_idから採寸結果を取得
-  /// 
-  /// **パラメータ:**
-  /// - `predictionId`: Replicate prediction ID
-  /// 
-  /// **戻り値:**
-  /// - 採寸結果が存在する場合: `GarmentMeasurementModel`
-  /// - 存在しない場合: `null`
   Future<GarmentMeasurementModel?> getMeasurementByPredictionId(
     String predictionId,
   ) async {
     try {
-      final box = await Hive.openBox<Map>(_boxName);
-
-      // 全データを検索
+      final box = await _getBox();
       for (final key in box.keys) {
         final data = box.get(key);
-        if (data != null) {
-          final jsonData = Map<String, dynamic>.from(data);
-          if (jsonData['prediction_id'] == predictionId ||
-              jsonData['id'] == predictionId) {
-            if (jsonData.containsKey('measurements')) {
-              return GarmentMeasurementModel.fromJson(jsonData);
-            }
-          }
+        if (data == null) continue;
+        final jsonData = Map<String, dynamic>.from(data);
+        if ((jsonData['prediction_id'] == predictionId ||
+                jsonData['id'] == predictionId) &&
+            jsonData.containsKey('measurements')) {
+          return GarmentMeasurementModel.fromJson(jsonData);
         }
       }
-
       return null;
     } catch (e) {
       return null;
@@ -138,67 +90,45 @@ class MeasurementRepository {
   }
 
   /// 採寸エラーを記録
-  /// 
-  /// Replicate APIでエラーが発生した場合、
-  /// エラー情報を保存します。
-  /// 
-  /// **パラメータ:**
-  /// - `sku`: 商品SKU
-  /// - `predictionId`: Replicate prediction ID（ある場合）
-  /// - `error`: エラーメッセージ
   Future<void> saveMeasurementError({
     required String sku,
     String? predictionId,
     required String error,
   }) async {
     try {
-      final box = await Hive.openBox<Map>(_boxName);
-
-      final data = {
+      final box = await _getBox();
+      await box.put(sku, {
         'sku': sku,
         if (predictionId != null) 'prediction_id': predictionId,
         'status': MeasurementStatus.failed.name,
         'error': error,
         'timestamp': DateTime.now().toIso8601String(),
-      };
-
-      await box.put(sku, data);
-
+      });
     } catch (e) {
       rethrow;
     }
   }
 
   /// すべての採寸履歴を取得
-  /// 
-  /// ローカルに保存されているすべての採寸結果を取得します。
-  /// 
-  /// **戻り値:**
-  /// - 採寸結果のリスト（新しい順）
   Future<List<GarmentMeasurementModel>> getAllMeasurements() async {
     try {
-      final box = await Hive.openBox<Map>(_boxName);
-
+      final box = await _getBox();
       final measurements = <GarmentMeasurementModel>[];
 
       for (final key in box.keys) {
         final data = box.get(key);
-        if (data != null) {
-          try {
-            final jsonData = Map<String, dynamic>.from(data);
-            if (jsonData.containsKey('measurements')) {
-              final measurement = GarmentMeasurementModel.fromJson(jsonData);
-              measurements.add(measurement);
-            }
-          } catch (e) {
+        if (data == null) continue;
+        try {
+          final jsonData = Map<String, dynamic>.from(data);
+          if (jsonData.containsKey('measurements')) {
+            measurements.add(GarmentMeasurementModel.fromJson(jsonData));
           }
+        } catch (e) {
+          debugPrint('⚠️ 採寸データ変換失敗 (key: $key): $e');
         }
       }
 
-      // 日時でソート（新しい順）
       measurements.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-
       return measurements;
     } catch (e) {
       return [];
@@ -206,31 +136,28 @@ class MeasurementRepository {
   }
 
   /// 採寸結果を削除
-  /// 
-  /// **パラメータ:**
-  /// - `sku`: 商品SKU
   Future<void> deleteMeasurement(String sku) async {
     try {
-      final box = await Hive.openBox<Map>(_boxName);
-
+      final box = await _getBox();
       await box.delete(sku);
-
     } catch (e) {
       rethrow;
     }
   }
 
-  /// すべての採寸データをクリア
-  /// 
-  /// デバッグ用。すべての採寸履歴を削除します。
+  /// すべての採寸データをクリア（デバッグ用）
   Future<void> clearAllMeasurements() async {
     try {
-      final box = await Hive.openBox<Map>(_boxName);
-
+      final box = await _getBox();
       await box.clear();
-
     } catch (e) {
       rethrow;
     }
+  }
+
+  /// ボックスを明示的に閉じる（アプリ終了時など）
+  Future<void> dispose() async {
+    await _box?.close();
+    _box = null;
   }
 }

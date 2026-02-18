@@ -57,31 +57,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
-  /// 企業情報を読み込み
+  /// 企業情報を読み込み（メモリキャッシュ優先・非同期アクセスを最小化）
   Future<void> _loadCompanyInfo() async {
-    final companyId = await _companyService.getCompanyId();
-    final companyName = await _companyService.getCompanyName();
-    
-    // Firebase Auth からログイン中ユーザーの表示名を取得
-    final userProfile = _authService.currentUser != null
-        ? await _authService.getUserProfile(_authService.currentUser!.uid)
-        : null;
-    final rawName = userProfile?['displayName'] as String?;
-    final firstName = (rawName != null && rawName.isNotEmpty)
-        ? rawName.split(' ').first
+    // ⚡ まずメモリキャッシュから同期取得（SharedPreferences 待ち不要）
+    String? companyId = _companyService.cachedCompanyId;
+    String? companyName;
+
+    // キャッシュにない場合のみ SharedPreferences へアクセス
+    if (companyId == null || companyId.isEmpty) {
+      companyId = await _companyService.getCompanyId();
+    }
+
+    // Firebase Auth の displayName はローカルキャッシュ（currentUser）から取得
+    // Firestore へのネットワークアクセスを省略し起動を高速化
+    final currentUser = _authService.currentUser;
+    String? displayName = currentUser?.displayName;
+
+    // displayName が空の場合のみ Firestore へフォールバック
+    if ((displayName == null || displayName.isEmpty) && currentUser != null) {
+      final profile = await _authService.getUserProfile(currentUser.uid);
+      displayName = profile?['displayName'] as String?;
+    }
+
+    // companyName はキャッシュから取得
+    companyName = await _companyService.getCompanyName();
+
+    final firstName = (displayName != null && displayName.isNotEmpty)
+        ? displayName.split(' ').first
         : null;
 
+    if (!mounted) return;
     setState(() {
       _companyId = companyId ?? '';
       _companyName = companyName ?? '';
       _displayName = firstName ?? companyName ?? 'ユーザー';
     });
-    
-    // 🏢 InventoryProviderに企業IDを設定して再読み込み
-    if (companyId != null && companyId.isNotEmpty && mounted) {
-      final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
-      inventoryProvider.setCompanyId(companyId);
-      
+
+    // 🏢 InventoryProvider に企業IDを設定（変更があった場合のみ再読み込み）
+    if (companyId != null && companyId.isNotEmpty) {
+      final inventoryProvider =
+          Provider.of<InventoryProvider>(context, listen: false);
+      inventoryProvider.setCompanyIdIfChanged(companyId);
     }
   }
 

@@ -40,6 +40,10 @@ class CompanyService {
     return true;
   }
   
+  /// メモリキャッシュから同期的に企業IDを取得（ProxyProvider用）
+  /// SharedPreferences を待たずに即座に返す
+  String? get cachedCompanyId => _memoryCompanyId;
+
   /// 企業IDを取得（未設定の場合はnullを返す）
   Future<String?> getCompanyId() async {
     // まずメモリから取得を試みる

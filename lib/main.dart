@@ -10,6 +10,7 @@ import 'package:measure_master/features/inventory/domain/item.dart';
 import 'package:measure_master/core/services/image_cache_service.dart';
 import 'package:measure_master/features/auth/logic/company_service.dart';
 import 'package:measure_master/features/auth/presentation/auth_gate.dart';
+import 'package:measure_master/core/theme/app_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,26 +36,25 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _initializeApp() async {
     try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-      
-      await Hive.initFlutter();
-      
-      Hive.registerAdapter(InventoryItemAdapter());
-      
-      await ImageCacheService.initialize();
-      
-      if (mounted) {
-        setState(() {
-          _initialized = true;
-        });
+      // ⚡ Firebase と Hive を並列初期化（互いに依存しないため同時実行可能）
+      await Future.wait([
+        Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
+        Hive.initFlutter(),
+      ]);
+
+      // Hive アダプター登録（initFlutter 完了後に実行）
+      if (!Hive.isAdapterRegistered(0)) {
+        Hive.registerAdapter(InventoryItemAdapter());
       }
-      
+
+      // ImageCacheService は Hive 完了後に開始（Hive ボックスを開くため）
+      await ImageCacheService.initialize();
+
+      if (mounted) {
+        setState(() => _initialized = true);
+      }
     } catch (e, stack) {
-      // デバッグ時はコンソールに出力
       debugPrint('❌ アプリ初期化エラー: $e');
-      // 本番でも FlutterError として記録（Crashlytics 等で収集可能）
       FlutterError.reportError(FlutterErrorDetails(
         exception: e,
         stack: stack,
@@ -62,9 +62,7 @@ class _MyAppState extends State<MyApp> {
         context: ErrorDescription('アプリ起動時の初期化処理'),
       ));
       if (mounted) {
-        setState(() {
-          _error = true;
-        });
+        setState(() => _error = true);
       }
     }
   }
@@ -161,15 +159,24 @@ class _MyAppState extends State<MyApp> {
       providers: [
         // ① CompanyService を先頭で登録（アプリ内で唯一のインスタンス）
         Provider<CompanyService>(create: (_) => CompanyService()),
-        // ② InventoryProvider は CompanyService の同一インスタンスを使って初期化
+        // ② InventoryProvider は create 時に一度だけ初期化
+        //    update では setCompanyId のみ呼び出し（initialize() の再実行を防止）
         ChangeNotifierProxyProvider<CompanyService, InventoryProvider>(
-          create: (_) => InventoryProvider(),
+          create: (_) {
+            final provider = InventoryProvider();
+            // 初回のみ Hive ボックスを開く（create は一度だけ呼ばれる）
+            provider.initialize();
+            return provider;
+          },
           update: (_, companyService, inventoryProvider) {
-            // CompanyService が更新されるたびに企業IDを同期
-            companyService.getCompanyId().then((companyId) {
-              inventoryProvider?.initialize(companyId: companyId);
-            });
-            return inventoryProvider ?? InventoryProvider();
+            final provider = inventoryProvider ?? InventoryProvider();
+            // メモリキャッシュから同期的に取得（await 不要）
+            final cachedId = companyService.cachedCompanyId;
+            if (cachedId != null && cachedId.isNotEmpty) {
+              // 既に同じIDなら setCompanyId はスキップ（内部で比較）
+              provider.setCompanyIdIfChanged(cachedId);
+            }
+            return provider;
           },
         ),
         ChangeNotifierProvider<ApiProductProvider>(create: (_) => ApiProductProvider()),
@@ -177,14 +184,8 @@ class _MyAppState extends State<MyApp> {
       child: MaterialApp(
         title: 'Measure Master',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          primaryColor: AppConstants.primaryCyan,
-          scaffoldBackgroundColor: AppConstants.backgroundLight,
-          colorScheme: ColorScheme.fromSwatch().copyWith(
-            primary: AppConstants.primaryCyan,
-            secondary: AppConstants.primaryCyan,
-          ),
-        ),
+        // ⚡ AppTheme.main に統一（Google Fonts の二重ロードを解消済み）
+        theme: AppTheme.main,
         home: const AuthGate(),  // 🔒 認証は auth/ に完全委任
       ),
     );
