@@ -39,6 +39,7 @@ class InventoryItemAdapter extends TypeAdapter<InventoryItem> {
       imageUrls: (fields[19] as List?)?.cast<String>(),
       imagesJson: (fields[20] as List?)
           ?.map((dynamic e) => (e as Map).cast<String, dynamic>())
+          // ignore: invalid_null_aware_operator
           ?.toList(),
       companyId: fields[21] as String?,
     );

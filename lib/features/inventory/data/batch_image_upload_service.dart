@@ -23,12 +23,12 @@ class BatchImageUploadService {
 
   /// 🎯 Phase 3: ImageItemから一括アップロード（UUID完全対応）
   /// 
-  /// [imageItems] - ImageItemのリスト（UUIDを含む）
-  /// [sku] - SKUコード
-  /// [companyId] - 企業ID（R2フォルダ構造用）
-  /// [onProgress] - 進捗コールバック (current, total)
+  /// `imageItems` - ImageItemのリスト（UUIDを含む）
+  /// `sku` - SKUコード
+  /// `companyId` - 企業ID（R2フォルダ構造用）
+  /// `onProgress` - 進捗コールバック (current, total)
   /// 
-  /// Returns: Result<List<ProductImage>>
+  /// Returns: `Result<List<ProductImage>>`
   Future<Result<List<ProductImage>>> uploadImagesFromImageItems({
     required List<ImageItem> imageItems,
     required String sku,
@@ -141,11 +141,11 @@ class BatchImageUploadService {
 
   /// 🔧 画像バイトデータを一括アップロード（blob URL問題回避版）
   /// 
-  /// [imageBytesList] - Uint8Listのリスト（画像バイトデータ）
-  /// [sku] - SKUコード
-  /// [onProgress] - 進捗コールバック (current, total)
+  /// `imageBytesList` - Uint8Listのリスト（画像バイトデータ）
+  /// `sku` - SKUコード
+  /// `onProgress` - 進捗コールバック (current, total)
   /// 
-  /// Returns: Result<List<ProductImage>>
+  /// Returns: `Result<List<ProductImage>>`
   /// 
   /// ⚠️ 非推奨: uploadImagesFromImageItems() を使用してください
   @Deprecated('Use uploadImagesFromImageItems() instead')
@@ -207,11 +207,11 @@ class BatchImageUploadService {
 
   /// 📤 複数画像を一括アップロード
   /// 
-  /// [imageFiles] - XFileのリスト（ローカルファイル）
-  /// [sku] - SKUコード
-  /// [onProgress] - 進捗コールバック (current, total)
+  /// `imageFiles` - XFileのリスト（ローカルファイル）
+  /// `sku` - SKUコード
+  /// `onProgress` - 進捗コールバック (current, total)
   /// 
-  /// Returns: Result<List<ProductImage>>
+  /// Returns: `Result<List<ProductImage>>`
   Future<Result<List<ProductImage>>> uploadImages({
     required List<XFile> imageFiles,
     required String sku,
@@ -314,10 +314,10 @@ class BatchImageUploadService {
   /// 5. 並列アップロード（3枚ずつバッチ処理）
   /// 6. Sequenceでソートして順序保証
   /// 
-  /// [existingUrls] - 既存のアップロード済みURL
-  /// [newImageFiles] - 新規撮影画像
-  /// [sku] - SKUコード
-  /// [onProgress] - 進捗コールバック (current, total)
+  /// `existingUrls` - 既存のアップロード済みURL
+  /// `newImageFiles` - 新規撮影画像
+  /// `sku` - SKUコード
+  /// `onProgress` - 進捗コールバック (current, total)
   Future<Result<List<ProductImage>>> uploadMixedImages({
     required List<String> existingUrls,
     required List<XFile> newImageFiles,

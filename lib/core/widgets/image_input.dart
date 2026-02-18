@@ -11,7 +11,8 @@ class ImageInput extends StatefulWidget {
   const ImageInput(this.onSelectImage, {super.key});
 
   @override
-  _ImageInputState createState() => _ImageInputState();
+  @override
+  State<ImageInput> createState() => _ImageInputState();
 }
 
 class _ImageInputState extends State<ImageInput> {

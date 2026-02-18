@@ -12,7 +12,7 @@ class WhiteBackgroundService {
 
   /// 📋 白抜き画像URLを元画像URLから生成
   /// 
-  /// 例: 1025L280001_<uuid>.jpg → 1025L280001_<uuid>_white.jpg
+  /// 例: 1025L280001_`uuid`.jpg → 1025L280001_`uuid`_white.jpg
   String generateWhiteUrl(String originalUrl) {
     if (originalUrl.endsWith('.jpg')) {
       return originalUrl.replaceAll('.jpg', '_white.jpg');

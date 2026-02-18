@@ -13,7 +13,7 @@ import 'package:measure_master/core/services/image_cache_service.dart';
 import 'package:measure_master/features/ocr/logic/ocr_service.dart';
 import 'package:measure_master/features/ocr/domain/ocr_result.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
+
 
 class AddItemScreen extends StatefulWidget {
   final ApiProduct? prefillData; // 🔍 検索結果からの自動入力データ
@@ -22,7 +22,8 @@ class AddItemScreen extends StatefulWidget {
   const AddItemScreen({super.key, this.prefillData, this.existingItem});
   
   @override
-  _AddItemScreenState createState() => _AddItemScreenState();
+  @override
+  State<AddItemScreen> createState() => _AddItemScreenState();
 }
 
 class _AddItemScreenState extends State<AddItemScreen> {
@@ -393,6 +394,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
       // 撮影完了のフィードバック
       final message = '📸 ${result.length}枚の画像を管理中';
       
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
@@ -425,6 +427,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
     // ステップ2: OCR解析開始
     try {
       // ローディング表示
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Row(
@@ -447,12 +450,14 @@ class _AddItemScreenState extends State<AddItemScreen> {
       final ocrResult = await ocrService.analyzeTag(imageBytes);
       
       // ローディング非表示
+      if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       
       // ステップ3: 結果ダイアログ表示
       _showOcrResultDialog(ocrResult);
       
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

@@ -41,7 +41,8 @@ class CameraScreen extends StatefulWidget {
   });
 
   @override
-  _CameraScreenState createState() => _CameraScreenState();
+  @override
+  State<CameraScreen> createState() => _CameraScreenState();
 }
 
 class _CameraScreenState extends State<CameraScreen> {
@@ -809,14 +810,14 @@ class _CameraScreenState extends State<CameraScreen> {
                               debugPrint('❌ ギャラリー選択でエラー: $e');
                               debugPrint('❌ スタックトレース: $stackTrace');
                             }
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('ギャラリーを開けませんでした: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
+                            if (!mounted) return;
+                            // ignore: use_build_context_synchronously
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('ギャラリーを開けませんでした: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
                           }
                         },
                         behavior: HitTestBehavior.opaque,  // 透明部分もタップ検出

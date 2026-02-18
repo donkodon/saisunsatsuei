@@ -49,7 +49,8 @@ class CameraScreenV2 extends StatefulWidget {
   });
 
   @override
-  _CameraScreenV2State createState() => _CameraScreenV2State();
+  @override
+  State<CameraScreenV2> createState() => _CameraScreenV2State();
 }
 
 class _CameraScreenV2State extends State<CameraScreenV2> {

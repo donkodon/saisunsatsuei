@@ -10,7 +10,8 @@ class ApiProductsScreen extends StatefulWidget {
   const ApiProductsScreen({super.key});
 
   @override
-  _ApiProductsScreenState createState() => _ApiProductsScreenState();
+  @override
+  State<ApiProductsScreen> createState() => _ApiProductsScreenState();
 }
 
 class _ApiProductsScreenState extends State<ApiProductsScreen> {

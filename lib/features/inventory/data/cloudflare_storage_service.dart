@@ -293,7 +293,8 @@ class CloudflareWorkersStorageService {
         // 🔢 旧形式: タイムスタンプを付与（後方互換性）
         final parts = itemId.split('_');
         final sequence = parts.length >= 2 ? (int.tryParse(parts[1]) ?? 1) : 1;
-        final uniqueId = generateUniqueFileId(skuFolder, sequence);
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final uniqueId = '${skuFolder}_${sequence}_$timestamp';
         fileName = '$uniqueId.jpg';
         debugPrint('🔢 タイムスタンプ形式のファイル名を生成: $fileName');
       } else {

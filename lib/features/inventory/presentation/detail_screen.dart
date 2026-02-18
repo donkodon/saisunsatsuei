@@ -99,7 +99,8 @@ class DetailScreen extends StatefulWidget {
   });
 
   @override
-  _DetailScreenState createState() => _DetailScreenState();
+  @override
+  State<DetailScreen> createState() => _DetailScreenState();
 }
 
 class _DetailScreenState extends State<DetailScreen> {
@@ -807,6 +808,7 @@ class _DetailScreenState extends State<DetailScreen> {
         }
       }
 
+      if (!mounted) return;
       // ========================================
       // Phase 2: プログレスダイアログ表示
       // ========================================
@@ -975,6 +977,7 @@ class _DetailScreenState extends State<DetailScreen> {
         },
       );
 
+      if (!mounted) return;
       Navigator.pop(context); // プログレスダイアログを閉じる
 
       // ========================================
@@ -1065,6 +1068,7 @@ class _DetailScreenState extends State<DetailScreen> {
           _showSuccess('✅ 保存完了しました！');
         }
         
+        if (!mounted) return;
         Navigator.pushAndRemoveUntil(
           context,
           PageRouteBuilder(
@@ -1086,6 +1090,7 @@ class _DetailScreenState extends State<DetailScreen> {
       }
 
     } catch (e, stackTrace) {
+      if (!mounted) return;
       Navigator.pop(context);
       
       // 🔥 強制エラーログ
@@ -1140,6 +1145,7 @@ class _DetailScreenState extends State<DetailScreen> {
       additionalData: {},
     );
 
+    if (!mounted) return;
     Navigator.pop(context);
 
     if (saveResult.bothSuccess) {

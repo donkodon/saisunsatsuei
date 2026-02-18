@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'dart:typed_data'; // Uint8List
+
 import 'package:flutter/foundation.dart';
 import 'package:minio/minio.dart';
 import 'package:mime/mime.dart';

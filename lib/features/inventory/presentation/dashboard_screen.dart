@@ -10,13 +10,14 @@ import 'package:measure_master/core/services/api_service.dart';
 import 'package:measure_master/features/auth/logic/company_service.dart';
 import 'package:measure_master/features/auth/logic/auth_service.dart';
 import 'package:measure_master/features/inventory/domain/api_product.dart';
-import 'package:measure_master/core/widgets/smart_image_viewer.dart';
+
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  _DashboardScreenState createState() => _DashboardScreenState();
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
@@ -172,9 +173,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // 🌐 ステップ2: 統合検索API（product_items → product_master）
       // 🏢 企業IDを取得して検索（企業別にデータを分離）
       final companyId = await _companyService.getCompanyId();
+      if (!mounted) return;
       debugPrint('🔍 SKU検索開始: query=$query, companyId=$companyId');
       
       final searchResult = await _apiService.searchByBarcodeOrSku(query, companyId: companyId);
+      if (!mounted) return;
 
       setState(() {
         _isSearching = false;
@@ -195,6 +198,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _isSearching = false;
           });
           
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('この商品はあなたの企業のデータではありません'),
@@ -218,6 +222,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           message = 'マスタ商品: ${data['name'] ?? data['sku']}';
         }
         
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
@@ -261,6 +266,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         // 検索窓をクリア
         _searchController.clear();
       } else {
+        if (!mounted) return;
         // 商品が見つからない場合は、検索したバーコード/SKUを初期値として新規作成画面へ
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -297,6 +303,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _searchController.clear();
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isSearching = false;
       });

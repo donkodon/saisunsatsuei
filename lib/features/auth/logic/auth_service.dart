@@ -16,11 +16,11 @@ class AuthService {
 
   /// メールアドレスとパスワードでサインアップ
   /// 
-  /// [email] メールアドレス
-  /// [password] パスワード（6文字以上推奨）
+  /// `email` メールアドレス
+  /// `password` パスワード（6文字以上推奨）
   /// 
-  /// 成功時は [UserCredential] を返す
-  /// 失敗時は [FirebaseAuthException] をスロー
+  /// 成功時は `UserCredential` を返す
+  /// 失敗時は `FirebaseAuthException` をスロー
   Future<UserCredential> signUpWithEmail({
     required String email,
     required String password,
@@ -50,11 +50,11 @@ class AuthService {
 
   /// メールアドレスとパスワードでサインイン
   /// 
-  /// [email] メールアドレス
-  /// [password] パスワード
+  /// `email` メールアドレス
+  /// `password` パスワード
   /// 
-  /// 成功時は [UserCredential] を返す
-  /// 失敗時は [FirebaseAuthException] をスロー
+  /// 成功時は `UserCredential` を返す
+  /// 失敗時は `FirebaseAuthException` をスロー
   Future<UserCredential> signInWithEmail({
     required String email,
     required String password,
@@ -104,7 +104,7 @@ class AuthService {
 
   /// パスワードリセットメールを送信
   /// 
-  /// [email] パスワードをリセットしたいアカウントのメールアドレス
+  /// `email` パスワードをリセットしたいアカウントのメールアドレス
   Future<void> sendPasswordResetEmail({required String email}) async {
     try {
       if (kDebugMode) {
@@ -124,9 +124,9 @@ class AuthService {
     }
   }
 
-  /// Firestore users/{uid} からユーザープロフィールを取得
+  /// Firestore users/`uid` からユーザープロフィールを取得
   /// 
-  /// 返り値: Map<String, dynamic>? (null = ドキュメント未作成)
+  /// 返り値: `Map<String, dynamic>?` (null = ドキュメント未作成)
   /// 含まれるフィールド: email, companyId, displayName, role, createdAt
   Future<Map<String, dynamic>?> getUserProfile(String uid) async {
     try {
@@ -160,7 +160,7 @@ class AuthService {
     }
   }
 
-  /// Firestore users/{uid} の lastLoginAt を更新
+  /// Firestore users/`uid` の lastLoginAt を更新
   Future<void> updateLastLogin(String uid) async {
     try {
       await FirebaseFirestore.instance
@@ -176,7 +176,7 @@ class AuthService {
 
   /// Firebase Auth エラーコードを日本語メッセージに変換
   /// 
-  /// [errorCode] Firebase Auth のエラーコード
+  /// `errorCode` Firebase Auth のエラーコード
   /// 
   /// 日本語のエラーメッセージを返す
   String getErrorMessage(String errorCode) {
