@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
@@ -178,6 +179,7 @@ class _FirestoreProfileLoaderState extends State<_FirestoreProfileLoader> {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
+      debugPrint('⚠️ _forceSignOut 失敗: $e');
     }
   }
 

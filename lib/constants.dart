@@ -14,24 +14,33 @@ class AppConstants {
   // フォントは一度だけ取得してキャッシュ
   static final TextTheme _cachedTextTheme = GoogleFonts.notoSansJpTextTheme();
 
-  static final TextStyle headerStyle = _cachedTextTheme.headlineMedium!.copyWith(
+  // フォールバック付きで null 安全に取得（!演算子によるクラッシュを防止）
+  static final TextStyle headerStyle = (
+    _cachedTextTheme.headlineMedium ?? const TextStyle()
+  ).copyWith(
     fontSize: 24,
     fontWeight: FontWeight.bold,
     color: textDark,
   );
 
-  static final TextStyle subHeaderStyle = _cachedTextTheme.titleMedium!.copyWith(
+  static final TextStyle subHeaderStyle = (
+    _cachedTextTheme.titleMedium ?? const TextStyle()
+  ).copyWith(
     fontSize: 18,
     fontWeight: FontWeight.w600,
     color: textDark,
   );
 
-  static final TextStyle bodyStyle = _cachedTextTheme.bodyMedium!.copyWith(
+  static final TextStyle bodyStyle = (
+    _cachedTextTheme.bodyMedium ?? const TextStyle()
+  ).copyWith(
     fontSize: 14,
     color: textDark,
   );
 
-  static final TextStyle captionStyle = _cachedTextTheme.bodySmall!.copyWith(
+  static final TextStyle captionStyle = (
+    _cachedTextTheme.bodySmall ?? const TextStyle()
+  ).copyWith(
     fontSize: 12,
     color: textGrey,
   );

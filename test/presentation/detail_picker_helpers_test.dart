@@ -168,11 +168,11 @@ void main() {
     });
 
     test('ホワイトは白色 (0xFFFFFFFF)', () {
-      expect(colorOptionsData['ホワイト']!.value, equals(0xFFFFFFFF));
+      expect(colorOptionsData['ホワイト']!.toARGB32(), equals(0xFFFFFFFF));
     });
 
     test('ブラックは黒色 (0xFF000000)', () {
-      expect(colorOptionsData['ブラック']!.value, equals(0xFF000000));
+      expect(colorOptionsData['ブラック']!.toARGB32(), equals(0xFF000000));
     });
   });
 }

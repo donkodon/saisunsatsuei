@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import '../data/measurement_api_client.dart';
 import '../data/measurement_repository.dart';
 import '../domain/garment_measurement_model.dart';
@@ -38,9 +39,6 @@ class MeasurementService {
     required String category,
   }) async {
     try {
-      // 🔥 強制出力ログ（必ず表示される）
-      
-      
       // 1) カテゴリ→衣類タイプ変換
       final garmentClass = GarmentClassMapper.categoryToGarmentClass(category);
 
@@ -62,11 +60,9 @@ class MeasurementService {
         status: MeasurementStatus.processing,
       );
 
-      // 🔥 強制出力ログ（必ず表示される）
-      
+      debugPrint('✅ MeasurementService: 採寸リクエスト送信完了 (sku: $sku)');
     } catch (e) {
-      // 🔥 強制出力ログ（必ず表示される）
-      
+      debugPrint('❌ MeasurementService.measureGarmentAsync 失敗 (sku: $sku): $e');
 
       // エラーをローカルDBに記録
       try {
@@ -75,6 +71,7 @@ class MeasurementService {
           error: e.toString(),
         );
       } catch (saveError) {
+        debugPrint('⚠️ エラー記録失敗: $saveError');
       }
       
       rethrow;

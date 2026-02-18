@@ -113,9 +113,9 @@ mixin DetailSaveMixin<T extends StatefulWidget> on State<T> {
       if (!mounted) return;
 
       // ========== Phase 2: プログレスダイアログ表示 ==========
-      // ignore: use_build_context_synchronously
       _uploadProgressNotifier.value = (0, 0);
-      // ignore: use_build_context_synchronously
+      // mounted チェック済みのため BuildContext は有効
+      if (!context.mounted) return;
       showDialog(
         context: context,
         barrierDismissible: false,

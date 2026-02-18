@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:measure_master/constants.dart';
@@ -52,8 +51,16 @@ class _MyAppState extends State<MyApp> {
         });
       }
       
-    } catch (e) {
-      if (kDebugMode) debugPrint('❌ アプリ初期化エラー: $e');
+    } catch (e, stack) {
+      // デバッグ時はコンソールに出力
+      debugPrint('❌ アプリ初期化エラー: $e');
+      // 本番でも FlutterError として記録（Crashlytics 等で収集可能）
+      FlutterError.reportError(FlutterErrorDetails(
+        exception: e,
+        stack: stack,
+        library: 'main',
+        context: ErrorDescription('アプリ起動時の初期化処理'),
+      ));
       if (mounted) {
         setState(() {
           _error = true;

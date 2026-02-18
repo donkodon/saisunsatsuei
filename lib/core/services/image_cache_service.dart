@@ -76,6 +76,7 @@ class ImageCacheService {
       await _box!.put(key, base64Data);
       
     } catch (e) {
+      debugPrint('⚠️ ImageCacheService.cacheImage 失敗: $e');
     }
   }
   
@@ -148,6 +149,7 @@ class ImageCacheService {
         await _box!.delete(key);
       }
     } catch (e) {
+      debugPrint('⚠️ ImageCacheService.invalidateCache 失敗: $e');
     }
   }
   
@@ -158,7 +160,7 @@ class ImageCacheService {
       await initialize();
     }
     
-    int deletedCount = 0;  // ignore: unused_local_variable
+    int deletedCount = 0;
     for (final url in imageUrls) {
       try {
         final key = _extractFileName(url);
@@ -167,8 +169,10 @@ class ImageCacheService {
           deletedCount++;
         }
       } catch (e) {
+        debugPrint('⚠️ ImageCacheService.invalidateCaches 失敗 ($url): $e');
       }
     }
+    debugPrint('🗁️ ImageCacheService: $deletedCount件キャッシュを削除しました');
     
   }
   
@@ -189,6 +193,7 @@ class ImageCacheService {
       }
       
     } catch (e) {
+      debugPrint('⚠️ ImageCacheService.clearCacheForSku 失敗: $e');
     }
   }
   

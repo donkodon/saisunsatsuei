@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 企業ID管理サービス
@@ -31,6 +32,8 @@ class CompanyService {
       }
       
     } catch (e) {
+      // SharedPreferences への保存失敗は無視（メモリ保存済みのため継続可能）
+      debugPrint('⚠️ CompanyService.saveCompanyId SharedPrefs失敗: $e');
     }
     
     // メモリ保存は必ず成功するので true を返す
@@ -54,6 +57,7 @@ class CompanyService {
         return companyId;
       }
     } catch (e) {
+      debugPrint('⚠️ CompanyService.getCompanyId SharedPrefs失敗: $e');
     }
     
     // どちらも失敗した場合はnullを返す（デフォルト値なし）
@@ -96,6 +100,7 @@ class CompanyService {
         return true;
       }
     } catch (e) {
+      debugPrint('⚠️ CompanyService.isLoggedIn SharedPrefs失敗: $e');
     }
     
     return false;
@@ -115,6 +120,7 @@ class CompanyService {
       await prefs.remove(_companyNameKey);
       
     } catch (e) {
+      debugPrint('⚠️ CompanyService.logout SharedPrefs失敗: $e');
     }
     
     return true;

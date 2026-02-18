@@ -353,7 +353,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(height: 24),
               
-              Text("こんにちは、${_displayName}さん", style: AppConstants.headerStyle),
+              Text("こんにちは、$_displayNameさん", style: AppConstants.headerStyle),
               const SizedBox(height: 8),
               Text(
                 "今日の出品準備状況を確認しましょう。",
