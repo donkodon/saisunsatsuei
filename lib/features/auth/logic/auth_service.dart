@@ -27,7 +27,6 @@ class AuthService {
   }) async {
     try {
       if (kDebugMode) {
-        print('🔐 AuthService: サインアップ開始 - $email');
       }
       
       final credential = await _auth.createUserWithEmailAndPassword(
@@ -36,13 +35,11 @@ class AuthService {
       );
       
       if (kDebugMode) {
-        print('✅ AuthService: サインアップ成功 - UID: ${credential.user?.uid}');
       }
       
       return credential;
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException catch (_) {
       if (kDebugMode) {
-        print('❌ AuthService: サインアップエラー - ${e.code}: ${e.message}');
       }
       rethrow;
     }
@@ -61,7 +58,6 @@ class AuthService {
   }) async {
     try {
       if (kDebugMode) {
-        print('🔐 AuthService: サインイン開始 - $email');
       }
       
       final credential = await _auth.signInWithEmailAndPassword(
@@ -70,13 +66,11 @@ class AuthService {
       );
       
       if (kDebugMode) {
-        print('✅ AuthService: サインイン成功 - UID: ${credential.user?.uid}');
       }
       
       return credential;
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException catch (_) {
       if (kDebugMode) {
-        print('❌ AuthService: サインインエラー - ${e.code}: ${e.message}');
       }
       rethrow;
     }
@@ -86,17 +80,14 @@ class AuthService {
   Future<void> signOut() async {
     try {
       if (kDebugMode) {
-        print('🔐 AuthService: サインアウト開始');
       }
       
       await _auth.signOut();
       
       if (kDebugMode) {
-        print('✅ AuthService: サインアウト成功');
       }
-    } catch (e) {
+    } catch (_) {
       if (kDebugMode) {
-        print('❌ AuthService: サインアウトエラー - $e');
       }
       rethrow;
     }
@@ -108,17 +99,14 @@ class AuthService {
   Future<void> sendPasswordResetEmail({required String email}) async {
     try {
       if (kDebugMode) {
-        print('🔐 AuthService: パスワードリセットメール送信 - $email');
       }
       
       await _auth.sendPasswordResetEmail(email: email);
       
       if (kDebugMode) {
-        print('✅ AuthService: パスワードリセットメール送信成功');
       }
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException catch (_) {
       if (kDebugMode) {
-        print('❌ AuthService: パスワードリセットメール送信エラー - ${e.code}');
       }
       rethrow;
     }
@@ -149,7 +137,7 @@ class AuthService {
       }
       
       return data;
-    } catch (e) {
+    } catch (_) {
       if (kDebugMode) {
       }
       return null;
@@ -163,7 +151,7 @@ class AuthService {
           .collection('users')
           .doc(uid)
           .update({'lastLoginAt': FieldValue.serverTimestamp()});
-    } catch (e) {
+    } catch (_) {
       if (kDebugMode) {
       }
     }

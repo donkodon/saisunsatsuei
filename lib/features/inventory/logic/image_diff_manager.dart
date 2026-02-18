@@ -285,8 +285,6 @@ class ImageDiffManager {
     if (kDebugMode) {
       for (var url in allImageUrls) {
         if (url.contains('_p.png') || url.contains('_P.jpg') || url.contains('_p.') || url.contains('_P.')) {
-          if (companyId != null) debugPrint('      contains(/$companyId/): ${url.contains('/$companyId/')}');
-          if (sku != null) debugPrint('      contains(/$sku/): ${url.contains('/$sku/')}');
         }
       }
       

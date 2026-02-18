@@ -53,7 +53,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
   Future<void> _takePhoto() async {
     try {
       if (kDebugMode) {
-        print('📷 カメラ撮影開始...');
       }
 
       final XFile? photo = await _picker.pickImage(
@@ -66,13 +65,11 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
 
       if (photo == null) {
         if (kDebugMode) {
-          print('⚠️ 撮影キャンセル');
         }
         return;
       }
 
       if (kDebugMode) {
-        print('✅ 撮影完了: ${photo.name}');
       }
 
       // 画像を読み込んで解析
@@ -80,7 +77,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
       _analyzeImage(bytes);
     } catch (e) {
       if (kDebugMode) {
-        print('❌ 撮影エラー: $e');
       }
       _showError('カメラの起動に失敗しました: $e');
     }
@@ -90,7 +86,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
   Future<void> _pickFromGallery() async {
     try {
       if (kDebugMode) {
-        print('🖼️ ギャラリー選択開始...');
       }
 
       final XFile? image = await _picker.pickImage(
@@ -102,13 +97,11 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
 
       if (image == null) {
         if (kDebugMode) {
-          print('⚠️ 選択キャンセル');
         }
         return;
       }
 
       if (kDebugMode) {
-        print('✅ 画像選択完了: ${image.name}');
       }
 
       // 画像を読み込んで解析
@@ -116,7 +109,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
       _analyzeImage(bytes);
     } catch (e) {
       if (kDebugMode) {
-        print('❌ ギャラリー選択エラー: $e');
       }
       _showError('画像の選択に失敗しました: $e');
     }
@@ -133,7 +125,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
 
     try {
       if (kDebugMode) {
-        print('🔍 画像解析開始...');
       }
 
       // Base64エンコード
@@ -141,7 +132,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
       final dataUrl = 'data:image/jpeg;base64,$base64Image';
 
       if (kDebugMode) {
-        print('📊 Base64変換完了（サイズ: ${base64Image.length} bytes）');
       }
 
       // JavaScriptでZXing-jsを使って解析（JANコード専用最適化）
@@ -237,7 +227,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
         final barcode = customEvent.detail['text'] as String;
 
         if (kDebugMode) {
-          print('📊 バーコード受信: $barcode');
         }
 
         // リスナーを削除
@@ -259,7 +248,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
         final message = customEvent.detail['message'] as String;
 
         if (kDebugMode) {
-          print('❌ 解析エラー: $message');
         }
 
         // リスナーを削除
@@ -293,7 +281,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
 
     } catch (e) {
       if (kDebugMode) {
-        print('❌ 解析エラー: $e');
       }
       if (mounted) {
         setState(() {
@@ -316,7 +303,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
 
     try {
       if (kDebugMode) {
-        print('🔍 商品検索開始: $barcode');
       }
 
       // D1 API で商品検索
@@ -328,7 +314,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
       // DashboardScreenと同じ動作: AddItemScreenに遷移
       if (product != null) {
         if (kDebugMode) {
-          print('✅ 商品発見: ${product.name} → AddItemScreenへ');
         }
 
         // ApiProduct形式に変換してAddItemScreenへ遷移
@@ -355,7 +340,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
         );
       } else {
         if (kDebugMode) {
-          print('ℹ️ 商品未登録: $barcode → AddItemScreenへ（ブランク）');
         }
         
         // 商品が見つからない場合 → ブランクのAddItemScreenへ（バーコードのみ入力済み）
@@ -381,7 +365,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ 検索エラー: $e');
       }
       if (!mounted) return;
       AppFeedback.showError(context, 'エラーが発生しました: $e');
