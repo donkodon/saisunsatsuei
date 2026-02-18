@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/measurement_model.dart';
+import 'package:measure_master/core/utils/app_feedback.dart';
 
 // State for the current measurement session
 final measurementStateProvider = StateNotifierProvider<MeasurementNotifier, MeasurementModel>((ref) {
@@ -134,10 +135,11 @@ class _MockARViewState extends ConsumerState<MockARView> {
               setState(() {
                 _isReferenceMode = !_isReferenceMode;
               });
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(_isReferenceMode ? "基準物モード: ON (通常スマホ用)" : "LiDARモード: ON (Pro用)"),
+              AppFeedback.showInfo(
+                context,
+                _isReferenceMode ? "基準物モード: ON (通常スマホ用)" : "LiDARモード: ON (Pro用)",
                 duration: const Duration(seconds: 1),
-              ));
+              );
             },
           ),
         ),

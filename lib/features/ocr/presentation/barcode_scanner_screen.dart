@@ -6,6 +6,7 @@ import 'package:measure_master/features/auth/logic/company_service.dart';
 import 'package:measure_master/features/inventory/domain/api_product.dart';
 import 'package:measure_master/features/inventory/presentation/add_item_screen.dart';
 import 'package:measure_master/features/ocr/presentation/web_barcode_scanner_screen_v2.dart';
+import 'package:measure_master/core/utils/app_feedback.dart';
 
 class BarcodeScannerScreen extends StatefulWidget {
   const BarcodeScannerScreen({super.key});
@@ -271,12 +272,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('エラーが発生しました: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppFeedback.showError(context, 'エラーが発生しました: $e');
       setState(() {
         _isSearching = false;
         _isScanning = true;

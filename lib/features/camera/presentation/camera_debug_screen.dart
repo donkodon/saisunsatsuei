@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/core/widgets/image_input.dart';
+import 'package:measure_master/core/utils/app_feedback.dart';
 
 class CameraDebugScreen extends StatefulWidget {
   const CameraDebugScreen({super.key});
@@ -19,9 +20,7 @@ class _CameraDebugScreenState extends State<CameraDebugScreen> {
       _pickedImage = pickedImage;
     });
     // ここで実際にDB保存処理などを呼び出します
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('画像パスを保存しました: ${pickedImage.path}')),
-    );
+    AppFeedback.showInfo(context, '画像パスを保存しました: ${pickedImage.path}');
   }
 
   @override

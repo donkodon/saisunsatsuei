@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:measure_master/core/services/api_service.dart';
 import 'package:measure_master/features/inventory/domain/api_product.dart';
 import 'package:measure_master/features/inventory/presentation/add_item_screen.dart';
+import 'package:measure_master/core/utils/app_feedback.dart';
 
 /// 静止画ベースのWeb版バーコードスキャナー（image_picker + Html5-QRCode）
 class WebBarcodeScannerScreenV2 extends StatefulWidget {
@@ -383,12 +384,7 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
         print('❌ 検索エラー: $e');
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('エラーが発生しました: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppFeedback.showError(context, 'エラーが発生しました: $e');
       setState(() {
         _isSearching = false;
         _statusMessage = '検索エラー。もう一度試してください。';
@@ -400,18 +396,7 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 5),
-        action: SnackBarAction(
-          label: '閉じる',
-          textColor: Colors.white,
-          onPressed: () {},
-        ),
-      ),
-    );
+    AppFeedback.showError(context, message, duration: const Duration(seconds: 5));
   }
 
   /// 手動入力ダイアログ

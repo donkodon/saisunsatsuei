@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'mock_ar_view.dart';
+import 'package:measure_master/core/utils/app_feedback.dart';
 
 class MeasurementScreen extends ConsumerWidget {
   const MeasurementScreen({super.key});
@@ -77,7 +78,7 @@ class MeasurementScreen extends ConsumerWidget {
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: () {
-                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("データを保存しました")));
+                         AppFeedback.showSuccess(context, "データを保存しました");
                       },
                       icon: const Icon(Icons.save_alt),
                       label: const Text("計測データを確定・保存"),

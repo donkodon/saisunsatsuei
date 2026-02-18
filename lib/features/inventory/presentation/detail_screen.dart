@@ -23,6 +23,7 @@ import 'package:measure_master/features/inventory/logic/inventory_saver.dart';
 import 'package:measure_master/features/measurement/logic/measurement_service.dart';
 import 'package:measure_master/features/measurement/data/measurement_api_client.dart';
 import 'package:measure_master/features/measurement/data/measurement_repository.dart';
+import 'package:measure_master/core/utils/app_feedback.dart';
 import 'package:measure_master/core/services/api_service.dart';
 
 class DetailScreen extends StatefulWidget {
@@ -1089,6 +1090,7 @@ class _DetailScreenState extends State<DetailScreen>
         content: Text(message),
         backgroundColor: Colors.orange,
         duration: const Duration(seconds: 5),
+        behavior: SnackBarBehavior.floating,
         action: SnackBarAction(
           label: 'リトライ',
           textColor: Colors.white,
@@ -1123,27 +1125,9 @@ class _DetailScreenState extends State<DetailScreen>
     }
   }
 
-  void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.green),
-    );
-  }
-
-  void _showWarning(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.orange,
-        duration: const Duration(seconds: 5),
-      ),
-    );
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
-  }
+  void _showSuccess(String message) => AppFeedback.showSuccess(context, message);
+  void _showWarning(String message) => AppFeedback.showWarning(context, message);
+  void _showError(String message) => AppFeedback.showError(context, message);
 
   // ────────────────────────────────────────────────────────
   // mixin への委譲ラッパー（呼び出し側のコードを変えずに済む）

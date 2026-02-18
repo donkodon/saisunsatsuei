@@ -6,6 +6,7 @@ import 'package:measure_master/core/services/image_cache_service.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:measure_master/core/utils/app_feedback.dart';
 
 /// 📸 撮影画面 v3（UUID管理）
 /// 
@@ -169,47 +170,29 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
   }
   
   /// 🗑️ 画像を削除（UUID方式）
-  void _deleteImage(String id) {
+  Future<void> _deleteImage(String id) async {
     final imageItem = _images.firstWhere((img) => img.id == id);
     
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('画像を削除'),
-        content: Text(
-          imageItem.isExisting
-              ? 'この画像を削除しますか？\n（商品確定時にサーバーからも削除されます）'
-              : 'この画像を削除しますか？',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('キャンセル'),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _images.removeWhere((img) => img.id == id);
-                // 選択インデックスの調整
-                if (_selectedImageIndex >= _images.length && _images.isNotEmpty) {
-                  _selectedImageIndex = _images.length - 1;
-                }
-              });
-              Navigator.pop(context);
-              
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('画像を削除しました'),
-                  backgroundColor: Colors.orange,
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-            child: const Text('削除', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
+    final confirmed = await AppFeedback.showConfirm(
+      context,
+      title: '画像を削除',
+      message: imageItem.isExisting
+          ? 'この画像を削除しますか？\n（商品確定時にサーバーからも削除されます）'
+          : 'この画像を削除しますか？',
+      confirmLabel: '削除',
     );
+    if (!confirmed) return;
+
+    setState(() {
+      _images.removeWhere((img) => img.id == id);
+      if (_selectedImageIndex >= _images.length && _images.isNotEmpty) {
+        _selectedImageIndex = _images.length - 1;
+      }
+    });
+    if (mounted) {
+      AppFeedback.showWarning(context, '画像を削除しました',
+          duration: const Duration(seconds: 2));
+    }
   }
 
   /// 📸 写真を撮影（UUID方式）
@@ -254,37 +237,15 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
           _isCapturing = false;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Text('撮影完了 (${_images.length}枚)'),
-              ],
-            ),
-            backgroundColor: AppConstants.successGreen,
-            duration: Duration(seconds: 1),
-          ),
-        );
+        AppFeedback.showSuccess(context, '撮影完了 (${_images.length}枚)',
+            duration: const Duration(seconds: 1));
       }
     } catch (e) {
       debugPrint('❌ 撮影エラー: $e');
       if (mounted) {
         setState(() => _isCapturing = false);
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.error, color: Colors.white),
-                SizedBox(width: 8),
-                Text('撮影に失敗しました'),
-              ],
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppFeedback.showError(context, '撮影に失敗しました');
       }
     }
   }
@@ -321,30 +282,14 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
           _selectedImageIndex = _images.length - 1;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Text('画像を選択しました (${_images.length}枚)'),
-              ],
-            ),
-            backgroundColor: AppConstants.successGreen,
-            duration: Duration(seconds: 1),
-          ),
-        );
+        AppFeedback.showSuccess(context, '画像を選択しました (${_images.length}枚)',
+            duration: const Duration(seconds: 1));
       }
     } catch (e) {
       debugPrint('❌ ギャラリー選択エラー: $e');
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('画像の選択に失敗しました'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppFeedback.showError(context, '画像の選択に失敗しました');
       }
     }
   }

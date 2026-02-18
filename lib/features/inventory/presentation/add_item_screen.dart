@@ -15,6 +15,7 @@ import 'package:image_picker/image_picker.dart';
 
 // 🆕 切り出したピッカー系 mixin と PricePickerDialog
 import 'package:measure_master/features/inventory/presentation/add_item_pickers.dart';
+import 'package:measure_master/core/utils/app_feedback.dart';
 
 class AddItemScreen extends StatefulWidget {
   final ApiProduct? prefillData; // 🔍 検索結果からの自動入力データ
@@ -334,9 +335,7 @@ class _AddItemScreenState extends State<AddItemScreen>
   
   void _goToCameraScreen() async {
     if (_nameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('商品名を入力してください')),
-      );
+      AppFeedback.showInfo(context, '商品名を入力してください');
       return;
     }
     
@@ -397,12 +396,7 @@ class _AddItemScreenState extends State<AddItemScreen>
       final message = '📸 ${result.length}枚の画像を管理中';
       
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: AppConstants.successGreen,
-        ),
-      );
+      AppFeedback.showSuccess(context, message);
     }
   }
   
@@ -441,6 +435,7 @@ class _AddItemScreenState extends State<AddItemScreen>
           ),
           duration: Duration(hours: 1), // OCR完了まで表示
           backgroundColor: AppConstants.primaryCyan,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       
@@ -455,18 +450,13 @@ class _AddItemScreenState extends State<AddItemScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       
-      // ステップ3: 結果ダイアログ表示
+      // ステップ3: 結果ダイアログ表示（hideCurrentSnackBar は OCR ローディング消去のため直接呼び出し維持）
       _showOcrResultDialog(ocrResult);
       
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ OCR解析エラー: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppFeedback.showError(context, '❌ OCR解析エラー: ${e.toString()}');
       if (kDebugMode) {
         debugPrint('❌ OCR解析エラー: $e');
       }
@@ -542,12 +532,7 @@ class _AddItemScreenState extends State<AddItemScreen>
                 if (size.isNotEmpty) _sizeController.text = size;
               });
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('✅ タグ情報を登録しました'),
-                  backgroundColor: AppConstants.successGreen,
-                ),
-              );
+              AppFeedback.showSuccess(context, '✅ タグ情報を登録しました');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppConstants.primaryCyan,
@@ -680,11 +665,7 @@ class _AddItemScreenState extends State<AddItemScreen>
         centerTitle: true,
         actions: [
           TextButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('下書きを保存しました')),
-              );
-            },
+            onPressed: () => AppFeedback.showInfo(context, '下書きを保存しました'),
             child: Text("保存", style: TextStyle(color: AppConstants.primaryCyan, fontWeight: FontWeight.bold)),
           ),
         ],
@@ -756,19 +737,7 @@ class _AddItemScreenState extends State<AddItemScreen>
                                             debugPrint('📸 残りの画像数: ${_images.length}');
                                           }
                                           
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Row(
-                                                children: [
-                                                  Icon(Icons.delete, color: Colors.white, size: 18),
-                                                  SizedBox(width: 8),
-                                                  Text('画像を削除しました（サーバーからも削除中...）'),
-                                                ],
-                                              ),
-                                              backgroundColor: Colors.red,
-                                              duration: Duration(seconds: 2),
-                                            ),
-                                          );
+                                          AppFeedback.showError(context, '画像を削除しました（サーバーからも削除中...）');
                                         },
                                         child: Container(
                                           padding: EdgeInsets.all(4),
@@ -1036,15 +1005,11 @@ class _AddItemScreenState extends State<AddItemScreen>
               icon: Icons.arrow_forward,
               onPressed: () {
                 if (_nameController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('商品名を入力してください')),
-                  );
+                  AppFeedback.showInfo(context, '商品名を入力してください');
                   return;
                 }
                 if (_selectedCondition == '選択してください') {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('商品の状態を選択してください')),
-                  );
+                  AppFeedback.showInfo(context, '商品の状態を選択してください');
                   return;
                 }
                 

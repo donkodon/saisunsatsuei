@@ -10,6 +10,7 @@ import 'package:measure_master/core/services/api_service.dart';
 import 'package:measure_master/features/auth/logic/company_service.dart';
 import 'package:measure_master/features/auth/logic/auth_service.dart';
 import 'package:measure_master/features/inventory/domain/api_product.dart';
+import 'package:measure_master/core/utils/app_feedback.dart';
 
 
 class DashboardScreen extends StatefulWidget {
@@ -64,28 +65,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   /// ログアウト処理（Firebase対応）
   Future<void> _handleLogout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('ログアウト'),
-        content: const Text('ログアウトしますか？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('キャンセル'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-            child: const Text('ログアウト'),
-          ),
-        ],
-      ),
+    final confirmed = await AppFeedback.showConfirm(
+      context,
+      title: 'ログアウト',
+      message: 'ログアウトしますか？',
+      confirmLabel: 'ログアウト',
     );
 
-    if (confirmed != true) return;
+    if (!confirmed) return;
 
     try {
       // ① CompanyService のメモリ・永続化キャッシュをクリア
@@ -109,24 +96,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     } catch (e) {
       debugPrint('❌ ログアウトエラー: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('ログアウトに失敗しました。再度お試しください。'),
-            backgroundColor: Colors.red[400],
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      if (mounted) AppFeedback.showError(context, 'ログアウトに失敗しました。再度お試しください。');
     }
   }
 
   /// 🔍 商品を検索してAddItemScreenに遷移
   Future<void> _searchProduct(String query) async {
     if (query.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('商品IDまたはバーコードを入力してください')),
-      );
+      AppFeedback.showInfo(context, '商品IDまたはバーコードを入力してください');
       return;
     }
 
@@ -145,12 +122,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _isSearching = false;
         });
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('保存済み商品: ${savedItem.name}'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        AppFeedback.showSuccess(context, '保存済み商品: ${savedItem.name}');
         
         // 🔧 修正: 保存済み商品は existingItem として渡す
         Navigator.push(
@@ -199,12 +171,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           });
           
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('この商品はあなたの企業のデータではありません'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          AppFeedback.showError(context, 'この商品はあなたの企業のデータではありません');
           
           _searchController.clear();
           return;
@@ -223,12 +190,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
         
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: AppConstants.successGreen,
-          ),
-        );
+        AppFeedback.showSuccess(context, message);
 
         // ApiProduct形式に変換してAddItemScreenへ遷移
         final product = ApiProduct(
@@ -268,13 +230,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       } else {
         if (!mounted) return;
         // 商品が見つからない場合は、検索したバーコード/SKUを初期値として新規作成画面へ
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('商品が見つかりませんでした。新規作成します。'),
-            backgroundColor: AppConstants.warningOrange,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        AppFeedback.showWarning(context, '商品が見つかりませんでした。新規作成します。');
 
         // 仮のAPIプロダクトを作成して渡す（バーコード/SKUのみ入力済み）
         final dummyProduct = ApiProduct(
@@ -308,21 +264,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _isSearching = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('検索エラー: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppFeedback.showError(context, '検索エラー: $e');
     }
   }
 
   /// 📸 バーコードスキャン実行
   Future<void> _scanBarcode() async {
     if (kIsWeb) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Web版ではバーコードスキャンはサポートされていません')),
-      );
+      AppFeedback.showInfo(context, 'Web版ではバーコードスキャンはサポートされていません');
       return;
     }
 

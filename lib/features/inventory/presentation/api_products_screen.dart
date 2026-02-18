@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:measure_master/features/inventory/logic/inventory_provider.dart';
 import 'package:measure_master/features/inventory/logic/api_product_provider.dart';
 import 'package:measure_master/features/inventory/domain/item.dart';
+import 'package:measure_master/core/utils/app_feedback.dart';
 
 class ApiProductsScreen extends StatefulWidget {
   const ApiProductsScreen({super.key});
@@ -55,9 +56,7 @@ class _ApiProductsScreenState extends State<ApiProductsScreen> {
         .toList();
 
     if (selectedProducts.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('商品を選択してください')),
-      );
+      AppFeedback.showInfo(context, '商品を選択してください');
       return;
     }
 
@@ -90,12 +89,7 @@ class _ApiProductsScreenState extends State<ApiProductsScreen> {
       inventoryProvider.addItem(newItem);
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${selectedProducts.length}件の商品を取り込みました'),
-        backgroundColor: AppConstants.successGreen,
-      ),
-    );
+    AppFeedback.showSuccess(context, '${selectedProducts.length}件の商品を取り込みました');
 
     Navigator.pop(context);
   }
