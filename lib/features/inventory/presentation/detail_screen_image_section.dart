@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/features/inventory/domain/image_item.dart';
@@ -63,8 +62,6 @@ class _DetailScreenImageSectionState extends State<DetailScreenImageSection>
                   setState(() {
                     _showWhiteBackground = !_showWhiteBackground;
                   });
-                  if (kDebugMode) {
-                  }
                 },
               ),
             ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:measure_master/constants.dart';
 
 /// add_item_screen から切り出したピッカー系 mixin
@@ -437,8 +436,6 @@ class _PricePickerDialogState extends State<PricePickerDialog> {
     super.initState();
     _focusNode = FocusNode();
     _focusNode.addListener(() {
-      if (kDebugMode) {
-      }
     });
   }
 
@@ -482,8 +479,6 @@ class _PricePickerDialogState extends State<PricePickerDialog> {
           enableInteractiveSelection: true,
           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           onChanged: (value) {
-            if (kDebugMode) {
-            }
           },
           onTap: () {
             if (widget.tempController.text.isNotEmpty) {

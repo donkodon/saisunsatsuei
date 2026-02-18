@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 
 /// Firebase Authentication サービス
 /// 
@@ -26,21 +25,15 @@ class AuthService {
     required String password,
   }) async {
     try {
-      if (kDebugMode) {
-      }
       
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
       
-      if (kDebugMode) {
-      }
       
       return credential;
     } on FirebaseAuthException catch (_) {
-      if (kDebugMode) {
-      }
       rethrow;
     }
   }
@@ -57,21 +50,15 @@ class AuthService {
     required String password,
   }) async {
     try {
-      if (kDebugMode) {
-      }
       
       final credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
       
-      if (kDebugMode) {
-      }
       
       return credential;
     } on FirebaseAuthException catch (_) {
-      if (kDebugMode) {
-      }
       rethrow;
     }
   }
@@ -79,16 +66,10 @@ class AuthService {
   /// サインアウト
   Future<void> signOut() async {
     try {
-      if (kDebugMode) {
-      }
       
       await _auth.signOut();
       
-      if (kDebugMode) {
-      }
     } catch (_) {
-      if (kDebugMode) {
-      }
       rethrow;
     }
   }
@@ -98,16 +79,10 @@ class AuthService {
   /// `email` パスワードをリセットしたいアカウントのメールアドレス
   Future<void> sendPasswordResetEmail({required String email}) async {
     try {
-      if (kDebugMode) {
-      }
       
       await _auth.sendPasswordResetEmail(email: email);
       
-      if (kDebugMode) {
-      }
     } on FirebaseAuthException catch (_) {
-      if (kDebugMode) {
-      }
       rethrow;
     }
   }
@@ -118,8 +93,6 @@ class AuthService {
   /// 含まれるフィールド: email, companyId, displayName, role, createdAt
   Future<Map<String, dynamic>?> getUserProfile(String uid) async {
     try {
-      if (kDebugMode) {
-      }
       
       final doc = await FirebaseFirestore.instance
           .collection('users')
@@ -127,19 +100,13 @@ class AuthService {
           .get();
       
       if (!doc.exists) {
-        if (kDebugMode) {
-        }
         return null;
       }
       
       final data = doc.data();
-      if (kDebugMode) {
-      }
       
       return data;
     } catch (_) {
-      if (kDebugMode) {
-      }
       return null;
     }
   }
@@ -152,8 +119,6 @@ class AuthService {
           .doc(uid)
           .update({'lastLoginAt': FieldValue.serverTimestamp()});
     } catch (_) {
-      if (kDebugMode) {
-      }
     }
   }
 

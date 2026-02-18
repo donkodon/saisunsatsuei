@@ -1,5 +1,4 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/foundation.dart';
 
 /// 企業ID管理サービス
 /// 
@@ -21,8 +20,6 @@ class CompanyService {
       _memoryCompanyName = companyName;
     }
     
-    if (kDebugMode) {
-    }
     
     // SharedPreferencesへの保存を試みる（失敗してもOK）
     try {
@@ -33,11 +30,7 @@ class CompanyService {
         await prefs.setString(_companyNameKey, companyName);
       }
       
-      if (kDebugMode) {
-      }
     } catch (e) {
-      if (kDebugMode) {
-      }
     }
     
     // メモリ保存は必ず成功するので true を返す
@@ -48,8 +41,6 @@ class CompanyService {
   Future<String?> getCompanyId() async {
     // まずメモリから取得を試みる
     if (_memoryCompanyId != null && _memoryCompanyId!.isNotEmpty) {
-      if (kDebugMode) {
-      }
       return _memoryCompanyId!;
     }
     
@@ -60,18 +51,12 @@ class CompanyService {
       
       if (companyId != null && companyId.isNotEmpty) {
         _memoryCompanyId = companyId; // メモリにキャッシュ
-        if (kDebugMode) {
-        }
         return companyId;
       }
     } catch (e) {
-      if (kDebugMode) {
-      }
     }
     
     // どちらも失敗した場合はnullを返す（デフォルト値なし）
-    if (kDebugMode) {
-    }
     return null;
   }
   
@@ -91,8 +76,6 @@ class CompanyService {
       }
       return companyName;
     } catch (e) {
-      if (kDebugMode) {
-      }
       return null;
     }
   }
@@ -113,8 +96,6 @@ class CompanyService {
         return true;
       }
     } catch (e) {
-      if (kDebugMode) {
-      }
     }
     
     return false;
@@ -126,8 +107,6 @@ class CompanyService {
     _memoryCompanyId = null;
     _memoryCompanyName = null;
     
-    if (kDebugMode) {
-    }
     
     // SharedPreferencesもクリア（失敗してもOK）
     try {
@@ -135,11 +114,7 @@ class CompanyService {
       await prefs.remove(_companyIdKey);
       await prefs.remove(_companyNameKey);
       
-      if (kDebugMode) {
-      }
     } catch (e) {
-      if (kDebugMode) {
-      }
     }
     
     return true;

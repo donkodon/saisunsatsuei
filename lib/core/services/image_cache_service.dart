@@ -19,8 +19,6 @@ class ImageCacheService {
   /// キャッシュを初期化
   static Future<void> initialize() async {
     _box = await Hive.openBox<String>(_boxName);
-    if (kDebugMode) {
-    }
   }
   
   // ============================================
@@ -38,8 +36,6 @@ class ImageCacheService {
     final separator = url.contains('?') ? '&' : '?';
     final cacheBustedUrl = '$url${separator}t=$timestamp';
     
-    if (kDebugMode) {
-    }
     
     return cacheBustedUrl;
   }
@@ -79,11 +75,7 @@ class ImageCacheService {
       
       await _box!.put(key, base64Data);
       
-      if (kDebugMode) {
-      }
     } catch (e) {
-      if (kDebugMode) {
-      }
     }
   }
   
@@ -100,17 +92,11 @@ class ImageCacheService {
       final base64Data = _box!.get(key);
       
       if (base64Data != null) {
-        if (kDebugMode) {
-        }
         return base64Decode(base64Data);
       }
       
-      if (kDebugMode) {
-      }
       return null;
     } catch (e) {
-      if (kDebugMode) {
-      }
       return null;
     }
   }
@@ -139,8 +125,6 @@ class ImageCacheService {
   static Future<void> clearCache() async {
     if (_box != null) {
       await _box!.clear();
-      if (kDebugMode) {
-      }
     }
   }
   
@@ -162,12 +146,8 @@ class ImageCacheService {
       final key = _extractFileName(imageUrl);
       if (_box!.containsKey(key)) {
         await _box!.delete(key);
-        if (kDebugMode) {
-        }
       }
     } catch (e) {
-      if (kDebugMode) {
-      }
     }
   }
   
@@ -187,13 +167,9 @@ class ImageCacheService {
           deletedCount++;
         }
       } catch (e) {
-        if (kDebugMode) {
-        }
       }
     }
     
-    if (kDebugMode) {
-    }
   }
   
   /// SKU単位でキャッシュをクリア
@@ -212,11 +188,7 @@ class ImageCacheService {
         await _box!.delete(key);
       }
       
-      if (kDebugMode) {
-      }
     } catch (e) {
-      if (kDebugMode) {
-      }
     }
   }
   
@@ -230,8 +202,6 @@ class ImageCacheService {
     // 2. 新しい画像をキャッシュ
     await cacheImage(imageUrl, imageBytes);
     
-    if (kDebugMode) {
-    }
   }
   
   /// 【NEW】キャッシュから画像ファイルを取得
@@ -251,13 +221,9 @@ class ImageCacheService {
       
       await file.writeAsBytes(cachedBytes);
       
-      if (kDebugMode) {
-      }
       
       return file;
     } catch (e) {
-      if (kDebugMode) {
-      }
       return null;
     }
   }

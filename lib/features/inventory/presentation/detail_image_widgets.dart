@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/features/inventory/domain/image_item.dart';
 import 'package:measure_master/core/widgets/smart_image_viewer.dart';
@@ -42,8 +41,6 @@ mixin DetailImageWidgets<T extends StatefulWidget> on State<T> {
         isMain: isMain,
       ),
       onTap: () {
-        if (kDebugMode) {
-        }
 
         final imageUrls = <String>[];
         final whiteImageUrls = <String>[];
@@ -57,8 +54,6 @@ mixin DetailImageWidgets<T extends StatefulWidget> on State<T> {
           }
         }
 
-        if (kDebugMode) {
-        }
 
         if (imageUrls.isNotEmpty && index != null) {
           Navigator.push(

@@ -51,24 +51,15 @@ class ApiProductProvider with ChangeNotifier {
   Future<List<ApiProduct>> fetchProducts({bool forceRefresh = false}) async {
     // 🔐 強制更新 (ログイン時など)
     if (forceRefresh) {
-      if (kDebugMode) {
-      }
       return await _fetchFromApi();
     }
     
     // ✅ キャッシュがある場合は必ず返す (セッション中は無期限有効)
     if (_products.isNotEmpty) {
-      if (kDebugMode) {
-        final _ = _lastFetchTime != null 
-          ? DateTime.now().difference(_lastFetchTime!).inMinutes
-          : 0;
-      }
       return _products;
     }
     
     // 🌐 初回アクセス (キャッシュなし) → API呼び出し
-    if (kDebugMode) {
-    }
     return await _fetchFromApi();
   }
   
@@ -80,8 +71,6 @@ class ApiProductProvider with ChangeNotifier {
   /// await Provider.of<ApiProductProvider>(context, listen: false).fetchOnLogin();
   /// ```
   Future<List<ApiProduct>> fetchOnLogin() async {
-    if (kDebugMode) {
-    }
     return await fetchProducts(forceRefresh: true);
   }
   
@@ -97,8 +86,6 @@ class ApiProductProvider with ChangeNotifier {
       _lastFetchTime = DateTime.now();
       _error = null;
       
-      if (kDebugMode) {
-      }
       
       _isLoading = false;
       notifyListeners();
@@ -114,8 +101,6 @@ class ApiProductProvider with ChangeNotifier {
   
   /// 手動リフレッシュ (ユーザー操作)
   Future<List<ApiProduct>> refresh() async {
-    if (kDebugMode) {
-    }
     return await _fetchFromApi();
   }
   
@@ -126,8 +111,6 @@ class ApiProductProvider with ChangeNotifier {
     _error = null;
     notifyListeners();
     
-    if (kDebugMode) {
-    }
   }
   
   /// SKUで商品を検索

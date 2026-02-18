@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import '../domain/image_item.dart';
 
 /// 🎨 白抜き画像管理サービス
@@ -29,20 +28,14 @@ class WhiteBackgroundService {
   /// Cloudflare上に白抜き画像が存在するか確認
   Future<bool> checkWhiteImageExists(String whiteUrl) async {
     try {
-      if (kDebugMode) {
-      }
 
       // Note: Web環境ではHEADリクエストに制限があるため、
       // 実際のチェックはCloudflare Workers側で行う想定
       // ここでは白抜きURLが生成可能かのみ確認
       
-      if (kDebugMode) {
-      }
       
       return true; // 常にtrueを返し、実際の存在確認は表示時に行う
     } catch (e) {
-      if (kDebugMode) {
-      }
       return false;
     }
   }
@@ -51,8 +44,6 @@ class WhiteBackgroundService {
   /// 
   /// 既存のImageItemリストに白抜きURLを追加
   Future<List<ImageItem>> pairWhiteImages(List<ImageItem> images) async {
-    if (kDebugMode) {
-    }
 
     final pairedImages = <ImageItem>[];
 
@@ -66,8 +57,6 @@ class WhiteBackgroundService {
       // 既存画像の場合、白抜きURLを生成
       final whiteUrl = generateWhiteUrl(image.url!);
       
-      if (kDebugMode) {
-      }
 
       // 白抜きURLを設定した新しいImageItemを作成
       final pairedImage = ImageItem(
@@ -84,8 +73,6 @@ class WhiteBackgroundService {
       pairedImages.add(pairedImage);
     }
 
-    if (kDebugMode) {
-    }
 
     return pairedImages;
   }
@@ -119,8 +106,6 @@ class WhiteBackgroundService {
         final whiteUrl = '$baseUrl/$sku/$whiteFileName';
         whiteUrls.add(whiteUrl);
         
-        if (kDebugMode) {
-        }
       }
     }
 

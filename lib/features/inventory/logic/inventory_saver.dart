@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:measure_master/features/inventory/domain/item.dart';
 import 'package:measure_master/features/inventory/logic/inventory_provider.dart';
 import 'package:measure_master/core/services/api_service.dart';
@@ -16,13 +15,14 @@ class InventorySaver {
   final ApiService _apiService;
   final CompanyService _companyService;
 
+  /// [companyService] は必ず Provider 経由のインスタンスを渡すこと
   InventorySaver({
     required InventoryProvider inventoryProvider,
+    required CompanyService companyService,
     ApiService? apiService,
-    CompanyService? companyService,
   })  : _inventoryProvider = inventoryProvider,
-        _apiService = apiService ?? ApiService(),
-        _companyService = companyService ?? CompanyService();
+        _companyService = companyService,
+        _apiService = apiService ?? ApiService();
 
   /// 💾 Hiveに保存
   /// 
@@ -34,17 +34,6 @@ class InventorySaver {
 
       await _inventoryProvider.addItem(item);
       
-
-      // 🔍 Hive保存後の確認（読み込んで検証）
-      if (kDebugMode && item.sku != null && item.sku!.isNotEmpty) {
-        final savedItem = _inventoryProvider.findBySku(item.sku!);
-        if (savedItem != null) {
-          if (savedItem.imageUrls != null && kDebugMode) {
-            for (int i = 0; i < savedItem.imageUrls!.length; i++) {
-            }
-          }
-        }
-      }
 
       return true;
     } catch (e) {
@@ -76,8 +65,6 @@ class InventorySaver {
 
         // 🏢 企業IDを取得（null時は空文字）
         final companyId = await _companyService.getCompanyId() ?? '';
-
-        // 🔍 デバッグログ: 企業ID取得結果
 
         // ベースデータ
         final itemData = <String, dynamic>{
@@ -116,8 +103,6 @@ class InventorySaver {
         final shoulder = itemData['shoulder']?.toString() ?? '';
         final sleeve   = itemData['sleeve']?.toString() ?? '';
 
-        // 🔥 強制デバッグログ（リリースビルドでも出力）
-
         if (length.isNotEmpty || width.isNotEmpty || shoulder.isNotEmpty || sleeve.isNotEmpty) {
           itemData['actualMeasurements'] = {
             if (length.isNotEmpty)   'body_length':     double.tryParse(length)   ?? length,
@@ -125,7 +110,6 @@ class InventorySaver {
             if (shoulder.isNotEmpty) 'shoulder_width':  double.tryParse(shoulder) ?? shoulder,
             if (sleeve.isNotEmpty)   'sleeve_length':   double.tryParse(sleeve)   ?? sleeve,
           };
-        } else {
         }
 
         // バラキーは Workers に不要なので除去
@@ -138,7 +122,6 @@ class InventorySaver {
         final success = await _apiService.saveProductItemToD1(itemData);
 
         if (success) {
-
           return SaveToD1Result(
             success: true,
             retryCount: retryCount + 1,
@@ -148,11 +131,9 @@ class InventorySaver {
           throw Exception('D1保存API returned false');
         }
       } catch (e, stackTrace) {
-        
         if (retryCount < maxRetries - 1) {
           await Future.delayed(Duration(seconds: retryCount + 1));
         } else {
-          
           return SaveToD1Result(
             success: false,
             retryCount: maxRetries,

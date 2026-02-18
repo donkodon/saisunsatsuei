@@ -70,8 +70,6 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
   void initState() {
     super.initState();
     
-    if (kDebugMode) {
-    }
     
     _initializeCamera();
     _initializeExistingImages();
@@ -84,8 +82,6 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
         _images = List.from(widget.existingImages!);
       });
       
-      if (kDebugMode) {
-      }
     }
   }
 
@@ -142,11 +138,6 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
     // 🎯 順序を再計算してから返却
     final updatedImages = _updateSequences();
     
-    if (kDebugMode) {
-      for (var _ in updatedImages) {
-      }
-    }
-    
     Navigator.pop(context, updatedImages);
   }
   
@@ -196,13 +187,9 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
     try {
       final image = await _controller!.takePicture();
       
-      if (kDebugMode) {
-      }
 
       // 🔧 blob URL問題の回避: 即座にバイトデータに変換
       final imageBytes = await image.readAsBytes();
-      if (kDebugMode) {
-      }
 
       if (mounted) {
         // ✅ ImageItem として追加（bytesを保持）
@@ -215,8 +202,6 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
           _images.add(newItem);
           _selectedImageIndex = _images.length - 1;
           
-          if (kDebugMode) {
-          }
         });
         
         setState(() {
@@ -251,8 +236,6 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
         return;
       }
 
-      if (kDebugMode) {
-      }
 
       if (mounted) {
         // ✅ ローカルファイルリストに追加
@@ -342,8 +325,6 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
         // ✅ ?t=timestamp パラメータでキャッシュバスティング実現
         // ❌ Cache-Controlヘッダーは削除（CORS問題回避）
         errorBuilder: (context, error, stackTrace) {
-          if (kDebugMode) {
-          }
           return Container(
             width: 80,
             height: 80,

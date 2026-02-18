@@ -5,7 +5,6 @@ import 'dart:html' as html;
 import 'dart:typed_data';
 // ignore: avoid_web_libraries_in_flutter
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:image_picker/image_picker.dart';
 import 'package:measure_master/core/services/api_service.dart';
 import 'package:measure_master/features/inventory/domain/api_product.dart';
@@ -52,8 +51,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
   /// カメラで写真を撮影
   Future<void> _takePhoto() async {
     try {
-      if (kDebugMode) {
-      }
 
       final XFile? photo = await _picker.pickImage(
         source: ImageSource.camera,
@@ -64,20 +61,14 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
       );
 
       if (photo == null) {
-        if (kDebugMode) {
-        }
         return;
       }
 
-      if (kDebugMode) {
-      }
 
       // 画像を読み込んで解析
       final bytes = await photo.readAsBytes();
       _analyzeImage(bytes);
     } catch (e) {
-      if (kDebugMode) {
-      }
       _showError('カメラの起動に失敗しました: $e');
     }
   }
@@ -85,8 +76,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
   /// ギャラリーから画像を選択
   Future<void> _pickFromGallery() async {
     try {
-      if (kDebugMode) {
-      }
 
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
@@ -96,20 +85,14 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
       );
 
       if (image == null) {
-        if (kDebugMode) {
-        }
         return;
       }
 
-      if (kDebugMode) {
-      }
 
       // 画像を読み込んで解析
       final bytes = await image.readAsBytes();
       _analyzeImage(bytes);
     } catch (e) {
-      if (kDebugMode) {
-      }
       _showError('画像の選択に失敗しました: $e');
     }
   }
@@ -124,15 +107,11 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
     });
 
     try {
-      if (kDebugMode) {
-      }
 
       // Base64エンコード
       final base64Image = base64Encode(imageBytes);
       final dataUrl = 'data:image/jpeg;base64,$base64Image';
 
-      if (kDebugMode) {
-      }
 
       // JavaScriptでZXing-jsを使って解析（JANコード専用最適化）
       final analysisScript = html.ScriptElement()
@@ -226,8 +205,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
         final customEvent = event as html.CustomEvent;
         final barcode = customEvent.detail['text'] as String;
 
-        if (kDebugMode) {
-        }
 
         // リスナーを削除
         html.window.removeEventListener('barcode-detected', successListener);
@@ -247,8 +224,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
         final customEvent = event as html.CustomEvent;
         final message = customEvent.detail['message'] as String;
 
-        if (kDebugMode) {
-        }
 
         // リスナーを削除
         html.window.removeEventListener('barcode-detected', successListener);
@@ -280,8 +255,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
       });
 
     } catch (e) {
-      if (kDebugMode) {
-      }
       if (mounted) {
         setState(() {
           _isAnalyzing = false;
@@ -302,8 +275,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
     });
 
     try {
-      if (kDebugMode) {
-      }
 
       // D1 API で商品検索
       final product = await ApiService.searchByBarcode(barcode);
@@ -313,8 +284,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
       // 商品が見つかった場合はデータを引っ張る、見つからない場合はブランクで遷移
       // DashboardScreenと同じ動作: AddItemScreenに遷移
       if (product != null) {
-        if (kDebugMode) {
-        }
 
         // ApiProduct形式に変換してAddItemScreenへ遷移
         final apiProduct = ApiProduct(
@@ -339,8 +308,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
           ),
         );
       } else {
-        if (kDebugMode) {
-        }
         
         // 商品が見つからない場合 → ブランクのAddItemScreenへ（バーコードのみ入力済み）
         final dummyProduct = ApiProduct(
@@ -364,8 +331,6 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
         );
       }
     } catch (e) {
-      if (kDebugMode) {
-      }
       if (!mounted) return;
       AppFeedback.showError(context, 'エラーが発生しました: $e');
       setState(() {

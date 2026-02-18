@@ -21,8 +21,6 @@ class ImageProxyService {
     if (imageUrl.contains('pub-300562464768499b8fcaee903d0f9861.r2.dev')) {
       final fileName = imageUrl.split('/').last;
       final proxyUrl = '$workerBaseUrl/image/$fileName';
-      if (kDebugMode) {
-      }
       return proxyUrl;
     }
     
@@ -41,8 +39,6 @@ class ImageProxyService {
     try {
       final proxyUrl = convertToProxyUrl(imageUrl);
       
-      if (kDebugMode) {
-      }
       
       final response = await http.get(
         Uri.parse(proxyUrl),
@@ -57,17 +53,11 @@ class ImageProxyService {
       );
       
       if (response.statusCode == 200) {
-        if (kDebugMode) {
-        }
         return response.bodyBytes;
       } else {
-        if (kDebugMode) {
-        }
         return null;
       }
     } catch (e) {
-      if (kDebugMode) {
-      }
       return null;
     }
   }

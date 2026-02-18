@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:measure_master/features/inventory/domain/image_item.dart';
 import 'package:measure_master/features/inventory/data/cloudflare_storage_service.dart';
 import 'package:measure_master/features/inventory/models/image_delete_result.dart';
@@ -173,13 +172,6 @@ class ImageDiffManager {
       uids: fUidsToDelete, companyId: companyId, sku: sku, type: 'f',
     );
 
-    if (kDebugMode) {
-      for (final _ in pUrlsToDelete) {
-      }
-      for (final _ in fUrlsToDelete) {
-      }
-    }
-
     // R2から削除実行
     final pResult = await deleteImagesFromR2(urls: pUrlsToDelete, sku: sku);
     final fResult = await deleteImagesFromR2(urls: fUrlsToDelete, sku: sku);
@@ -214,11 +206,6 @@ class ImageDiffManager {
 
     // 古いURLで、新しいURLに含まれないものが削除対象
     final urlsToDelete = oldUrls.where((url) => !newUrlSet.contains(url)).toList();
-
-    if (kDebugMode && urlsToDelete.isNotEmpty) {
-      for (int i = 0; i < urlsToDelete.length; i++) {
-      }
-    }
 
     return urlsToDelete;
   }
@@ -281,17 +268,6 @@ class ImageDiffManager {
     }).toSet();
 
     
-    // 🔍 デバッグ: P画像の詳細チェック
-    if (kDebugMode) {
-      for (var url in allImageUrls) {
-        if (url.contains('_p.png') || url.contains('_P.jpg') || url.contains('_p.') || url.contains('_P.')) {
-        }
-      }
-      
-      for (var _ in oldPImageUrls ?? []) {
-      }
-    }
-
     // ✅ 修正: 古いURLで新しいURLに含まれないものを削除対象とする
     final oldWhiteUrlSet = oldWhiteUrls.toSet();
     final oldMaskUrlSet = oldMaskUrls.toSet();
@@ -302,26 +278,6 @@ class ImageDiffManager {
     final maskUrlsToDelete = oldMaskUrlSet.difference(newMaskUrls).toList();
     final pImageUrlsToDelete = oldPImageUrlSet.difference(newPImageUrls).toList();
     final fImageUrlsToDelete = oldFImageUrlSet.difference(newFImageUrls).toList();
-
-    if (whiteUrlsToDelete.isNotEmpty && kDebugMode) {
-      for (var _ in whiteUrlsToDelete) {
-      }
-    }
-    
-    if (maskUrlsToDelete.isNotEmpty && kDebugMode) {
-      for (var _ in maskUrlsToDelete) {
-      }
-    }
-    
-    if (pImageUrlsToDelete.isNotEmpty && kDebugMode) {
-      for (var _ in pImageUrlsToDelete) {
-      }
-    }
-    
-    if (fImageUrlsToDelete.isNotEmpty && kDebugMode) {
-      for (var _ in fImageUrlsToDelete) {
-      }
-    }
 
     return WhiteMaskDiffResult(
       whiteUrlsToDelete: whiteUrlsToDelete,

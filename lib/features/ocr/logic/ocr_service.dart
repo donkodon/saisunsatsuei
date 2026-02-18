@@ -23,19 +23,13 @@ class OcrService {
   /// 戻り値: OCR解析結果（ブランド、素材、原産国、サイズなど）
   Future<OcrResult> analyzeTag(Uint8List imageBytes) async {
     try {
-      if (kDebugMode) {
-      }
       
       // API Client を使用してOCR実行
       final result = await _apiClient.analyzeImage(imageBytes);
       
-      if (kDebugMode) {
-      }
       
       return result;
     } catch (e) {
-      if (kDebugMode) {
-      }
       rethrow;
     }
   }

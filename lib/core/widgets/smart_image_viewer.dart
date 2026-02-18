@@ -153,8 +153,6 @@ class SmartImageViewer extends StatelessWidget {
       height: height,
       fit: fit,
       errorBuilder: (context, error, stackTrace) {
-        if (kDebugMode) {
-        }
         return _buildError();
       },
     );
@@ -177,13 +175,9 @@ class SmartImageViewer extends StatelessWidget {
         return _buildLoading(loadingProgress);
       },
       errorBuilder: (context, error, stackTrace) {
-        if (kDebugMode) {
-        }
         
         // 🎨 Phase 5: 白抜き画像のエラー時は元画像にフォールバック
         if (showWhiteBackground && imageUrl != null && url == whiteImageUrl) {
-          if (kDebugMode) {
-          }
           final fallbackUrl = ImageCacheService.getCacheBustedUrl(imageUrl!);
           return Image.network(
             fallbackUrl,

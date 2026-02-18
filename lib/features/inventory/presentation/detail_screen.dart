@@ -121,7 +121,8 @@ class _DetailScreenState extends State<DetailScreen>
   // ─── サービス ────────────────────────────────────────────────
   late final WhiteBackgroundService _whiteBackgroundService;
   late final InventoryProvider _inventoryProvider;
-  final CompanyService _companyService = CompanyService();
+  // ✅ CompanyService は Provider 経由で取得（直接 new しない）
+  late final CompanyService _companyService;
   late final ImageUploadCoordinator _uploadCoordinator;
   late final ImageDiffManager _diffManager;
   late final InventorySaver _inventorySaver;
@@ -218,14 +219,18 @@ class _DetailScreenState extends State<DetailScreen>
     _whiteBackgroundService = WhiteBackgroundService();
     _inventoryProvider =
         Provider.of<InventoryProvider>(context, listen: false);
+    // ✅ Provider の同一インスタンスを取得
+    _companyService = Provider.of<CompanyService>(context, listen: false);
     _uploadCoordinator = ImageUploadCoordinator();
     _diffManager = ImageDiffManager();
     _measurementService = MeasurementService(
       apiClient: MeasurementApiClient(d1ApiUrl: ApiService.d1ApiUrl),
       repository: MeasurementRepository(),
     );
-    _inventorySaver =
-        InventorySaver(inventoryProvider: _inventoryProvider);
+    _inventorySaver = InventorySaver(
+      inventoryProvider: _inventoryProvider,
+      companyService: _companyService,
+    );
 
     _selectedMaterial = widget.material.isNotEmpty &&
             widget.material != '選択してください'
@@ -261,12 +266,7 @@ class _DetailScreenState extends State<DetailScreen>
   Future<void> _initializeWhiteImages() async {
     if (widget.images == null || widget.images!.isEmpty) return;
     try {
-      final pairedImages =
-          await _whiteBackgroundService.pairWhiteImages(widget.images!);
-      if (kDebugMode) {
-        final _ =
-            _whiteBackgroundService.getWhiteImageStats(pairedImages);
-      }
+      await _whiteBackgroundService.pairWhiteImages(widget.images!);
     } catch (e) {
       if (kDebugMode) debugPrint('❌ 白抜き初期化失敗: $e');
     }

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 /// Replicate API との通信を担当するクライアント
@@ -48,8 +47,6 @@ class MeasurementApiClient {
     required String garmentClass,
   }) async {
     try {
-      if (kDebugMode) {
-      }
 
       final requestBody = {
         'image_url': imageUrl,
@@ -58,8 +55,6 @@ class MeasurementApiClient {
         'garment_class': garmentClass,
       };
 
-      if (kDebugMode) {
-      }
 
       final response = await httpClient
           .post(
@@ -71,21 +66,15 @@ class MeasurementApiClient {
           )
           .timeout(const Duration(seconds: 10)); // Workers即レスポンス（prediction作成のみ）
 
-      if (kDebugMode) {
-      }
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body) as Map<String, dynamic>;
 
         if (jsonData['success'] == true) {
-          if (kDebugMode) {
-          }
 
           // 採寸結果を抽出（同期ポーリング方式の場合、結果が即座に返る）
           final measurementsData = jsonData['measurements'] as Map<String, dynamic>?;
 
-          if (kDebugMode) {
-          }
           
           return MeasurementApiResponse(
             success: true,
@@ -108,8 +97,6 @@ class MeasurementApiClient {
                     : null,
           );
         } else {
-          if (kDebugMode) {
-          }
           throw MeasurementApiException(
             '採寸API失敗: ${jsonData['message'] ?? '不明なエラー'}',
             statusCode: response.statusCode,
@@ -117,8 +104,6 @@ class MeasurementApiClient {
         }
       } else if (response.statusCode == 400) {
         final errorData = json.decode(response.body) as Map<String, dynamic>;
-        if (kDebugMode) {
-        }
         throw MeasurementApiException(
           '不正なリクエスト: ${errorData['message'] ?? '不明なエラー'}',
           statusCode: response.statusCode,
@@ -130,12 +115,8 @@ class MeasurementApiClient {
         );
       }
     } on http.ClientException catch (e) {
-      if (kDebugMode) {
-      }
       throw MeasurementApiException('ネットワークエラー: $e');
     } catch (e) {
-      if (kDebugMode) {
-      }
       rethrow;
     }
   }

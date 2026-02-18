@@ -66,8 +66,6 @@ mixin DetailSaveMixin<T extends StatefulWidget> on State<T> {
 
   /// 商品確定ボタンから呼ばれるメインの保存処理
   Future<void> saveProduct(BuildContext context) async {
-    if (kDebugMode) {
-    }
 
     try {
       // ========== Phase 1: 古い画像URL取得（差分削除用） ==========
@@ -88,8 +86,6 @@ mixin DetailSaveMixin<T extends StatefulWidget> on State<T> {
               .where((url) => url.contains('_mask.png'))
               .toList();
 
-          if (kDebugMode) {
-          }
 
           final companyIdForDerived =
               (await companyService.getCompanyId()) ?? '';
@@ -118,12 +114,13 @@ mixin DetailSaveMixin<T extends StatefulWidget> on State<T> {
 
       // ========== Phase 2: プログレスダイアログ表示 ==========
       // ignore: use_build_context_synchronously
+      _uploadProgressNotifier.value = (0, 0);
+      // ignore: use_build_context_synchronously
       showDialog(
-        context: context, // ignore: use_build_context_synchronously
+        context: context,
         barrierDismissible: false,
         builder: (_) => _UploadProgressDialog(
-          getProgress: () => _uploadProgressValue,
-          getTotal: () => _uploadTotalValue,
+          progressNotifier: _uploadProgressNotifier,
         ),
       );
 
@@ -205,8 +202,6 @@ mixin DetailSaveMixin<T extends StatefulWidget> on State<T> {
         }
       }
 
-      if (kDebugMode) {
-      }
 
       final newItem = InventoryItem(
         id: uniqueId,
@@ -216,8 +211,12 @@ mixin DetailSaveMixin<T extends StatefulWidget> on State<T> {
         category: _emptyToNull(widgetCategory) ?? '',
         status: 'Ready',
         date: DateTime.now(),
-        length: 68,
-        width: 52,
+        length: widgetLength != null && widgetLength!.isNotEmpty
+            ? double.tryParse(widgetLength!)
+            : null,
+        width: widgetWidth != null && widgetWidth!.isNotEmpty
+            ? double.tryParse(widgetWidth!)
+            : null,
         size: sizeController.text.isEmpty ? 'M' : sizeController.text,
         barcode: barcodeController.text.isEmpty
             ? null
@@ -254,8 +253,6 @@ mixin DetailSaveMixin<T extends StatefulWidget> on State<T> {
 
       // ========== Phase 6.5: AI自動採寸（Fire & Forget） ==========
       if (widgetAiMeasureEnabled && uploadResult.allUrls.isNotEmpty) {
-        if (kDebugMode) {
-        }
         final cId = await companyService.getCompanyId() ?? '';
         try {
           await measurementService.measureGarmentAsync(
@@ -278,8 +275,6 @@ mixin DetailSaveMixin<T extends StatefulWidget> on State<T> {
       if (!mounted) return;
       // ignore: use_build_context_synchronously
       Navigator.pop(context);
-      if (kDebugMode) {
-      }
       // ignore: use_build_context_synchronously
       AppFeedback.showError(context, '保存エラー: $e');
     }
@@ -321,15 +316,14 @@ mixin DetailSaveMixin<T extends StatefulWidget> on State<T> {
     }
   }
 
-  // ─── プログレス値（子クラスが setState で更新） ──────────────
-  int _uploadProgressValue = 0;
-  int _uploadTotalValue = 0;
+  // ─── プログレス値（ValueNotifier でリアルタイム更新） ──────────
+  // ダイアログへの参照を保持して直接通知する
+  final ValueNotifier<(int, int)> _uploadProgressNotifier =
+      ValueNotifier<(int, int)>((0, 0));
 
+  /// アップロード進捗を更新（StatefulWidget の rebuild 不要）
   void updateUploadProgress(int current, int total) {
-    setState(() {
-      _uploadProgressValue = current;
-      _uploadTotalValue = total;
-    });
+    _uploadProgressNotifier.value = (current, total);
   }
 }
 
@@ -337,14 +331,13 @@ mixin DetailSaveMixin<T extends StatefulWidget> on State<T> {
 String? _emptyToNull(String? v) =>
     (v == null || v.isEmpty || v == '選択してください') ? null : v;
 
-// ── アップロード中ダイアログ（内部 Widget） ─────────────────────
+// ── アップロード中ダイアログ（ValueNotifier でリアルタイム更新） ──────
 class _UploadProgressDialog extends StatelessWidget {
-  final int Function() getProgress;
-  final int Function() getTotal;
+  /// (current, total) を保持する ValueNotifier
+  final ValueNotifier<(int, int)> progressNotifier;
 
   const _UploadProgressDialog({
-    required this.getProgress,
-    required this.getTotal,
+    required this.progressNotifier,
   });
 
   @override
@@ -355,13 +348,21 @@ class _UploadProgressDialog extends StatelessWidget {
         children: [
           const CircularProgressIndicator(),
           const SizedBox(height: 16),
-          const Text('画像アップロード中...',
-              style:
-                  TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text(
+            '画像アップロード中...',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
-          Text(
-            '${getProgress()} / ${getTotal()}',
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          // ValueListenableBuilder により通知があるたびに Text だけ再描画
+          ValueListenableBuilder<(int, int)>(
+            valueListenable: progressNotifier,
+            builder: (_, progress, __) {
+              final (current, total) = progress;
+              return Text(
+                total > 0 ? '$current / $total' : '準備中...',
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              );
+            },
           ),
         ],
       ),

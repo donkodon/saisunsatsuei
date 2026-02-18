@@ -14,10 +14,6 @@ import 'package:measure_master/features/auth/presentation/auth_gate.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  if (kDebugMode) {
-  }
-  
   runApp(const MyApp());
 }
 
@@ -57,7 +53,7 @@ class _MyAppState extends State<MyApp> {
       }
       
     } catch (e) {
-      
+      if (kDebugMode) debugPrint('❌ アプリ初期化エラー: $e');
       if (mounted) {
         setState(() {
           _error = true;
@@ -153,19 +149,23 @@ class _MyAppState extends State<MyApp> {
     }
 
     // 初期化完了後 → AuthGate に全てを委任
+    // 🔑 CompanyService を先に登録し、他のプロバイダーから参照できるようにする
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-          create: (_) {
-            final provider = InventoryProvider();
-            CompanyService().getCompanyId().then((companyId) {
-              provider.initialize(companyId: companyId);
+        // ① CompanyService を先頭で登録（アプリ内で唯一のインスタンス）
+        Provider<CompanyService>(create: (_) => CompanyService()),
+        // ② InventoryProvider は CompanyService の同一インスタンスを使って初期化
+        ChangeNotifierProxyProvider<CompanyService, InventoryProvider>(
+          create: (_) => InventoryProvider(),
+          update: (_, companyService, inventoryProvider) {
+            // CompanyService が更新されるたびに企業IDを同期
+            companyService.getCompanyId().then((companyId) {
+              inventoryProvider?.initialize(companyId: companyId);
             });
-            return provider;
+            return inventoryProvider ?? InventoryProvider();
           },
         ),
-        ChangeNotifierProvider(create: (_) => ApiProductProvider()),
-        Provider<CompanyService>(create: (_) => CompanyService()),
+        ChangeNotifierProvider<ApiProductProvider>(create: (_) => ApiProductProvider()),
       ],
       child: MaterialApp(
         title: 'Measure Master',

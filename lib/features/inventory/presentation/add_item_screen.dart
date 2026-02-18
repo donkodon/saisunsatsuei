@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/features/camera/presentation/camera_screen_v2.dart';
 import 'package:measure_master/features/inventory/presentation/detail_screen.dart';
@@ -136,8 +135,6 @@ class _AddItemScreenState extends State<AddItemScreen>
   @override
   void initState() {
     super.initState();
-    if (kDebugMode) {
-    }
     if (widget.existingItem != null) {
       _loadExistingItem(widget.existingItem!);
     } else if (widget.prefillData != null) {

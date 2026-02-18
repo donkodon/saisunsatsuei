@@ -25,8 +25,6 @@ class OcrApiClient {
   /// Returns: OCR解析結果（ブランド、素材、原産国、サイズなど）
   Future<OcrResult> analyzeImage(Uint8List imageBytes) async {
     try {
-      if (kDebugMode) {
-      }
       
       // 画像をBase64エンコード
       final base64Image = base64Encode(imageBytes);
@@ -51,8 +49,6 @@ class OcrApiClient {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         
-        if (kDebugMode) {
-        }
         
         return OcrResult.fromJson(data);
       } else {
@@ -63,12 +59,8 @@ class OcrApiClient {
         );
       }
     } on http.ClientException catch (e) {
-      if (kDebugMode) {
-      }
       throw OcrApiException('ネットワークエラー: $e');
     } catch (e) {
-      if (kDebugMode) {
-      }
       rethrow;
     }
   }

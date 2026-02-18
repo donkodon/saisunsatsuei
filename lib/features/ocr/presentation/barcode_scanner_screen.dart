@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:provider/provider.dart';
 import 'package:measure_master/core/services/api_service.dart';
 import 'package:measure_master/features/auth/logic/company_service.dart';
 import 'package:measure_master/features/inventory/domain/api_product.dart';
@@ -211,11 +212,9 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
 
     try {
       // 🏢 企業IDを取得
-      final companyService = CompanyService();
+      // ✅ Provider の同一インスタンスを取得
+      final companyService = Provider.of<CompanyService>(context, listen: false);
       final companyId = await companyService.getCompanyId();
-      
-      if (kIsWeb) {
-      }
       
       // D1 API で商品検索（企業IDを渡す）
       final product = await ApiService.searchByBarcode(barcode, companyId: companyId);

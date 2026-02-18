@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/features/inventory/logic/inventory_provider.dart';
@@ -24,8 +24,9 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ApiService _apiService = ApiService();
-  final CompanyService _companyService = CompanyService();
   final AuthService _authService = AuthService();
+  // ✅ CompanyService は Provider 経由で取得（直接 new しない）
+  late final CompanyService _companyService;
   bool _isSearching = false;
   String _companyId = '';
   String _companyName = '';
@@ -33,7 +34,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _loadCompanyInfo();
+    // didChangeDependencies 内で Provider を取得するため、
+    // initState では プレースホルダーだけ初期化
+  }
+
+  bool _dependenciesInitialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_dependenciesInitialized) {
+      _dependenciesInitialized = true;
+      // Provider は context が有効になった後に取得する（初回のみ）
+      _companyService = Provider.of<CompanyService>(context, listen: false);
+      _loadCompanyInfo();
+    }
   }
 
   @override
@@ -57,8 +72,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
       inventoryProvider.setCompanyId(companyId);
       
-      if (kDebugMode) {
-      }
     }
   }
 
@@ -157,8 +170,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         // 🔒 最終防衛ライン: 企業IDの再検証
         final dataCompanyId = data['company_id'] ?? data['companyId'];
         if (companyId != null && dataCompanyId != null && dataCompanyId != companyId) {
-          if (kDebugMode) {
-          }
           
           setState(() {
             _isSearching = false;
@@ -171,8 +182,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           return;
         }
         
-        if (kDebugMode) {
-        }
         
         // データソースに応じてメッセージを変更
         String message = '';

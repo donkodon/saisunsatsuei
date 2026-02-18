@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../domain/garment_measurement_model.dart';
 
@@ -39,11 +38,7 @@ class MeasurementRepository {
 
       await box.put(sku, data);
 
-      if (kDebugMode) {
-      }
     } catch (e) {
-      if (kDebugMode) {
-      }
       rethrow;
     }
   }
@@ -64,11 +59,7 @@ class MeasurementRepository {
 
       await box.put(measurement.sku, data);
 
-      if (kDebugMode) {
-      }
     } catch (e) {
-      if (kDebugMode) {
-      }
       rethrow;
     }
   }
@@ -90,8 +81,6 @@ class MeasurementRepository {
 
       final data = box.get(sku);
       if (data == null) {
-        if (kDebugMode) {
-        }
         return null;
       }
 
@@ -103,19 +92,13 @@ class MeasurementRepository {
         // 完全な採寸結果
         final measurement = GarmentMeasurementModel.fromJson(jsonData);
 
-        if (kDebugMode) {
-        }
 
         return measurement;
       } else {
         // まだ採寸リクエストの初期状態のみ
-        if (kDebugMode) {
-        }
         return null;
       }
     } catch (e) {
-      if (kDebugMode) {
-      }
       return null;
     }
   }
@@ -150,8 +133,6 @@ class MeasurementRepository {
 
       return null;
     } catch (e) {
-      if (kDebugMode) {
-      }
       return null;
     }
   }
@@ -183,11 +164,7 @@ class MeasurementRepository {
 
       await box.put(sku, data);
 
-      if (kDebugMode) {
-      }
     } catch (e) {
-      if (kDebugMode) {
-      }
       rethrow;
     }
   }
@@ -214,8 +191,6 @@ class MeasurementRepository {
               measurements.add(measurement);
             }
           } catch (e) {
-            if (kDebugMode) {
-            }
           }
         }
       }
@@ -223,13 +198,9 @@ class MeasurementRepository {
       // 日時でソート（新しい順）
       measurements.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
-      if (kDebugMode) {
-      }
 
       return measurements;
     } catch (e) {
-      if (kDebugMode) {
-      }
       return [];
     }
   }
@@ -244,11 +215,7 @@ class MeasurementRepository {
 
       await box.delete(sku);
 
-      if (kDebugMode) {
-      }
     } catch (e) {
-      if (kDebugMode) {
-      }
       rethrow;
     }
   }
@@ -262,11 +229,7 @@ class MeasurementRepository {
 
       await box.clear();
 
-      if (kDebugMode) {
-      }
     } catch (e) {
-      if (kDebugMode) {
-      }
       rethrow;
     }
   }

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import '../data/measurement_api_client.dart';
 import '../data/measurement_repository.dart';
 import '../domain/garment_measurement_model.dart';
@@ -41,14 +40,10 @@ class MeasurementService {
     try {
       // 🔥 強制出力ログ（必ず表示される）
       
-      if (kDebugMode) {
-      }
       
       // 1) カテゴリ→衣類タイプ変換
       final garmentClass = GarmentClassMapper.categoryToGarmentClass(category);
 
-      if (kDebugMode) {
-      }
 
       // 2) Workers に送信（即座に prediction_id が返る）
       final response = await _apiClient.measureGarment(
@@ -58,8 +53,6 @@ class MeasurementService {
         garmentClass: garmentClass,
       );
 
-      if (kDebugMode) {
-      }
 
       // 3) prediction_id をローカルDBに記録（参照用）
       await _repository.saveMeasurement(
@@ -71,13 +64,9 @@ class MeasurementService {
 
       // 🔥 強制出力ログ（必ず表示される）
       
-      if (kDebugMode) {
-      }
     } catch (e) {
       // 🔥 強制出力ログ（必ず表示される）
       
-      if (kDebugMode) {
-      }
 
       // エラーをローカルDBに記録
       try {
@@ -85,11 +74,7 @@ class MeasurementService {
           sku: sku,
           error: e.toString(),
         );
-        if (kDebugMode) {
-        }
       } catch (saveError) {
-        if (kDebugMode) {
-        }
       }
       
       rethrow;

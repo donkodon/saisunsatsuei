@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:measure_master/features/inventory/domain/api_product.dart';
 
@@ -131,8 +130,6 @@ class ApiService {
       final dataWithUpsert = Map<String, dynamic>.from(itemData);
       dataWithUpsert['upsert'] = true;
       
-      if (kDebugMode) {
-      }
       
       final response = await http.post(
         Uri.parse('$d1ApiUrl/api/products/items'),
@@ -142,8 +139,6 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
-        if (kDebugMode) {
-        }
         return jsonData['success'] == true;
       } else if (response.statusCode == 409) {
         final sku = itemData['sku'];
@@ -155,8 +150,6 @@ class ApiService {
         String errorBody = '';
         try {
           errorBody = response.body;
-          if (kDebugMode) {
-          }
         } catch (_) {}
         throw Exception('D1への保存に失敗しました (${response.statusCode})\n応答: $errorBody');
       }
@@ -258,8 +251,6 @@ class ApiService {
         url += '&companyId=$companyId';
       }
       
-      if (kDebugMode) {
-      }
       
       final response = await http.get(
         Uri.parse(url),
@@ -269,8 +260,6 @@ class ApiService {
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
         if (jsonData['success'] == true && jsonData['product'] != null) {
-          if (kDebugMode) {
-          }
           return jsonData['product'];
         }
         return null;
@@ -319,8 +308,6 @@ class ApiService {
     }
     
     try {
-      if (kDebugMode) {
-      }
       
       String url = '$d1ApiUrl/api/search?query=${Uri.encodeComponent(query.trim())}';
       if (companyId != null && companyId.isNotEmpty) {
@@ -332,26 +319,18 @@ class ApiService {
         headers: _d1Headers(companyId: companyId),
       ).timeout(const Duration(seconds: 10));
 
-      if (kDebugMode) {
-      }
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
         if (jsonData['success'] == true) {
-          if (kDebugMode) {
-          }
           return jsonData;
         }
       } else if (response.statusCode == 404) {
-        if (kDebugMode) {
-        }
         return null;
       }
       
       throw Exception('統合検索に失敗しました (${response.statusCode})');
     } catch (e) {
-      if (kDebugMode) {
-      }
       throw Exception('検索API通信エラー: $e');
     }
   }
