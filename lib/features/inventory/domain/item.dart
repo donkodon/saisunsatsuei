@@ -123,6 +123,57 @@ class InventoryItem {
     return [];
   }
 
+  /// 🔄 任意フィールドを上書きした新しいInventoryItemを返す（immutableパターン）
+  InventoryItem copyWith({
+    String? id,
+    String? name,
+    String? brand,
+    String? imageUrl,
+    String? category,
+    String? status,
+    DateTime? date,
+    double? length,
+    double? width,
+    String? size,
+    bool? hasAlert,
+    String? barcode,
+    String? sku,
+    String? color,
+    String? productRank,
+    int? salePrice,
+    String? condition,
+    String? description,
+    String? material,
+    List<String>? imageUrls,
+    List<Map<String, dynamic>>? imagesJson,
+    String? companyId,
+  }) {
+    return InventoryItem(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      brand: brand ?? this.brand,
+      imageUrl: imageUrl ?? this.imageUrl,
+      category: category ?? this.category,
+      status: status ?? this.status,
+      date: date ?? this.date,
+      length: length ?? this.length,
+      width: width ?? this.width,
+      size: size ?? this.size,
+      hasAlert: hasAlert ?? this.hasAlert,
+      barcode: barcode ?? this.barcode,
+      sku: sku ?? this.sku,
+      color: color ?? this.color,
+      productRank: productRank ?? this.productRank,
+      salePrice: salePrice ?? this.salePrice,
+      condition: condition ?? this.condition,
+      description: description ?? this.description,
+      material: material ?? this.material,
+      imageUrls: imageUrls ?? this.imageUrls,
+      imagesJson: imagesJson ?? this.imagesJson,
+      companyId: companyId ?? this.companyId,
+    );
+  }
+
   /// 🔄 画像データを更新したInventoryItemを作成
   InventoryItem withImages(List<ProductImage> newImages) {
     return InventoryItem(

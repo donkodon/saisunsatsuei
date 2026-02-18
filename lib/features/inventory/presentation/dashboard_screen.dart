@@ -17,7 +17,6 @@ class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
@@ -30,6 +29,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isSearching = false;
   String _companyId = '';
   String _companyName = '';
+  String _displayName = '';
 
   @override
   void initState() {
@@ -62,9 +62,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final companyId = await _companyService.getCompanyId();
     final companyName = await _companyService.getCompanyName();
     
+    // Firebase Auth からログイン中ユーザーの表示名を取得
+    final userProfile = _authService.currentUser != null
+        ? await _authService.getUserProfile(_authService.currentUser!.uid)
+        : null;
+    final rawName = userProfile?['displayName'] as String?;
+    final firstName = (rawName != null && rawName.isNotEmpty)
+        ? rawName.split(' ').first
+        : null;
+
     setState(() {
       _companyId = companyId ?? '';
       _companyName = companyName ?? '';
+      _displayName = firstName ?? companyName ?? 'ユーザー';
     });
     
     // 🏢 InventoryProviderに企業IDを設定して再読み込み
@@ -277,22 +287,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
 
-    // Web環境ではBarcodeScannerScreenは使用不可
-    // try {
-    //   final result = await Navigator.push(
-    //     context,
-    //     MaterialPageRoute(builder: (context) => const BarcodeScannerScreen()),
-    //   );
+    try {
+      final result = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(builder: (context) => const BarcodeScannerScreen()),
+      );
 
-    //   if (result != null && result is String) {
-    //     // スキャン結果を使って検索を実行
-    //     _searchProduct(result);
-    //   }
-    // } catch (e) {
-    //   if (kDebugMode) {
-    //     debugPrint('⚠️ バーコードスキャンエラー: $e');
-    //   }
-    // }
+      if (!mounted) return;
+      if (result != null && result.isNotEmpty) {
+        // スキャン結果を使って検索を実行
+        _searchController.text = result;
+        _searchProduct(result);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      AppFeedback.showError(context, 'バーコードスキャンに失敗しました: $e');
+    }
   }
 
   @override
@@ -343,7 +353,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(height: 24),
               
-              Text("こんにちは、山田さん", style: AppConstants.headerStyle),
+              Text("こんにちは、${_displayName}さん", style: AppConstants.headerStyle),
               const SizedBox(height: 8),
               Text(
                 "今日の出品準備状況を確認しましょう。",

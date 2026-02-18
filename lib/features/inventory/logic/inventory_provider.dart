@@ -64,30 +64,7 @@ class InventoryProvider with ChangeNotifier {
   Future<void> addItem(InventoryItem item) async {
     // 🏢 企業IDが未設定の場合は現在の企業IDを設定
     final itemToSave = (item.companyId == null || item.companyId!.isEmpty)
-        ? InventoryItem(
-            id: item.id,
-            name: item.name,
-            brand: item.brand,
-            imageUrl: item.imageUrl,
-            category: item.category,
-            status: item.status,
-            date: item.date,
-            length: item.length,
-            width: item.width,
-            size: item.size,
-            hasAlert: item.hasAlert,
-            barcode: item.barcode,
-            sku: item.sku,
-            color: item.color,
-            productRank: item.productRank,
-            salePrice: item.salePrice,
-            condition: item.condition,
-            description: item.description,
-            material: item.material,
-            imageUrls: item.imageUrls,
-            imagesJson: item.imagesJson,
-            companyId: _currentCompanyId,  // 🏢 現在の企業IDを設定
-          )
+        ? item.copyWith(companyId: _currentCompanyId)
         : item;
     
     // 🔍 SKUで既存アイテムを検索
@@ -160,28 +137,9 @@ class InventoryProvider with ChangeNotifier {
     final existingItem = _items[index];
     
     // 新しいアイテムを作成（画像URLのみ更新）
-    final updatedItem = InventoryItem(
-      id: existingItem.id,
-      name: existingItem.name,
-      brand: existingItem.brand,
+    final updatedItem = existingItem.copyWith(
       imageUrl: newImageUrls.isNotEmpty ? newImageUrls.first : existingItem.imageUrl,
-      category: existingItem.category,
-      status: existingItem.status,
-      date: existingItem.date,
-      length: existingItem.length,
-      width: existingItem.width,
-      size: existingItem.size,
-      hasAlert: existingItem.hasAlert,
-      barcode: existingItem.barcode,
-      sku: existingItem.sku,
-      color: existingItem.color,
-      productRank: existingItem.productRank,
-      salePrice: existingItem.salePrice,
-      condition: existingItem.condition,
-      description: existingItem.description,
-      material: existingItem.material,
-      imageUrls: newImageUrls,  // 📸 新しい画像リスト
-      companyId: existingItem.companyId,  // 🏢 企業IDを保持
+      imageUrls: newImageUrls,
     );
     
     // リストを更新

@@ -3,7 +3,10 @@ import 'package:http/http.dart' as http;
 import 'package:measure_master/features/inventory/domain/api_product.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://3000-iuolnmmls4a53d2939w4c-3844e1b6.sandbox.novita.ai';
+  /// ⚠️ TODO: 本番APIサーバーのURLに差し替えること
+  /// 旧サンドボックスURL（開発環境専用・本番では使用不可）を削除済み
+  /// 例: 'https://api.your-domain.com'
+  static const String baseUrl = '';
   
   // 🔧 Cloudflare D1 API エンドポイント (本番環境)
   static const String d1ApiUrl = 'https://measure-master-api.jinkedon2.workers.dev';
