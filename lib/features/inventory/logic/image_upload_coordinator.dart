@@ -89,9 +89,15 @@ class ImageUploadCoordinator {
         debugPrint('⏭️ 新規画像なし、アップロードスキップ');
       }
 
-      // 既存URLと新規URLを結合（重複除去）
-      final allUrlsSet = <String>{...existingUrls, ...newUrls};
-      final allUrls = allUrlsSet.toList();
+      // 既存URLと新規URLを結合（順序保持 + 重複除去）
+      // ⚠️ Set変換すると順序が崩れるため、LinkedHashSetで順序を保持する
+      final seen = <String>{};
+      final allUrls = <String>[];
+      for (final url in [...existingUrls, ...newUrls]) {
+        if (seen.add(url)) {
+          allUrls.add(url);
+        }
+      }
 
       debugPrint('📊 最終画像リスト: ${allUrls.length}件（既存${existingUrls.length} + 新規${newUrls.length} → 重複除去後${allUrls.length}）');
 

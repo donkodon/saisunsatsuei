@@ -38,8 +38,12 @@ class BatchImageUploadService {
     void Function(int current, int total)? onProgress,
   }) async {
     try {
-      if (imageItems.isEmpty) {
-        return Failure('アップロードする画像がありません');
+      // 新規画像（未アップロード）が1枚もない場合は空リストで正常終了
+      // ※ 既存画像のみの場合はImageUploadCoordinator側で管理するため
+      final hasNewImages = imageItems.any((img) => img.isNew);
+      if (imageItems.isEmpty || !hasNewImages) {
+        debugPrint('⏭️ 新規画像なし: アップロード不要（既存画像はImageUploadCoordinatorで管理）');
+        return Success(const []);
       }
 
       debugPrint('📤 一括アップロード開始: ${imageItems.length}枚');
