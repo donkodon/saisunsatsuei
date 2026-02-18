@@ -126,6 +126,41 @@ class InventorySaver {
           itemData.addAll(additionalData);
         }
 
+        // 📏 実寸データ（length/width/shoulder/sleeve）を
+        // actual_measurements JSON に変換して Workers に渡す
+        // Workers の INSERT 文は actualMeasurements キーで受け取る設計
+        final length   = itemData['length']?.toString() ?? '';
+        final width    = itemData['width']?.toString() ?? '';
+        final shoulder = itemData['shoulder']?.toString() ?? '';
+        final sleeve   = itemData['sleeve']?.toString() ?? '';
+
+        // 🔥 強制デバッグログ（リリースビルドでも出力）
+        print('📏 ======== サイズデータ確認 ========');
+        print('📏 additionalData に含まれる値:');
+        print('   length   = "$length"   (isEmpty: ${length.isEmpty})');
+        print('   width    = "$width"    (isEmpty: ${width.isEmpty})');
+        print('   shoulder = "$shoulder" (isEmpty: ${shoulder.isEmpty})');
+        print('   sleeve   = "$sleeve"   (isEmpty: ${sleeve.isEmpty})');
+
+        if (length.isNotEmpty || width.isNotEmpty || shoulder.isNotEmpty || sleeve.isNotEmpty) {
+          itemData['actualMeasurements'] = {
+            if (length.isNotEmpty)   'body_length':     double.tryParse(length)   ?? length,
+            if (width.isNotEmpty)    'body_width':      double.tryParse(width)    ?? width,
+            if (shoulder.isNotEmpty) 'shoulder_width':  double.tryParse(shoulder) ?? shoulder,
+            if (sleeve.isNotEmpty)   'sleeve_length':   double.tryParse(sleeve)   ?? sleeve,
+          };
+          print('📏 actualMeasurements 変換完了: ${itemData['actualMeasurements']}');
+        } else {
+          print('⚠️ サイズデータがすべて空のため actualMeasurements は送信しません');
+        }
+        print('📏 =====================================');
+
+        // バラキーは Workers に不要なので除去
+        itemData.remove('length');
+        itemData.remove('width');
+        itemData.remove('shoulder');
+        itemData.remove('sleeve');
+
         // D1保存API呼び出し
         final success = await _apiService.saveProductItemToD1(itemData);
 
