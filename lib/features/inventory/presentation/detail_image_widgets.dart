@@ -43,7 +43,6 @@ mixin DetailImageWidgets<T extends StatefulWidget> on State<T> {
       ),
       onTap: () {
         if (kDebugMode) {
-          debugPrint('🖼️ DetailScreen画像タップ: index=$index');
         }
 
         final imageUrls = <String>[];
@@ -59,8 +58,6 @@ mixin DetailImageWidgets<T extends StatefulWidget> on State<T> {
         }
 
         if (kDebugMode) {
-          debugPrint('🖼️ 画像URLリスト: ${imageUrls.length}件');
-          debugPrint('🎨 白抜き画像URLリスト: ${whiteImageUrls.length}件');
         }
 
         if (imageUrls.isNotEmpty && index != null) {

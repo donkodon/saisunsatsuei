@@ -36,15 +36,11 @@ class ImageUploadCoordinator {
     void Function(int current, int total)? onProgress,
   }) async {
     try {
-      debugPrint('📤 ImageUploadCoordinator: アップロード開始');
-      debugPrint('   総画像数: ${images.length}');
 
       // 既存画像と新規画像を分離
       final existingImages = images.where((img) => img.isExisting).toList();
       final newImages = images.where((img) => img.isNew).toList();
 
-      debugPrint('   既存画像: ${existingImages.length}枚');
-      debugPrint('   新規画像: ${newImages.length}枚');
 
       // 既存画像のURLを取得
       final existingUrls = existingImages
@@ -52,17 +48,14 @@ class ImageUploadCoordinator {
           .map((img) => img.url!)
           .toList();
 
-      debugPrint('🔍 既存画像URL取得完了: ${existingUrls.length}件');
       if (kDebugMode) {
         for (int i = 0; i < existingUrls.length; i++) {
-          debugPrint('   [$i] ${existingUrls[i]}');
         }
       }
 
       // 新規画像のみアップロード
       List<String> newUrls = [];
       if (newImages.isNotEmpty) {
-        debugPrint('🚀 新規画像アップロード開始: ${newImages.length}枚');
         
         final result = await _uploadService.uploadImagesFromImageItems(
           imageItems: newImages,
@@ -76,17 +69,14 @@ class ImageUploadCoordinator {
           final sortedImages = result.data..sort((a, b) => a.sequence.compareTo(b.sequence));
           newUrls = sortedImages.map((img) => img.url).toList();
           
-          debugPrint('✅ 新規画像アップロード完了: ${newUrls.length}件');
           if (kDebugMode) {
             for (int i = 0; i < newUrls.length; i++) {
-              debugPrint('   [$i] ${newUrls[i]}');
             }
           }
         } else if (result is Failure<List<ProductImage>>) {
           throw Exception(result.message);
         }
       } else {
-        debugPrint('⏭️ 新規画像なし、アップロードスキップ');
       }
 
       // 既存URLと新規URLを結合（順序保持 + 重複除去）
@@ -99,20 +89,17 @@ class ImageUploadCoordinator {
         }
       }
 
-      debugPrint('📊 最終画像リスト: ${allUrls.length}件（既存${existingUrls.length} + 新規${newUrls.length} → 重複除去後${allUrls.length}）');
 
       // 🔍 デバッグ: 最終画像リスト全件ダンプ
       if (kDebugMode) {
-        debugPrint('🔍 最終画像リスト全件ダンプ（全${allUrls.length}件）:');
         for (int i = 0; i < allUrls.length; i++) {
           final url = allUrls[i];
-          String type = '通常';
+          String type = '通常';  // ignore: unused_local_variable
           if (url.contains('_white.jpg')) {
             type = '白抜き';
           } else if (url.contains('_mask.png')) {
             type = 'マスク';
           }
-          debugPrint('   [$i] ($type) $url');
         }
       }
 
@@ -122,9 +109,7 @@ class ImageUploadCoordinator {
         allUrls: allUrls,
       );
 
-    } catch (e, stackTrace) {
-      debugPrint('❌ ImageUploadCoordinator エラー: $e');
-      debugPrint('スタックトレース: $stackTrace');
+    } catch (e) {
       rethrow;
     }
   }

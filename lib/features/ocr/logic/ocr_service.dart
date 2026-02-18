@@ -24,25 +24,17 @@ class OcrService {
   Future<OcrResult> analyzeTag(Uint8List imageBytes) async {
     try {
       if (kDebugMode) {
-        debugPrint('🔍 OCR解析開始: ${imageBytes.length} bytes');
       }
       
       // API Client を使用してOCR実行
       final result = await _apiClient.analyzeImage(imageBytes);
       
       if (kDebugMode) {
-        debugPrint('✅ OCR解析完了');
-        debugPrint('   ブランド: ${result.brand}');
-        debugPrint('   素材: ${result.material}');
-        debugPrint('   原産国: ${result.country}');
-        debugPrint('   サイズ: ${result.size}');
-        debugPrint('   信頼度: ${result.confidence}');
       }
       
       return result;
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ OCR解析エラー: $e');
       }
       rethrow;
     }

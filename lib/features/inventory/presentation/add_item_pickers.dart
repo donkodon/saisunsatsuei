@@ -438,7 +438,6 @@ class _PricePickerDialogState extends State<PricePickerDialog> {
     _focusNode = FocusNode();
     _focusNode.addListener(() {
       if (kDebugMode) {
-        debugPrint('🔍 Price TextField focus: ${_focusNode.hasFocus}');
       }
     });
   }
@@ -484,7 +483,6 @@ class _PricePickerDialogState extends State<PricePickerDialog> {
           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           onChanged: (value) {
             if (kDebugMode) {
-              debugPrint('💰 Price input changed: $value');
             }
           },
           onTap: () {

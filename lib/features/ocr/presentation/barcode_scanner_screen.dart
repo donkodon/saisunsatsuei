@@ -215,7 +215,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       final companyId = await companyService.getCompanyId();
       
       if (kIsWeb) {
-        debugPrint('🔍 バーコード検索: $barcode, 企業ID: ${companyId ?? "未指定"}');
       }
       
       // D1 API で商品検索（企業IDを渡す）

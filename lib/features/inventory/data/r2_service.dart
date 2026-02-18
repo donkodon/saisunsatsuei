@@ -29,7 +29,6 @@ class R2Service {
   /// Otherwise, returns a presigned URL (valid for 1 hour by default).
   Future<String?> uploadImage(File file) async {
     if (R2Config.accountId == 'YOUR_ACCOUNT_ID') {
-      debugPrint('⚠️ R2 Credentials not configured.');
       return null;
     }
 
@@ -51,7 +50,6 @@ class R2Service {
         },
       );
 
-      debugPrint('✅ Upload successful: $fileName');
 
       if (R2Config.publicDomain.isNotEmpty) {
         // Construct public URL
@@ -70,7 +68,6 @@ class R2Service {
         );
       }
     } catch (e) {
-      debugPrint('❌ R2 Upload failed: $e');
       return null;
     }
   }

@@ -27,11 +27,9 @@ class ImageOptimizerService {
         return imageFile;
       }
 
-      debugPrint('🔄 画像を圧縮中...');
       
       // 元のファイルサイズ
       final originalSize = await imageFile.length();
-      debugPrint('📦 元のサイズ: ${(originalSize / 1024).toStringAsFixed(2)} KB');
       
       // 一時ファイルパスを生成
       final tempDir = await getTemporaryDirectory();
@@ -51,22 +49,17 @@ class ImageOptimizerService {
       );
       
       if (compressedFile == null) {
-        debugPrint('⚠️ 圧縮に失敗、元の画像を使用します');
         return imageFile;
       }
       
       // 圧縮後のファイルサイズ
       final compressedSize = await File(compressedFile.path).length();
-      final reduction = ((1 - compressedSize / originalSize) * 100).toStringAsFixed(1);
+      final _ = ((1 - compressedSize / originalSize) * 100).toStringAsFixed(1);
       
-      debugPrint('✅ 圧縮完了!');
-      debugPrint('📦 圧縮後: ${(compressedSize / 1024).toStringAsFixed(2)} KB');
-      debugPrint('📉 削減率: $reduction%');
       
       return File(compressedFile.path);
       
     } catch (e) {
-      debugPrint('❌ 圧縮エラー: $e');
       // エラー時は元の画像を返す
       return imageFile;
     }

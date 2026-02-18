@@ -131,7 +131,6 @@ class AuthService {
   Future<Map<String, dynamic>?> getUserProfile(String uid) async {
     try {
       if (kDebugMode) {
-        debugPrint('🔍 AuthService: ユーザープロフィール取得 - UID: $uid');
       }
       
       final doc = await FirebaseFirestore.instance
@@ -141,20 +140,17 @@ class AuthService {
       
       if (!doc.exists) {
         if (kDebugMode) {
-          debugPrint('⚠️ AuthService: ユーザードキュメント未作成 - UID: $uid');
         }
         return null;
       }
       
       final data = doc.data();
       if (kDebugMode) {
-        debugPrint('✅ AuthService: プロフィール取得成功 - companyId: ${data?['companyId']}');
       }
       
       return data;
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ AuthService: プロフィール取得エラー - $e');
       }
       return null;
     }
@@ -169,7 +165,6 @@ class AuthService {
           .update({'lastLoginAt': FieldValue.serverTimestamp()});
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('⚠️ AuthService: lastLoginAt更新失敗 - $e');
       }
     }
   }

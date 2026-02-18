@@ -13,28 +13,20 @@ class CacheInspector {
     
     final box = await Hive.openBox<String>(_boxName);
     
-    debugPrint('🔍 ========== キャッシュ検査 ==========');
-    debugPrint('📊 キャッシュ総数: ${box.length}件');
-    debugPrint('');
     
-    int index = 1;
+    int index = 1;  // ignore: unused_local_variable
     for (var key in box.keys) {
       final value = box.get(key);
-      final dataSize = value?.length ?? 0;
+      final _ = value?.length ?? 0;
       
       // UUIDパターンかどうかを判定
       final isUuidPattern = _isUuidFileName(key.toString());
-      final pattern = isUuidPattern ? '🆔 UUID形式' : '🔢 連番形式';
+      final _ = isUuidPattern ? '🆔 UUID形式' : '🔢 連番形式';
       
-      debugPrint('[$index] $pattern');
-      debugPrint('  キー: $key');
-      debugPrint('  データサイズ: ${(dataSize / 1024).toStringAsFixed(2)} KB');
-      debugPrint('');
       
       index++;
     }
     
-    debugPrint('========================================');
   }
   
   /// ファイル名がUUID形式かどうかを判定
@@ -53,30 +45,24 @@ class CacheInspector {
     
     final box = await Hive.openBox<String>(_boxName);
     
-    debugPrint('🔍 ========== SKU: $sku のキャッシュ ==========');
     
     final skuKeys = box.keys
         .where((key) => key.toString().startsWith(sku))
         .toList();
     
     if (skuKeys.isEmpty) {
-      debugPrint('⚠️ このSKUのキャッシュはありません');
       return;
     }
     
-    debugPrint('📊 該当件数: ${skuKeys.length}件');
-    debugPrint('');
     
-    int index = 1;
+    int index = 1;  // ignore: unused_local_variable
     for (var key in skuKeys) {
       final isUuidPattern = _isUuidFileName(key.toString());
-      final pattern = isUuidPattern ? '🆔 UUID' : '🔢 連番';
+      final _ = isUuidPattern ? '🆔 UUID' : '🔢 連番';
       
-      debugPrint('[$index] $pattern: $key');
       index++;
     }
     
-    debugPrint('==========================================');
   }
   
   /// Phase 1実装状況を確認
@@ -85,10 +71,9 @@ class CacheInspector {
     
     final box = await Hive.openBox<String>(_boxName);
     
-    debugPrint('🎯 ========== Phase 1 実装状況確認 ==========');
     
     int uuidCount = 0;
-    int sequenceCount = 0;
+    int sequenceCount = 0;  // ignore: unused_local_variable
     
     for (var key in box.keys) {
       if (_isUuidFileName(key.toString())) {
@@ -99,19 +84,12 @@ class CacheInspector {
     }
     
     final total = box.length;
-    final uuidPercentage = total > 0 ? (uuidCount / total * 100).toStringAsFixed(1) : '0.0';
+    final _ = total > 0 ? (uuidCount / total * 100).toStringAsFixed(1) : '0.0';
     
-    debugPrint('📊 総キャッシュ数: $total件');
-    debugPrint('🆔 UUID形式: $uuidCount件 ($uuidPercentage%)');
-    debugPrint('🔢 連番形式: $sequenceCount件 (${100 - double.parse(uuidPercentage)}%)');
-    debugPrint('');
     
     if (uuidCount > 0) {
-      debugPrint('✅ Phase 1実装済み: UUID形式のキャッシュが存在します');
     } else {
-      debugPrint('⚠️ Phase 1未適用: UUID形式のキャッシュがありません');
     }
     
-    debugPrint('=============================================');
   }
 }

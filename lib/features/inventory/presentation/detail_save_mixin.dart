@@ -67,7 +67,6 @@ mixin DetailSaveMixin<T extends StatefulWidget> on State<T> {
   /// 商品確定ボタンから呼ばれるメインの保存処理
   Future<void> saveProduct(BuildContext context) async {
     if (kDebugMode) {
-      debugPrint('🚀 saveProduct() 開始');
     }
 
     try {
@@ -90,8 +89,6 @@ mixin DetailSaveMixin<T extends StatefulWidget> on State<T> {
               .toList();
 
           if (kDebugMode) {
-            debugPrint('📂 古い画像: ${oldImageUrls.length}件'
-                '（白抜き${oldWhiteUrls.length}件, マスク${oldMaskUrls.length}件）');
           }
 
           final companyIdForDerived =
@@ -209,9 +206,6 @@ mixin DetailSaveMixin<T extends StatefulWidget> on State<T> {
       }
 
       if (kDebugMode) {
-        debugPrint('📦 保存URLリスト: ${allImageUrlsWithDerived.length}件'
-            '（通常${uploadResult.allUrls.length}件'
-            ' + 白抜き${allImageUrlsWithDerived.length - uploadResult.allUrls.length}件）');
       }
 
       final newItem = InventoryItem(
@@ -261,7 +255,6 @@ mixin DetailSaveMixin<T extends StatefulWidget> on State<T> {
       // ========== Phase 6.5: AI自動採寸（Fire & Forget） ==========
       if (widgetAiMeasureEnabled && uploadResult.allUrls.isNotEmpty) {
         if (kDebugMode) {
-          debugPrint('📏 AI自動採寸開始: ${uploadResult.allUrls.first}');
         }
         final cId = await companyService.getCompanyId() ?? '';
         try {
@@ -281,12 +274,11 @@ mixin DetailSaveMixin<T extends StatefulWidget> on State<T> {
       if (!mounted) return;
       // ignore: use_build_context_synchronously
       onSaveComplete(context, saveResult, deleteFailureCount, newItem);
-    } catch (e, stackTrace) {
+    } catch (e) {
       if (!mounted) return;
       // ignore: use_build_context_synchronously
       Navigator.pop(context);
       if (kDebugMode) {
-        debugPrint('❌ saveProduct() エラー: $e\n$stackTrace');
       }
       // ignore: use_build_context_synchronously
       AppFeedback.showError(context, '保存エラー: $e');

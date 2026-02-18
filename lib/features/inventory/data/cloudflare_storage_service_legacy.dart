@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 /// ⚠️ 非推奨: Cloudflare R2 直接アクセスサービス
@@ -41,13 +40,11 @@ class CloudflareStorageService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final imageUrl = 'https://$publicDomain/$fileName';
-        debugPrint('✅ Cloudflare R2にアップロード成功: $imageUrl');
         return imageUrl;
       } else {
         throw Exception('アップロードに失敗しました: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('❌ Cloudflare R2アップロードエラー: $e');
       rethrow;
     }
   }
@@ -67,12 +64,9 @@ class CloudflareStorageService {
       );
 
       if (response.statusCode == 200 || response.statusCode == 204) {
-        debugPrint('✅ 画像を削除しました: $fileName');
       } else {
-        debugPrint('❌ 削除失敗: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('❌ 画像削除エラー: $e');
     }
   }
 

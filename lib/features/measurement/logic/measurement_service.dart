@@ -40,34 +40,14 @@ class MeasurementService {
   }) async {
     try {
       // 🔥 強制出力ログ（必ず表示される）
-      debugPrint('');
-      debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-      debugPrint('🤖 MeasurementService 実行開始');
-      debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-      debugPrint('📥 パラメータ:');
-      debugPrint('   imageUrl: $imageUrl');
-      debugPrint('   sku: $sku');
-      debugPrint('   companyId: $companyId');
-      debugPrint('   category: $category');
-      debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-      debugPrint('');
       
       if (kDebugMode) {
-        debugPrint('🔍 ========== MeasurementService デバッグ ==========');
-        debugPrint('📥 受信パラメータ:');
-        debugPrint('   imageUrl: $imageUrl');
-        debugPrint('   sku: $sku');
-        debugPrint('   companyId: $companyId');
-        debugPrint('   category: $category');
       }
       
       // 1) カテゴリ→衣類タイプ変換
       final garmentClass = GarmentClassMapper.categoryToGarmentClass(category);
 
       if (kDebugMode) {
-        debugPrint('🔄 カテゴリ変換結果:');
-        debugPrint('   $category → $garmentClass');
-        debugPrint('📏 AI採寸リクエスト送信開始...');
       }
 
       // 2) Workers に送信（即座に prediction_id が返る）
@@ -79,11 +59,6 @@ class MeasurementService {
       );
 
       if (kDebugMode) {
-        debugPrint('📡 Workers レスポンス受信:');
-        debugPrint('   success: ${response.success}');
-        debugPrint('   prediction_id: ${response.predictionId}');
-        debugPrint('   status: ${response.status}');
-        debugPrint('   message: ${response.message}');
       }
 
       // 3) prediction_id をローカルDBに記録（参照用）
@@ -95,47 +70,13 @@ class MeasurementService {
       );
 
       // 🔥 強制出力ログ（必ず表示される）
-      debugPrint('');
-      debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-      debugPrint('✅ AI採寸リクエスト送信成功！');
-      debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-      debugPrint('📡 prediction_id: ${response.predictionId}');
-      debugPrint('💾 ローカルDB記録完了');
-      debugPrint('⏳ Webhook経由でD1に以下が保存されます:');
-      debugPrint('   - measurements (肩幅/袖丈/着丈/身幅)');
-      debugPrint('   - ai_landmarks (ランドマーク座標)');
-      debugPrint('   - reference_object (基準物体情報)');
-      debugPrint('   - measurement_image_url (採寸画像)');
-      debugPrint('   - mask_image_url (マスク画像)');
-      debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-      debugPrint('');
       
       if (kDebugMode) {
-        debugPrint('✅ AI採寸リクエスト完了: prediction_id=${response.predictionId}');
-        debugPrint('💾 ローカルDBに記録完了');
-        debugPrint('⏳ Webhook経由でD1に結果が保存されます:');
-        debugPrint('   - product_items.measurements (肩幅/袖丈/着丈/身幅)');
-        debugPrint('   - product_items.ai_landmarks (ランドマーク座標)');
-        debugPrint('   - product_items.reference_object (基準物体情報)');
-        debugPrint('   - product_items.measurement_image_url (採寸画像)');
-        debugPrint('   - product_items.mask_image_url (マスク画像)');
-        debugPrint('==========================================');
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       // 🔥 強制出力ログ（必ず表示される）
-      debugPrint('');
-      debugPrint('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
-      debugPrint('❌ AI採寸エラー発生！');
-      debugPrint('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
-      debugPrint('エラー: $e');
-      debugPrint('スタックトレース: ${stackTrace.toString().split('\n').take(3).join('\n')}');
-      debugPrint('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
-      debugPrint('');
       
       if (kDebugMode) {
-        debugPrint('❌ AI採寸エラー発生: $e');
-        debugPrint('📍 エラー発生箇所: ${stackTrace.toString().split('\n').take(3).join('\n')}');
-        debugPrint('==========================================');
       }
 
       // エラーをローカルDBに記録
@@ -145,11 +86,9 @@ class MeasurementService {
           error: e.toString(),
         );
         if (kDebugMode) {
-          debugPrint('💾 エラーをローカルDBに記録しました');
         }
       } catch (saveError) {
         if (kDebugMode) {
-          debugPrint('❌ エラー記録失敗: $saveError');
         }
       }
       

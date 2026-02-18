@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode, debugPrint;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:provider/provider.dart';
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/features/inventory/logic/inventory_provider.dart';
@@ -58,7 +58,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       inventoryProvider.setCompanyId(companyId);
       
       if (kDebugMode) {
-        debugPrint('🏢 DashboardScreen: 企業ID設定完了 ($companyId)');
       }
     }
   }
@@ -77,13 +76,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       // ① CompanyService のメモリ・永続化キャッシュをクリア
       await _companyService.logout();
-      debugPrint('✅ CompanyService ログアウト完了');
 
       // ② Firebase Auth からサインアウト
       // → authStateChanges が null を発火
       // → AuthGate の StreamBuilder が自動的に FirebaseLoginScreen を表示
       await _authService.signOut();
-      debugPrint('✅ Firebase サインアウト完了');
 
       // ③ Web では authStateChanges の伝搬に遅延が生じることがあるため
       //    少し待機してから状態を確認する
@@ -95,7 +92,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
-      debugPrint('❌ ログアウトエラー: $e');
       if (mounted) AppFeedback.showError(context, 'ログアウトに失敗しました。再度お試しください。');
     }
   }
@@ -146,7 +142,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // 🏢 企業IDを取得して検索（企業別にデータを分離）
       final companyId = await _companyService.getCompanyId();
       if (!mounted) return;
-      debugPrint('🔍 SKU検索開始: query=$query, companyId=$companyId');
       
       final searchResult = await _apiService.searchByBarcodeOrSku(query, companyId: companyId);
       if (!mounted) return;
@@ -163,7 +158,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final dataCompanyId = data['company_id'] ?? data['companyId'];
         if (companyId != null && dataCompanyId != null && dataCompanyId != companyId) {
           if (kDebugMode) {
-            debugPrint('🚫 企業IDが一致しません: ログイン=$companyId, データ=$dataCompanyId');
           }
           
           setState(() {
@@ -178,7 +172,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
         
         if (kDebugMode) {
-          debugPrint('✅ 検索成功: source=$source, 企業ID検証OK');
         }
         
         // データソースに応じてメッセージを変更

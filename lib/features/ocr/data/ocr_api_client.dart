@@ -26,7 +26,6 @@ class OcrApiClient {
   Future<OcrResult> analyzeImage(Uint8List imageBytes) async {
     try {
       if (kDebugMode) {
-        debugPrint('🔍 OCR API リクエスト開始: ${imageBytes.length} bytes');
       }
       
       // 画像をBase64エンコード
@@ -53,12 +52,6 @@ class OcrApiClient {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         
         if (kDebugMode) {
-          debugPrint('✅ OCR API レスポンス成功');
-          debugPrint('   ブランド: ${data['brand']}');
-          debugPrint('   素材: ${data['material']}');
-          debugPrint('   原産国: ${data['country']}');
-          debugPrint('   サイズ: ${data['size']}');
-          debugPrint('   信頼度: ${data['confidence']}');
         }
         
         return OcrResult.fromJson(data);
@@ -71,12 +64,10 @@ class OcrApiClient {
       }
     } on http.ClientException catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ OCR API 通信エラー: $e');
       }
       throw OcrApiException('ネットワークエラー: $e');
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ OCR API 予期しないエラー: $e');
       }
       rethrow;
     }

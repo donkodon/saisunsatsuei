@@ -22,9 +22,6 @@ class ImageProxyService {
       final fileName = imageUrl.split('/').last;
       final proxyUrl = '$workerBaseUrl/image/$fileName';
       if (kDebugMode) {
-        debugPrint('🔄 URL変換: R2 → Workers Proxy');
-        debugPrint('   元URL: $imageUrl');
-        debugPrint('   新URL: $proxyUrl');
       }
       return proxyUrl;
     }
@@ -45,7 +42,6 @@ class ImageProxyService {
       final proxyUrl = convertToProxyUrl(imageUrl);
       
       if (kDebugMode) {
-        debugPrint('📥 画像取得: $proxyUrl');
       }
       
       final response = await http.get(
@@ -62,18 +58,15 @@ class ImageProxyService {
       
       if (response.statusCode == 200) {
         if (kDebugMode) {
-          debugPrint('✅ 画像取得成功: ${response.bodyBytes.length} bytes');
         }
         return response.bodyBytes;
       } else {
         if (kDebugMode) {
-          debugPrint('❌ 画像取得失敗: ${response.statusCode}');
         }
         return null;
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ 画像取得エラー: $e');
       }
       return null;
     }

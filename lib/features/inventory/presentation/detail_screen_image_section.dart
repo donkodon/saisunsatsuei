@@ -64,8 +64,6 @@ class _DetailScreenImageSectionState extends State<DetailScreenImageSection>
                     _showWhiteBackground = !_showWhiteBackground;
                   });
                   if (kDebugMode) {
-                    debugPrint(
-                        '🎨 白抜き表示切替 → ${_showWhiteBackground ? "白抜き" : "元画像"}');
                   }
                 },
               ),

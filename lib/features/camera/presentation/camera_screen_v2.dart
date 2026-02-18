@@ -71,12 +71,6 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
     super.initState();
     
     if (kDebugMode) {
-      debugPrint('🔍 ========== CameraScreenV2 初期化 ==========');
-      debugPrint('📏 AI自動採寸フラグ: ${widget.aiMeasure ? "ON" : "OFF"}');
-      debugPrint('📸 既存画像数: ${widget.existingImages?.length ?? 0}枚');
-      debugPrint('📦 商品名: ${widget.itemName}');
-      debugPrint('🏷️ SKU: ${widget.sku}');
-      debugPrint('==========================================');
     }
     
     _initializeCamera();
@@ -91,7 +85,6 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
       });
       
       if (kDebugMode) {
-        debugPrint('📸 既存画像を読み込み: ${_images.length}枚');
       }
     }
   }
@@ -130,7 +123,6 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
         setState(() => _isCameraInitialized = true);
       }
     } catch (e) {
-      debugPrint('❌ カメラ初期化エラー: $e');
       if (mounted) {
         setState(() => _isCameraInitialized = false);
       }
@@ -151,9 +143,7 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
     final updatedImages = _updateSequences();
     
     if (kDebugMode) {
-      debugPrint('📸 保存: ${updatedImages.length}枚の画像を返却');
-      for (var img in updatedImages) {
-        debugPrint('  ${img.id}: sequence=${img.sequence}, isMain=${img.isMain}');
+      for (var _ in updatedImages) {
       }
     }
     
@@ -207,13 +197,11 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
       final image = await _controller!.takePicture();
       
       if (kDebugMode) {
-        debugPrint('✅ 撮影完了: ${image.path}');
       }
 
       // 🔧 blob URL問題の回避: 即座にバイトデータに変換
       final imageBytes = await image.readAsBytes();
       if (kDebugMode) {
-        debugPrint('📦 画像データ取得: ${imageBytes.length} bytes');
       }
 
       if (mounted) {
@@ -228,7 +216,6 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
           _selectedImageIndex = _images.length - 1;
           
           if (kDebugMode) {
-            debugPrint('📸 新規画像追加: ${newItem.id}');
           }
         });
         
@@ -241,7 +228,6 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
             duration: const Duration(seconds: 1));
       }
     } catch (e) {
-      debugPrint('❌ 撮影エラー: $e');
       if (mounted) {
         setState(() => _isCapturing = false);
         
@@ -262,12 +248,10 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
       );
       
       if (pickedFile == null) {
-        debugPrint('ℹ️ ギャラリー選択がキャンセルされました');
         return;
       }
 
       if (kDebugMode) {
-        debugPrint('✅ ギャラリーから選択: ${pickedFile.name}');
       }
 
       if (mounted) {
@@ -286,7 +270,6 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
             duration: const Duration(seconds: 1));
       }
     } catch (e) {
-      debugPrint('❌ ギャラリー選択エラー: $e');
       
       if (mounted) {
         AppFeedback.showError(context, '画像の選択に失敗しました');
@@ -360,7 +343,6 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
         // ❌ Cache-Controlヘッダーは削除（CORS問題回避）
         errorBuilder: (context, error, stackTrace) {
           if (kDebugMode) {
-            debugPrint('❌ 画像読み込みエラー: $error');
           }
           return Container(
             width: 80,

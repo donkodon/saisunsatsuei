@@ -39,9 +39,7 @@ class CloudflareWorkersStorageService {
     final hasUuid = uuidPattern.hasMatch(fileId);
     
     if (hasUuid) {
-      debugPrint('🆔 UUID形式を検出: $fileId');
     } else {
-      debugPrint('🔢 旧形式を検出: $fileId');
     }
     
     return hasUuid;
@@ -57,7 +55,6 @@ class CloudflareWorkersStorageService {
   static String generateUniqueFileId(String sku, int sequence) {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final uniqueId = '${sku}_${sequence}_$timestamp';
-    debugPrint('🔑 ユニークファイルID生成（旧形式）: $uniqueId');
     return uniqueId;
   }
   
@@ -104,7 +101,6 @@ class CloudflareWorkersStorageService {
       }
       return false;
     } catch (e) {
-      debugPrint('⚠️ ファイル存在チェックエラー: $e');
       return false;  // エラー時は存在しないと見なす
     }
   }
@@ -122,16 +118,13 @@ class CloudflareWorkersStorageService {
       final exists = await checkFileExists(fileName);
       
       if (!exists) {
-        debugPrint('✅ 使用可能な連番: $counter (ファイル名: $fileName)');
         return counter;
       }
       
-      debugPrint('⚠️ 連番 $counter は既に使用中、次をチェック...');
       counter++;
     }
     
     // 最大試行回数を超えた場合はタイムスタンプベースに
-    debugPrint('⚠️ 連番が見つからないため、タイムスタンプを使用');
     return DateTime.now().millisecondsSinceEpoch;
   }
   
@@ -143,7 +136,6 @@ class CloudflareWorkersStorageService {
       // URLからファイル名を抽出
       final uri = Uri.tryParse(imageUrl);
       if (uri == null || uri.pathSegments.isEmpty) {
-        debugPrint('⚠️ 無効なURL: $imageUrl');
         return {
           'success': false,
           'reason': '無効なURL形式',
@@ -161,24 +153,18 @@ class CloudflareWorkersStorageService {
         final sku = uri.pathSegments[uri.pathSegments.length - 2];
         final fileName = uri.pathSegments.last;
         filePath = '$companyId/$sku/$fileName';
-        debugPrint('🔧 フルパス（company_id含む）: $filePath');
       } else if (uri.pathSegments.length == 2) {
         // 🔄 SKU + fileName（古い形式：company_idなし）
         filePath = '${uri.pathSegments[0]}/${uri.pathSegments[1]}';
-        debugPrint('🔄 SKUフォルダパス（company_idなし）: $filePath');
       } else {
         // 🔄 fileName のみ（最古の形式）
         filePath = uri.pathSegments.last;
-        debugPrint('🔄 ファイル名のみ: $filePath');
       }
       
       // ✅ Workers削除エンドポイント（URLエンコーディング対応）
       final encodedFilePath = Uri.encodeComponent(filePath);
       final deleteUrl = Uri.parse('$workerBaseUrl/delete?filename=$encodedFilePath');
       
-      debugPrint('🗑️ Cloudflare削除リクエスト: $deleteUrl');
-      debugPrint('📁 削除するファイルパス: $filePath');
-      debugPrint('🔒 エンコード後パス: $encodedFilePath');
       
       // 🌐 Web版: CORS問題を回避するため、Workers経由で削除
       // Workers側で適切なCORSヘッダーが設定されている必要があります
@@ -197,12 +183,7 @@ class CloudflareWorkersStorageService {
             onTimeout: () => http.Response('{"error":"タイムアウト"}', 408),
           );
         } catch (e) {
-          debugPrint('⚠️ Web版削除エラー（CORS問題の可能性）: $e');
           // CORS問題の場合、Workers側の設定を確認する必要があります
-          debugPrint('💡 対処方法:');
-          debugPrint('   1. Workers側で DELETE メソッドのCORSヘッダーを設定');
-          debugPrint('   2. Access-Control-Allow-Origin: * を追加');
-          debugPrint('   3. Access-Control-Allow-Methods: DELETE を追加');
           
           return {
             'success': false,
@@ -223,25 +204,20 @@ class CloudflareWorkersStorageService {
         );
       }
       
-      debugPrint('📨 削除レスポンス: ${response.statusCode}');
       
       if (response.statusCode == 200 || response.statusCode == 204) {
-        debugPrint('✅ 画像削除成功: $filePath');
         return {
           'success': true,
           'reason': null,
           'statusCode': response.statusCode,
         };
       } else if (response.statusCode == 404) {
-        debugPrint('⚠️ 画像削除失敗（404: ファイルが存在しないか、削除エンドポイント未実装）: $filePath');
         return {
           'success': false,
           'reason': 'ファイルが存在しないか、削除エンドポイント未実装',
           'statusCode': 404,
         };
       } else {
-        debugPrint('⚠️ 画像削除失敗（${response.statusCode}）: $filePath');
-        debugPrint('   レスポンス: ${response.body}');
         return {
           'success': false,
           'reason': 'HTTP ${response.statusCode}: ${response.body}',
@@ -249,7 +225,6 @@ class CloudflareWorkersStorageService {
         };
       }
     } catch (e) {
-      debugPrint('❌ Cloudflare画像削除エラー: $e');
       return {
         'success': false,
         'reason': '例外エラー: $e',
@@ -288,7 +263,6 @@ class CloudflareWorkersStorageService {
       if (_isUuidFormat(itemId)) {
         // ✅ UUID形式: そのまま使用（Phase 1対応）
         fileName = '$itemId.jpg';
-        debugPrint('🆔 UUID形式のファイル名を使用: $fileName');
       } else if (useUniqueFileName) {
         // 🔢 旧形式: タイムスタンプを付与（後方互換性）
         final parts = itemId.split('_');
@@ -296,18 +270,11 @@ class CloudflareWorkersStorageService {
         final timestamp = DateTime.now().millisecondsSinceEpoch;
         final uniqueId = '${skuFolder}_${sequence}_$timestamp';
         fileName = '$uniqueId.jpg';
-        debugPrint('🔢 タイムスタンプ形式のファイル名を生成: $fileName');
       } else {
         // 従来通りのファイル名（上書きモード）
         fileName = '$itemId.jpg';
       }
       
-      debugPrint('📤 Cloudflare Workers アップロード開始');
-      debugPrint('🏢 Company ID: $company (パラメータ名: company_id)');
-      debugPrint('📦 SKU: $skuFolder');
-      debugPrint('📄 ファイル名: $fileName');
-      debugPrint('📊 ファイルサイズ: ${imageBytes.length} bytes');
-      debugPrint('🔑 ユニークモード: $useUniqueFileName');
       
       // Multipartリクエストを作成
       final request = http.MultipartRequest('POST', Uri.parse(uploadEndpoint));
@@ -335,24 +302,15 @@ class CloudflareWorkersStorageService {
       
       final response = await http.Response.fromStream(streamedResponse);
       
-      debugPrint('📨 Response status: ${response.statusCode}');
-      debugPrint('📨 Response body: ${response.body}');
       
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
         final imageUrl = jsonResponse['url'] as String;
         
         // 🔍 URLから保存パスを確認（R2フォルダ構造検証）
-        final expectedPath = '$company/$skuFolder/$fileName';
+        final _ = '$company/$skuFolder/$fileName';
         if (imageUrl.contains('$company/$skuFolder/')) {
-          debugPrint('✅ アップロード成功 (Company: $company, SKU: $skuFolder)');
-          debugPrint('   R2パス: $expectedPath');
-          debugPrint('   公開URL: $imageUrl');
         } else {
-          debugPrint('⚠️ 企業IDフォルダが作成されていない可能性');
-          debugPrint('   期待パス: $expectedPath');
-          debugPrint('   実際URL: $imageUrl');
-          debugPrint('   → Workers側でcompany_idが正しく受信されているか確認が必要');
         }
         
         return imageUrl;
@@ -361,7 +319,6 @@ class CloudflareWorkersStorageService {
       }
       
     } catch (e) {
-      debugPrint('❌ Workersアップロードエラー: $e');
       rethrow;
     }
   }
@@ -373,7 +330,6 @@ class CloudflareWorkersStorageService {
     final List<String> successUrls = [];
     final List<Map<String, dynamic>> failureDetails = [];
     
-    debugPrint('🗑️ 一括削除開始: ${imageUrls.length}件');
     
     for (final url in imageUrls) {
       final result = await deleteImageWithDetails(url);
@@ -386,14 +342,10 @@ class CloudflareWorkersStorageService {
           'reason': result['reason'],
           'statusCode': result['statusCode'],
         });
-        debugPrint('   ❌ 削除失敗: $url');
-        debugPrint('      理由: ${result['reason']}');
       }
     }
     
-    debugPrint('🗑️ 一括削除完了: ${successUrls.length}/${imageUrls.length}件成功');
     if (failureDetails.isNotEmpty) {
-      debugPrint('   ⚠️ ${failureDetails.length}件の削除に失敗');
     }
     
     return {

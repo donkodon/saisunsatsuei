@@ -191,7 +191,6 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
                                   setState(() {
                                     _showWhiteBackground = !_showWhiteBackground;
                                   });
-                                  debugPrint('🎨 Phase 5 Preview: 白抜き表示切替 → ${_showWhiteBackground ? "白抜き" : "元画像"}');
                                 },
                                 borderRadius: BorderRadius.circular(24),
                                 child: Container(
@@ -286,7 +285,6 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
                 // 🎨 Phase 5: 白抜き画像のエラー時は元画像にフォールバック
                 if (isWhite && widget.imageUrls.isNotEmpty) {
                   final fallbackUrl = widget.imageUrls[_currentIndex];
-                  debugPrint('⚠️ 白抜き画像が見つかりません。元画像を表示: $fallbackUrl');
                   return _buildImage(fallbackUrl, isWhite: false);
                 }
                 return _buildErrorWidget(isWhite: isWhite);
@@ -296,7 +294,6 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
             // 🎨 Phase 5: エラー時のフォールバック
             if (isWhite && widget.imageUrls.isNotEmpty) {
               final fallbackUrl = widget.imageUrls[_currentIndex];
-              debugPrint('⚠️ 白抜き画像の読み込みエラー。元画像を表示: $fallbackUrl');
               return _buildImage(fallbackUrl, isWhite: false);
             }
             return _buildErrorWidget(isWhite: isWhite);
@@ -316,7 +313,6 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
           // 🎨 Phase 5: エラー時のフォールバック
           if (isWhite && widget.imageUrls.isNotEmpty) {
             final fallbackUrl = widget.imageUrls[_currentIndex];
-            debugPrint('⚠️ 白抜き画像が見つかりません。元画像を表示: $fallbackUrl');
             return _buildImage(fallbackUrl, isWhite: false);
           }
           return _buildErrorWidget(isWhite: isWhite);
@@ -340,7 +336,6 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
       // TODO: ネットワーク取得の実装
       return null;
     } catch (e) {
-      debugPrint('❌ キャッシュ画像読み込みエラー: $e');
       return null;
     }
   }

@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:measure_master/features/inventory/domain/item.dart';
 import 'package:measure_master/features/inventory/logic/inventory_provider.dart';
 import 'package:measure_master/core/services/api_service.dart';
@@ -32,32 +31,23 @@ class InventorySaver {
   /// Returns: true if successful
   Future<bool> saveToHive(InventoryItem item) async {
     try {
-      debugPrint('💾 Hive保存開始');
-      debugPrint('   SKU: ${item.sku}');
-      debugPrint('   画像枚数: ${item.imageUrls?.length ?? 0}');
 
       await _inventoryProvider.addItem(item);
       
-      debugPrint('✅ Hive保存完了');
 
       // 🔍 Hive保存後の確認（読み込んで検証）
       if (kDebugMode && item.sku != null && item.sku!.isNotEmpty) {
         final savedItem = _inventoryProvider.findBySku(item.sku!);
         if (savedItem != null) {
-          debugPrint('🔍 Hive保存後の確認:');
-          debugPrint('   savedItem.imageUrls件数: ${savedItem.imageUrls?.length ?? 0}件');
           if (savedItem.imageUrls != null && kDebugMode) {
             for (int i = 0; i < savedItem.imageUrls!.length; i++) {
-              debugPrint('     [$i] ${savedItem.imageUrls![i]}');
             }
           }
         }
       }
 
       return true;
-    } catch (e, stackTrace) {
-      debugPrint('❌ Hive保存エラー: $e');
-      debugPrint('スタックトレース: $stackTrace');
+    } catch (e) {
       return false;
     }
   }
@@ -83,19 +73,11 @@ class InventorySaver {
 
     for (int retryCount = 0; retryCount < maxRetries; retryCount++) {
       try {
-        debugPrint('🌐 D1保存試行 ${retryCount + 1}/$maxRetries');
 
         // 🏢 企業IDを取得（null時は空文字）
         final companyId = await _companyService.getCompanyId() ?? '';
 
         // 🔍 デバッグログ: 企業ID取得結果
-        debugPrint('═══════════════════════════════════════');
-        debugPrint('🏢 D1保存時の企業ID検証');
-        debugPrint('   企業ID (companyId): "$companyId"');
-        debugPrint('   SKU: "${item.sku}"');
-        debugPrint('   Firebase UID: "${FirebaseAuth.instance.currentUser?.uid}"');
-        debugPrint('   Firebase Email: "${FirebaseAuth.instance.currentUser?.email}"');
-        debugPrint('═══════════════════════════════════════');
 
         // ベースデータ
         final itemData = <String, dynamic>{
@@ -135,12 +117,6 @@ class InventorySaver {
         final sleeve   = itemData['sleeve']?.toString() ?? '';
 
         // 🔥 強制デバッグログ（リリースビルドでも出力）
-        debugPrint('📏 ======== サイズデータ確認 ========');
-        debugPrint('📏 additionalData に含まれる値:');
-        debugPrint('   length   = "$length"   (isEmpty: ${length.isEmpty})');
-        debugPrint('   width    = "$width"    (isEmpty: ${width.isEmpty})');
-        debugPrint('   shoulder = "$shoulder" (isEmpty: ${shoulder.isEmpty})');
-        debugPrint('   sleeve   = "$sleeve"   (isEmpty: ${sleeve.isEmpty})');
 
         if (length.isNotEmpty || width.isNotEmpty || shoulder.isNotEmpty || sleeve.isNotEmpty) {
           itemData['actualMeasurements'] = {
@@ -149,11 +125,8 @@ class InventorySaver {
             if (shoulder.isNotEmpty) 'shoulder_width':  double.tryParse(shoulder) ?? shoulder,
             if (sleeve.isNotEmpty)   'sleeve_length':   double.tryParse(sleeve)   ?? sleeve,
           };
-          debugPrint('📏 actualMeasurements 変換完了: ${itemData['actualMeasurements']}');
         } else {
-          debugPrint('⚠️ サイズデータがすべて空のため actualMeasurements は送信しません');
         }
-        debugPrint('📏 =====================================');
 
         // バラキーは Workers に不要なので除去
         itemData.remove('length');
@@ -165,10 +138,6 @@ class InventorySaver {
         final success = await _apiService.saveProductItemToD1(itemData);
 
         if (success) {
-          debugPrint('✅ D1保存成功（試行${retryCount + 1}回目）');
-          debugPrint('   Company ID: $companyId');
-          debugPrint('   SKU: ${item.sku}');
-          debugPrint('   Item Code: $itemCode');
 
           return SaveToD1Result(
             success: true,
@@ -179,14 +148,10 @@ class InventorySaver {
           throw Exception('D1保存API returned false');
         }
       } catch (e, stackTrace) {
-        debugPrint('❌ D1保存失敗（試行${retryCount + 1}回目）: $e');
         
         if (retryCount < maxRetries - 1) {
-          debugPrint('   ⏳ ${retryCount + 1}秒後にリトライします...');
           await Future.delayed(Duration(seconds: retryCount + 1));
         } else {
-          debugPrint('❌ D1保存リトライ上限に達しました');
-          debugPrint('スタックトレース: $stackTrace');
           
           return SaveToD1Result(
             success: false,

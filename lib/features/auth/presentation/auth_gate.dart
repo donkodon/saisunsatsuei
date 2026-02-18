@@ -32,7 +32,6 @@ class _AuthGateState extends State<AuthGate> {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        debugPrint('🔄 StreamBuilder状態: ${snapshot.connectionState}, hasData: ${snapshot.hasData}');
         
         // 認証状態を確認中
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -60,12 +59,10 @@ class _AuthGateState extends State<AuthGate> {
 
         // 未ログイン → ログイン画面
         if (!snapshot.hasData || snapshot.data == null) {
-          debugPrint('❌ 未ログイン状態 - ログイン画面表示');
           return const FirebaseLoginScreen();
         }
 
         // Auth済み → Firestore users/{uid} を確認してから DashboardScreen
-        debugPrint('✅ ログイン済み状態 - プロフィール読み込み開始');
         final user = snapshot.data!;
         return _FirestoreProfileLoader(
           key: ValueKey(user.uid),  // 🔧 UID変更時にWidgetを再生成
@@ -115,7 +112,6 @@ class _FirestoreProfileLoaderState extends State<_FirestoreProfileLoader> {
 
   Future<void> _loadUserProfile() async {
     try {
-      debugPrint('🔍 Firestore ユーザープロフィール取得: ${widget.user.uid}');
 
       final profile = await widget.authService.getUserProfile(widget.user.uid);
 
@@ -147,17 +143,8 @@ class _FirestoreProfileLoaderState extends State<_FirestoreProfileLoader> {
 
       // lastLoginAt を更新（失敗しても画面遷移はする）
       widget.authService.updateLastLogin(widget.user.uid).catchError((e) {
-        debugPrint('⚠️ lastLoginAt更新失敗（無視）: $e');
       });
 
-      debugPrint('═══════════════════════════════════════');
-      debugPrint('✅ ログイン成功 - 企業ID設定完了');
-      debugPrint('   企業ID: "$companyId"');
-      debugPrint('   Firebase UID: "${widget.user.uid}"');
-      debugPrint('   Email: "${widget.user.email}"');
-      debugPrint('   表示名: "${profile['displayName']}"');
-      debugPrint('═══════════════════════════════════════');
-      debugPrint('🚀 DashboardScreenを表示');
 
       if (mounted) {
         setState(() {
@@ -165,7 +152,6 @@ class _FirestoreProfileLoaderState extends State<_FirestoreProfileLoader> {
         });
       }
     } catch (e) {
-      debugPrint('❌ プロフィール取得エラー: $e');
       if (mounted) {
         setState(() {
           _profileState = _ProfileState.error;
@@ -182,10 +168,8 @@ class _FirestoreProfileLoaderState extends State<_FirestoreProfileLoader> {
     try {
       final companyService = Provider.of<CompanyService>(context, listen: false);
       await companyService.logout();
-      debugPrint('✅ _forceSignOut: CompanyService クリア完了');
 
       await widget.authService.signOut();
-      debugPrint('✅ _forceSignOut: Firebase サインアウト完了');
 
       // Web での authStateChanges 伝搬遅延に対応
       await Future.delayed(const Duration(milliseconds: 500));
@@ -194,7 +178,6 @@ class _FirestoreProfileLoaderState extends State<_FirestoreProfileLoader> {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
-      debugPrint('❌ _forceSignOut エラー: $e');
     }
   }
 

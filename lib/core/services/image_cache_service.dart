@@ -20,7 +20,6 @@ class ImageCacheService {
   static Future<void> initialize() async {
     _box = await Hive.openBox<String>(_boxName);
     if (kDebugMode) {
-      debugPrint('📸 ImageCacheService初期化完了: ${_box?.length ?? 0}件のキャッシュ');
     }
   }
   
@@ -40,7 +39,6 @@ class ImageCacheService {
     final cacheBustedUrl = '$url${separator}t=$timestamp';
     
     if (kDebugMode) {
-      debugPrint('🔄 キャッシュバスティング: $cacheBustedUrl');
     }
     
     return cacheBustedUrl;
@@ -82,11 +80,9 @@ class ImageCacheService {
       await _box!.put(key, base64Data);
       
       if (kDebugMode) {
-        debugPrint('✅ 画像キャッシュ保存: $key (${imageBytes.length} bytes)');
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ 画像キャッシュ保存エラー: $e');
       }
     }
   }
@@ -105,18 +101,15 @@ class ImageCacheService {
       
       if (base64Data != null) {
         if (kDebugMode) {
-          debugPrint('✅ キャッシュヒット: $key');
         }
         return base64Decode(base64Data);
       }
       
       if (kDebugMode) {
-        debugPrint('⚠️ キャッシュミス: $key');
       }
       return null;
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ キャッシュ取得エラー: $e');
       }
       return null;
     }
@@ -147,7 +140,6 @@ class ImageCacheService {
     if (_box != null) {
       await _box!.clear();
       if (kDebugMode) {
-        debugPrint('🗑️ 画像キャッシュをクリアしました');
       }
     }
   }
@@ -171,12 +163,10 @@ class ImageCacheService {
       if (_box!.containsKey(key)) {
         await _box!.delete(key);
         if (kDebugMode) {
-          debugPrint('🗑️ キャッシュ無効化: $key');
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ キャッシュ無効化エラー: $e');
       }
     }
   }
@@ -188,7 +178,7 @@ class ImageCacheService {
       await initialize();
     }
     
-    int deletedCount = 0;
+    int deletedCount = 0;  // ignore: unused_local_variable
     for (final url in imageUrls) {
       try {
         final key = _extractFileName(url);
@@ -198,13 +188,11 @@ class ImageCacheService {
         }
       } catch (e) {
         if (kDebugMode) {
-          debugPrint('❌ キャッシュ無効化エラー ($url): $e');
         }
       }
     }
     
     if (kDebugMode) {
-      debugPrint('🗑️ キャッシュ一括無効化: $deletedCount/${imageUrls.length}件');
     }
   }
   
@@ -225,11 +213,9 @@ class ImageCacheService {
       }
       
       if (kDebugMode) {
-        debugPrint('🗑️ SKUキャッシュクリア: $sku (${keysToDelete.length}件)');
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ SKUキャッシュクリアエラー: $e');
       }
     }
   }
@@ -245,7 +231,6 @@ class ImageCacheService {
     await cacheImage(imageUrl, imageBytes);
     
     if (kDebugMode) {
-      debugPrint('🔄 キャッシュ更新完了: ${_extractFileName(imageUrl)}');
     }
   }
   
@@ -267,13 +252,11 @@ class ImageCacheService {
       await file.writeAsBytes(cachedBytes);
       
       if (kDebugMode) {
-        debugPrint('✅ キャッシュファイル作成: ${file.path}');
       }
       
       return file;
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ キャッシュファイル作成エラー: $e');
       }
       return null;
     }
@@ -283,21 +266,16 @@ class ImageCacheService {
   static void debugPrintAllCacheKeys() {
     if (!kDebugMode) return;
     if (_box == null) {
-      debugPrint('⚠️ キャッシュボックスが初期化されていません');
       return;
     }
     
-    debugPrint('🔍 ========== キャッシュキー一覧 ==========');
-    debugPrint('📊 総数: ${_box!.length}件');
     
-    int index = 1;
+    int index = 1;  // ignore: unused_local_variable
     for (var key in _box!.keys) {
       // UUID形式かどうか判定
       final isUuid = RegExp(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', caseSensitive: false).hasMatch(key.toString());
-      final icon = isUuid ? '🆔' : '🔢';
-      debugPrint('[$index] $icon $key');
+      final _ = isUuid ? '🆔' : '🔢';
       index++;
     }
-    debugPrint('==========================================');
   }
 }

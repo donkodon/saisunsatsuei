@@ -156,10 +156,6 @@ class ImageDiffManager {
     required String companyId,
     required String sku,
   }) async {
-    debugPrint('🔑 UID→URL変換によるP/F画像差分削除開始');
-    debugPrint('   企業ID: $companyId, SKU: $sku');
-    debugPrint('   古いP画像UID: ${oldPUids.length}件, 古いF画像UID: ${oldFUids.length}件');
-    debugPrint('   新しいP画像UID: ${newPUids.length}件, 新しいF画像UID: ${newFUids.length}件');
 
     // 差分: 古いUIDのうち、新しいUIDに含まれないものが削除対象
     final newPUidSet = newPUids.toSet();
@@ -168,8 +164,6 @@ class ImageDiffManager {
     final pUidsToDelete = oldPUids.where((uid) => !newPUidSet.contains(uid)).toList();
     final fUidsToDelete = oldFUids.where((uid) => !newFUidSet.contains(uid)).toList();
 
-    debugPrint('   削除対象P画像UID: ${pUidsToDelete.length}件');
-    debugPrint('   削除対象F画像UID: ${fUidsToDelete.length}件');
 
     // UID → URL 変換
     final pUrlsToDelete = buildDerivedImageUrls(
@@ -180,11 +174,9 @@ class ImageDiffManager {
     );
 
     if (kDebugMode) {
-      for (final url in pUrlsToDelete) {
-        debugPrint('   🗑️ P削除対象URL: $url');
+      for (final _ in pUrlsToDelete) {
       }
-      for (final url in fUrlsToDelete) {
-        debugPrint('   🗑️ F削除対象URL: $url');
+      for (final _ in fUrlsToDelete) {
       }
     }
 
@@ -194,7 +186,6 @@ class ImageDiffManager {
 
     final emptyResult = ImageDeleteResult(deletedCount: 0, failedCount: 0);
 
-    debugPrint('🔑 UID→URL変換削除完了: P=${pResult.deletedCount}件, F=${fResult.deletedCount}件');
 
     return CombinedDeleteResult(
       normalResult: emptyResult,
@@ -217,9 +208,6 @@ class ImageDiffManager {
     required List<String> oldUrls,
     required List<String> newUrls,
   }) {
-    debugPrint('🔍 差分削除対象を検出中...');
-    debugPrint('   古い画像: ${oldUrls.length}件');
-    debugPrint('   新しい画像: ${newUrls.length}件');
 
     // 新しいURLのセット
     final newUrlSet = newUrls.toSet();
@@ -227,10 +215,8 @@ class ImageDiffManager {
     // 古いURLで、新しいURLに含まれないものが削除対象
     final urlsToDelete = oldUrls.where((url) => !newUrlSet.contains(url)).toList();
 
-    debugPrint('   削除対象: ${urlsToDelete.length}件');
     if (kDebugMode && urlsToDelete.isNotEmpty) {
       for (int i = 0; i < urlsToDelete.length; i++) {
-        debugPrint('   [$i] ${urlsToDelete[i]}');
       }
     }
 
@@ -261,8 +247,6 @@ class ImageDiffManager {
     String? companyId,
     String? sku,
   }) {
-    debugPrint('🎨 Phase 4: 白抜き・マスク・P画像・F画像の差分削除対象を検出');
-    debugPrint('   企業ID: $companyId, SKU: $sku');
 
     // ✅ 修正: 実際にアップロードされた派生画像URLを抽出（企業ID/SKUでフィルタリング）
     final newWhiteUrls = allImageUrls.where((url) {
@@ -296,31 +280,17 @@ class ImageDiffManager {
       return true;
     }).toSet();
 
-    debugPrint('🎨 Phase 4: 新しい白抜き画像: ${newWhiteUrls.length}件');
-    debugPrint('🎭 Phase 4: 新しいマスク画像: ${newMaskUrls.length}件');
-    debugPrint('📐 Phase 4: 新しいP画像: ${newPImageUrls.length}件');
-    debugPrint('📏 Phase 4: 新しいF画像: ${newFImageUrls.length}件');
-    debugPrint('🎨 Phase 4: DBの古い白抜き画像: ${oldWhiteUrls.length}件');
-    debugPrint('🎭 Phase 4: DBの古いマスク画像: ${oldMaskUrls.length}件');
-    debugPrint('📐 Phase 4: DBの古いP画像: ${oldPImageUrls?.length ?? 0}件');
-    debugPrint('📏 Phase 4: DBの古いF画像: ${oldFImageUrls?.length ?? 0}件');
     
     // 🔍 デバッグ: P画像の詳細チェック
     if (kDebugMode) {
-      debugPrint('🔍 Phase 4: 全画像URL（allImageUrls）のP画像チェック:');
       for (var url in allImageUrls) {
         if (url.contains('_p.png') || url.contains('_P.jpg') || url.contains('_p.') || url.contains('_P.')) {
-          debugPrint('   🔍 P画像候補: $url');
-          debugPrint('      contains(_p.png): ${url.contains('_p.png')}');
-          debugPrint('      contains(_P.jpg): ${url.contains('_P.jpg')}');
           if (companyId != null) debugPrint('      contains(/$companyId/): ${url.contains('/$companyId/')}');
           if (sku != null) debugPrint('      contains(/$sku/): ${url.contains('/$sku/')}');
         }
       }
       
-      debugPrint('🔍 Phase 4: DBの古いP画像チェック:');
-      for (var url in oldPImageUrls ?? []) {
-        debugPrint('   📐 古いP画像: $url');
+      for (var _ in oldPImageUrls ?? []) {
       }
     }
 
@@ -335,31 +305,23 @@ class ImageDiffManager {
     final pImageUrlsToDelete = oldPImageUrlSet.difference(newPImageUrls).toList();
     final fImageUrlsToDelete = oldFImageUrlSet.difference(newFImageUrls).toList();
 
-    debugPrint('🗑️ Phase 4: 削除対象の白抜き画像: ${whiteUrlsToDelete.length}件');
     if (whiteUrlsToDelete.isNotEmpty && kDebugMode) {
-      for (var url in whiteUrlsToDelete) {
-        debugPrint('   🗑️ $url');
+      for (var _ in whiteUrlsToDelete) {
       }
     }
     
-    debugPrint('🗑️ Phase 4: 削除対象のマスク画像: ${maskUrlsToDelete.length}件');
     if (maskUrlsToDelete.isNotEmpty && kDebugMode) {
-      for (var url in maskUrlsToDelete) {
-        debugPrint('   🗑️ $url');
+      for (var _ in maskUrlsToDelete) {
       }
     }
     
-    debugPrint('🗑️ Phase 4: 削除対象のP画像: ${pImageUrlsToDelete.length}件');
     if (pImageUrlsToDelete.isNotEmpty && kDebugMode) {
-      for (var url in pImageUrlsToDelete) {
-        debugPrint('   🗑️ $url');
+      for (var _ in pImageUrlsToDelete) {
       }
     }
     
-    debugPrint('🗑️ Phase 4: 削除対象のF画像: ${fImageUrlsToDelete.length}件');
     if (fImageUrlsToDelete.isNotEmpty && kDebugMode) {
-      for (var url in fImageUrlsToDelete) {
-        debugPrint('   🗑️ $url');
+      for (var _ in fImageUrlsToDelete) {
       }
     }
 
@@ -384,12 +346,9 @@ class ImageDiffManager {
     required String sku,
   }) async {
     if (urls.isEmpty) {
-      debugPrint('📌 削除対象なし（画像変更なし）');
       return ImageDeleteResult(deletedCount: 0, failedCount: 0);
     }
 
-    debugPrint('🗑️ R2から画像削除開始: ${urls.length}件');
-    debugPrint('   SKU: $sku');
 
     int deletedCount = 0;
     int failedCount = 0;
@@ -397,18 +356,14 @@ class ImageDiffManager {
     for (int i = 0; i < urls.length; i++) {
       final url = urls[i];
       try {
-        debugPrint('   🗑️ [$i/${urls.length}] 削除中: $url');
         // ✅ Workers経由の削除メソッドを使用
         await CloudflareWorkersStorageService.deleteImage(url);
         deletedCount++;
-        debugPrint('   ✅ 削除成功');
       } catch (e) {
         failedCount++;
-        debugPrint('   ❌ 削除失敗: $e');
       }
     }
 
-    debugPrint('🗑️ R2削除完了: 成功$deletedCount件、失敗$failedCount件');
 
     return ImageDeleteResult(
       deletedCount: deletedCount,
@@ -434,12 +389,6 @@ class ImageDiffManager {
     List<String>? fImageUrls,
     required String sku,
   }) async {
-    debugPrint('🗑️ 全種類の画像削除開始');
-    debugPrint('   通常画像: ${normalUrls.length}件');
-    debugPrint('   白抜き画像: ${whiteUrls.length}件');
-    debugPrint('   マスク画像: ${maskUrls.length}件');
-    debugPrint('   📐 P画像: ${pImageUrls?.length ?? 0}件');
-    debugPrint('   📏 F画像: ${fImageUrls?.length ?? 0}件');
 
     // 通常画像削除
     final normalResult = await deleteImagesFromR2(urls: normalUrls, sku: sku);
@@ -467,7 +416,6 @@ class ImageDiffManager {
                         pImageResult.failedCount +
                         fImageResult.failedCount;
 
-    debugPrint('🗑️ 全削除完了: 成功$totalDeleted件、失敗$totalFailed件');
 
     return CombinedDeleteResult(
       normalResult: normalResult,

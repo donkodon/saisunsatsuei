@@ -49,13 +49,6 @@ class MeasurementApiClient {
   }) async {
     try {
       if (kDebugMode) {
-        debugPrint('🔍 ========== MeasurementApiClient デバッグ ==========');
-        debugPrint('📏 AI自動採寸API呼び出し開始');
-        debugPrint('🎯 リクエスト詳細:');
-        debugPrint('   画像URL: $imageUrl');
-        debugPrint('   SKU: $sku');
-        debugPrint('   企業ID: $companyId');
-        debugPrint('   衣類タイプ: $garmentClass');
       }
 
       final requestBody = {
@@ -66,11 +59,6 @@ class MeasurementApiClient {
       };
 
       if (kDebugMode) {
-        debugPrint('📤 Workers APIリクエスト送信:');
-        debugPrint('   エンドポイント: $d1ApiUrl/api/measure');
-        debugPrint('   メソッド: POST');
-        debugPrint('   Body: ${json.encode(requestBody)}');
-        debugPrint('   タイムアウト: 10秒');
       }
 
       final response = await httpClient
@@ -84,9 +72,6 @@ class MeasurementApiClient {
           .timeout(const Duration(seconds: 10)); // Workers即レスポンス（prediction作成のみ）
 
       if (kDebugMode) {
-        debugPrint('📡 Workers APIレスポンス受信:');
-        debugPrint('   HTTPステータス: ${response.statusCode}');
-        debugPrint('   レスポンスBody: ${response.body}');
       }
 
       if (response.statusCode == 200) {
@@ -94,26 +79,12 @@ class MeasurementApiClient {
 
         if (jsonData['success'] == true) {
           if (kDebugMode) {
-            debugPrint('✅ 採寸リクエスト受付成功');
-            debugPrint('📊 レスポンス詳細:');
-            debugPrint('   status: ${jsonData['status']}');
-            debugPrint('   prediction_id: ${jsonData['prediction_id']}');
-            debugPrint('   message: ${jsonData['message']}');
-            debugPrint('🔗 Webhook URL設定済み:');
-            debugPrint('   /api/webhook/replicate?sku=$sku&company_id=$companyId');
           }
 
           // 採寸結果を抽出（同期ポーリング方式の場合、結果が即座に返る）
           final measurementsData = jsonData['measurements'] as Map<String, dynamic>?;
 
           if (kDebugMode) {
-            debugPrint('📦 採寸結果データ確認:');
-            debugPrint('   measurements: ${measurementsData != null ? "あり" : "null"}');
-            debugPrint('   measurement_image_url: ${jsonData['measurement_image_url'] != null ? "あり" : "null"}');
-            debugPrint('   mask_image_url: ${jsonData['mask_image_url'] != null ? "あり" : "null"}');
-            debugPrint('   ai_landmarks: ${jsonData['ai_landmarks'] != null ? "あり" : "null"}');
-            debugPrint('   reference_object: ${jsonData['reference_object'] != null ? "あり" : "null"}');
-            debugPrint('==========================================');
           }
           
           return MeasurementApiResponse(
@@ -138,8 +109,6 @@ class MeasurementApiClient {
           );
         } else {
           if (kDebugMode) {
-            debugPrint('❌ Workers API エラー: success=false');
-            debugPrint('   message: ${jsonData['message']}');
           }
           throw MeasurementApiException(
             '採寸API失敗: ${jsonData['message'] ?? '不明なエラー'}',
@@ -149,9 +118,6 @@ class MeasurementApiClient {
       } else if (response.statusCode == 400) {
         final errorData = json.decode(response.body) as Map<String, dynamic>;
         if (kDebugMode) {
-          debugPrint('❌ 採寸リクエストエラー (HTTP 400)');
-          debugPrint('   エラーメッセージ: ${errorData['message'] ?? '不明なエラー'}');
-          debugPrint('   リクエストBody: ${json.encode(requestBody)}');
         }
         throw MeasurementApiException(
           '不正なリクエスト: ${errorData['message'] ?? '不明なエラー'}',
@@ -165,12 +131,10 @@ class MeasurementApiClient {
       }
     } on http.ClientException catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ ネットワークエラー: $e');
       }
       throw MeasurementApiException('ネットワークエラー: $e');
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ 採寸API呼び出しエラー: $e');
       }
       rethrow;
     }

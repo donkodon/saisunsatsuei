@@ -22,7 +22,6 @@ class CompanyService {
     }
     
     if (kDebugMode) {
-      debugPrint('📝 メモリに保存: $companyId');
     }
     
     // SharedPreferencesへの保存を試みる（失敗してもOK）
@@ -35,11 +34,9 @@ class CompanyService {
       }
       
       if (kDebugMode) {
-        debugPrint('✅ SharedPreferencesに保存: $companyId');
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('⚠️ SharedPreferences保存失敗（メモリのみ使用）: $e');
       }
     }
     
@@ -52,7 +49,6 @@ class CompanyService {
     // まずメモリから取得を試みる
     if (_memoryCompanyId != null && _memoryCompanyId!.isNotEmpty) {
       if (kDebugMode) {
-        debugPrint('💾 CompanyService.getCompanyId() - メモリキャッシュから取得: "$_memoryCompanyId"');
       }
       return _memoryCompanyId!;
     }
@@ -65,20 +61,16 @@ class CompanyService {
       if (companyId != null && companyId.isNotEmpty) {
         _memoryCompanyId = companyId; // メモリにキャッシュ
         if (kDebugMode) {
-          debugPrint('💾 CompanyService.getCompanyId() - SharedPreferencesから取得: "$companyId"');
         }
         return companyId;
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('⚠️ SharedPreferences取得失敗（デフォルト使用）: $e');
       }
     }
     
     // どちらも失敗した場合はnullを返す（デフォルト値なし）
     if (kDebugMode) {
-      debugPrint('⚠️ CompanyService.getCompanyId() - 企業ID未設定（nullを返却）');
-      debugPrint('   → Firestoreからの取得が必要です。ログインし直してください。');
     }
     return null;
   }
@@ -100,7 +92,6 @@ class CompanyService {
       return companyName;
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('⚠️ 企業名取得失敗: $e');
       }
       return null;
     }
@@ -123,7 +114,6 @@ class CompanyService {
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('⚠️ ログイン状態確認失敗: $e');
       }
     }
     
@@ -137,7 +127,6 @@ class CompanyService {
     _memoryCompanyName = null;
     
     if (kDebugMode) {
-      debugPrint('📝 メモリクリア完了');
     }
     
     // SharedPreferencesもクリア（失敗してもOK）
@@ -147,11 +136,9 @@ class CompanyService {
       await prefs.remove(_companyNameKey);
       
       if (kDebugMode) {
-        debugPrint('✅ SharedPreferencesクリア完了');
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('⚠️ SharedPreferencesクリア失敗（メモリはクリア済み）: $e');
       }
     }
     

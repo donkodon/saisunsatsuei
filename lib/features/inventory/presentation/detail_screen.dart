@@ -264,10 +264,8 @@ class _DetailScreenState extends State<DetailScreen>
       final pairedImages =
           await _whiteBackgroundService.pairWhiteImages(widget.images!);
       if (kDebugMode) {
-        final stats =
+        final _ =
             _whiteBackgroundService.getWhiteImageStats(pairedImages);
-        debugPrint('🎨 白抜きペアリング完了: '
-            '全${stats['total']}枚 / 白抜きあり${stats['withWhite']}枚');
       }
     } catch (e) {
       if (kDebugMode) debugPrint('❌ 白抜き初期化失敗: $e');

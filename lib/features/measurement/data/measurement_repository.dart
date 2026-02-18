@@ -40,11 +40,9 @@ class MeasurementRepository {
       await box.put(sku, data);
 
       if (kDebugMode) {
-        debugPrint('💾 採寸リクエスト保存完了: SKU=$sku, prediction_id=$predictionId');
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ 採寸リクエスト保存エラー: $e');
       }
       rethrow;
     }
@@ -67,15 +65,9 @@ class MeasurementRepository {
       await box.put(measurement.sku, data);
 
       if (kDebugMode) {
-        debugPrint('💾 採寸結果更新完了: SKU=${measurement.sku}, status=${measurement.status.name}');
-        debugPrint('   肩幅: ${measurement.measurements.shoulderWidth} cm');
-        debugPrint('   袖丈: ${measurement.measurements.sleeveLength} cm');
-        debugPrint('   着丈: ${measurement.measurements.bodyLength} cm');
-        debugPrint('   身幅: ${measurement.measurements.bodyWidth} cm');
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ 採寸結果更新エラー: $e');
       }
       rethrow;
     }
@@ -99,7 +91,6 @@ class MeasurementRepository {
       final data = box.get(sku);
       if (data == null) {
         if (kDebugMode) {
-          debugPrint('📭 採寸結果なし: SKU=$sku');
         }
         return null;
       }
@@ -113,20 +104,17 @@ class MeasurementRepository {
         final measurement = GarmentMeasurementModel.fromJson(jsonData);
 
         if (kDebugMode) {
-          debugPrint('📦 採寸結果取得成功: SKU=$sku, status=${measurement.status.name}');
         }
 
         return measurement;
       } else {
         // まだ採寸リクエストの初期状態のみ
         if (kDebugMode) {
-          debugPrint('⏳ 採寸処理中: SKU=$sku');
         }
         return null;
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ 採寸結果取得エラー: $e');
       }
       return null;
     }
@@ -163,7 +151,6 @@ class MeasurementRepository {
       return null;
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ 採寸結果取得エラー (by prediction_id): $e');
       }
       return null;
     }
@@ -197,12 +184,9 @@ class MeasurementRepository {
       await box.put(sku, data);
 
       if (kDebugMode) {
-        debugPrint('💾 採寸エラー記録完了: SKU=$sku');
-        debugPrint('   エラー: $error');
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ 採寸エラー記録失敗: $e');
       }
       rethrow;
     }
@@ -231,7 +215,6 @@ class MeasurementRepository {
             }
           } catch (e) {
             if (kDebugMode) {
-              debugPrint('⚠️ 採寸データ読み込みスキップ: key=$key, error=$e');
             }
           }
         }
@@ -241,13 +224,11 @@ class MeasurementRepository {
       measurements.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
       if (kDebugMode) {
-        debugPrint('📦 採寸履歴取得: ${measurements.length}件');
       }
 
       return measurements;
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ 採寸履歴取得エラー: $e');
       }
       return [];
     }
@@ -264,11 +245,9 @@ class MeasurementRepository {
       await box.delete(sku);
 
       if (kDebugMode) {
-        debugPrint('🗑️ 採寸結果削除完了: SKU=$sku');
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ 採寸結果削除エラー: $e');
       }
       rethrow;
     }
@@ -284,11 +263,9 @@ class MeasurementRepository {
       await box.clear();
 
       if (kDebugMode) {
-        debugPrint('🗑️ すべての採寸データをクリアしました');
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ 採寸データクリアエラー: $e');
       }
       rethrow;
     }

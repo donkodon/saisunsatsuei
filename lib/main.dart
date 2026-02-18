@@ -16,15 +16,6 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   
   if (kDebugMode) {
-    debugPrint('');
-    debugPrint('=' * 60);
-    debugPrint('🚀🚀🚀 Cargo Measure アプリ起動！ 🚀🚀🚀');
-    debugPrint('=' * 60);
-    debugPrint('⏰ 起動時刻: ${DateTime.now()}');
-    debugPrint('🔍 このログが見えていれば、ログ出力は正常です');
-    debugPrint('📱 これからログを監視してください');
-    debugPrint('=' * 60);
-    debugPrint('');
   }
   
   runApp(const MyApp());
@@ -49,23 +40,15 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _initializeApp() async {
     try {
-      debugPrint('🔄 Step 1: Firebase初期化開始...');
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
-      debugPrint('✅ Step 1: Firebase初期化成功');
       
-      debugPrint('🔄 Step 2: Hive初期化開始...');
       await Hive.initFlutter();
-      debugPrint('✅ Step 2: Hive初期化成功');
       
-      debugPrint('🔄 Step 3: TypeAdapter登録開始...');
       Hive.registerAdapter(InventoryItemAdapter());
-      debugPrint('✅ Step 3: TypeAdapter登録成功');
       
-      debugPrint('🔄 Step 4: 画像キャッシュサービス初期化開始...');
       await ImageCacheService.initialize();
-      debugPrint('✅ Step 4: 画像キャッシュサービス初期化成功');
       
       if (mounted) {
         setState(() {
@@ -73,10 +56,7 @@ class _MyAppState extends State<MyApp> {
         });
       }
       
-      debugPrint('🎉 アプリ初期化完了！');
-    } catch (e, stackTrace) {
-      debugPrint('❌ アプリ初期化エラー: $e');
-      debugPrint('📍 スタックトレース: $stackTrace');
+    } catch (e) {
       
       if (mounted) {
         setState(() {

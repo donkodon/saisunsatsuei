@@ -154,7 +154,6 @@ class SmartImageViewer extends StatelessWidget {
       fit: fit,
       errorBuilder: (context, error, stackTrace) {
         if (kDebugMode) {
-          debugPrint('❌ SmartImageViewer: バイト画像読み込みエラー: $error');
         }
         return _buildError();
       },
@@ -179,14 +178,11 @@ class SmartImageViewer extends StatelessWidget {
       },
       errorBuilder: (context, error, stackTrace) {
         if (kDebugMode) {
-          debugPrint('❌ SmartImageViewer: 画像読み込みエラー: $error');
-          debugPrint('   URL: $url');
         }
         
         // 🎨 Phase 5: 白抜き画像のエラー時は元画像にフォールバック
         if (showWhiteBackground && imageUrl != null && url == whiteImageUrl) {
           if (kDebugMode) {
-            debugPrint('⚠️ SmartImageViewer: 白抜き画像が存在しません。元画像を表示します。');
           }
           final fallbackUrl = ImageCacheService.getCacheBustedUrl(imageUrl!);
           return Image.network(

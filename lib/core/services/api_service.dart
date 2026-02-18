@@ -132,11 +132,6 @@ class ApiService {
       dataWithUpsert['upsert'] = true;
       
       if (kDebugMode) {
-        debugPrint('🔍 ApiService.saveProductItemToD1 - デバッグ情報:');
-        debugPrint('   SKU: "${itemData['sku']}"');
-        debugPrint('   企業ID (itemData): "${itemData['company_id']}"');
-        debugPrint('   企業ID (companyId引数): "$companyId"');
-        debugPrint('   X-Company-Idヘッダー: "$companyId"');
       }
       
       final response = await http.post(
@@ -148,7 +143,6 @@ class ApiService {
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
         if (kDebugMode) {
-          debugPrint('✅ D1保存成功: ${response.body}');
         }
         return jsonData['success'] == true;
       } else if (response.statusCode == 409) {
@@ -162,7 +156,6 @@ class ApiService {
         try {
           errorBody = response.body;
           if (kDebugMode) {
-            debugPrint('❌ D1 APIエラー (${response.statusCode}): $errorBody');
           }
         } catch (_) {}
         throw Exception('D1への保存に失敗しました (${response.statusCode})\n応答: $errorBody');
@@ -266,7 +259,6 @@ class ApiService {
       }
       
       if (kDebugMode) {
-        debugPrint('🔍 D1検索: SKU=$sku, 企業ID=${companyId ?? "未指定"}');
       }
       
       final response = await http.get(
@@ -278,7 +270,6 @@ class ApiService {
         final jsonData = json.decode(response.body);
         if (jsonData['success'] == true && jsonData['product'] != null) {
           if (kDebugMode) {
-            debugPrint('✅ D1検索成功: SKU=$sku');
           }
           return jsonData['product'];
         }
@@ -329,7 +320,6 @@ class ApiService {
     
     try {
       if (kDebugMode) {
-        debugPrint('🔍 統合検索: $query, 企業ID: ${companyId ?? "未指定"}');
       }
       
       String url = '$d1ApiUrl/api/search?query=${Uri.encodeComponent(query.trim())}';
@@ -343,20 +333,17 @@ class ApiService {
       ).timeout(const Duration(seconds: 10));
 
       if (kDebugMode) {
-        debugPrint('📡 検索レスポンス (${response.statusCode}): ${response.body}');
       }
 
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
         if (jsonData['success'] == true) {
           if (kDebugMode) {
-            debugPrint('✅ 検索成功: source=${jsonData['source']}');
           }
           return jsonData;
         }
       } else if (response.statusCode == 404) {
         if (kDebugMode) {
-          debugPrint('⚠️ 商品が見つかりません: $query');
         }
         return null;
       }
@@ -364,7 +351,6 @@ class ApiService {
       throw Exception('統合検索に失敗しました (${response.statusCode})');
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('❌ 統合検索エラー: $e');
       }
       throw Exception('検索API通信エラー: $e');
     }

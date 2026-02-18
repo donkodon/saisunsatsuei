@@ -137,7 +137,6 @@ class _AddItemScreenState extends State<AddItemScreen>
   void initState() {
     super.initState();
     if (kDebugMode) {
-      debugPrint('AddItemScreen 初期化 / AI採寸初期値: $_aiMeasure');
     }
     if (widget.existingItem != null) {
       _loadExistingItem(widget.existingItem!);
