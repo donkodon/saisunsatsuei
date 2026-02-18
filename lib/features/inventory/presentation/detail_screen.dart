@@ -8,10 +8,11 @@ import 'package:measure_master/features/inventory/logic/inventory_provider.dart'
 import 'package:measure_master/features/inventory/domain/item.dart';
 import 'package:measure_master/core/services/image_cache_service.dart';
 import 'package:measure_master/features/auth/logic/company_service.dart';
-import 'package:measure_master/features/camera/presentation/image_preview_screen.dart';
 import 'package:measure_master/features/inventory/data/white_background_service.dart';
 import 'package:measure_master/features/inventory/domain/image_item.dart';
-import 'package:measure_master/core/widgets/smart_image_viewer.dart';
+// 🆕 切り出したウィジェット・ヘルパー mixin
+import 'package:measure_master/features/inventory/presentation/detail_image_widgets.dart';
+import 'package:measure_master/features/inventory/presentation/detail_picker_helpers.dart';
 
 // 🆕 新しいロジッククラスをインポート
 import 'package:measure_master/features/inventory/logic/image_upload_coordinator.dart';
@@ -103,7 +104,8 @@ class DetailScreen extends StatefulWidget {
   State<DetailScreen> createState() => _DetailScreenState();
 }
 
-class _DetailScreenState extends State<DetailScreen> {
+class _DetailScreenState extends State<DetailScreen>
+    with DetailImageWidgets<DetailScreen>, DetailPickerHelpers<DetailScreen> {
   late String _selectedMaterial;
   late String _selectedColor;
   Color _colorPreview = Colors.white;
@@ -184,41 +186,7 @@ class _DetailScreenState extends State<DetailScreen> {
     super.dispose();
   }
 
-  // Material options
-  final List<String> _materials = [
-    '選択してください',
-    'コットン 100%',
-    'ポリエステル 100%',
-    'コットン 80% / ポリエステル 20%',
-    'ウール 100%',
-    'ナイロン 100%',
-    'レザー',
-    'デニム',
-    'リネン 100%',
-    'シルク 100%',
-    'その他',
-  ];
-
-  // Color options with RGB values
-  final Map<String, Color> _colorOptions = {
-    '選択してください': Colors.grey[400]!,
-    'ホワイト': Colors.white,
-    'ブラック': Colors.black,
-    'グレー': Colors.grey,
-    'ネイビー': Color(0xFF001f3f),
-    'ブルー': Colors.blue,
-    'レッド': Colors.red,
-    'ピンク': Colors.pink,
-    'イエロー': Colors.yellow,
-    'グリーン': Colors.green,
-    'ブラウン': Colors.brown,
-    'ベージュ': Color(0xFFF5F5DC),
-    'オレンジ': Colors.orange,
-    'パープル': Colors.purple,
-    'カーキ': Color(0xFF7C7C54),
-    'ボルドー': Color(0xFF800020),
-    'その他': Colors.grey[400]!,
-  };
+  // ※ _materials / _colorOptions は DetailPickerHelpers mixin に移動
 
   @override
   Widget build(BuildContext context) {
@@ -1177,261 +1145,42 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  Widget _buildImageItemThumbnail(ImageItem imageItem, {bool isMain = false, int? index}) {
-    return TappableSmartImageViewer(
-      imageViewer: SmartImageViewer.fromImageItem(
-        imageItem: imageItem,
-        showWhiteBackground: _showWhiteBackground,
-        width: 100,
-        height: 120,
-        fit: BoxFit.cover,
-        borderRadius: 12,
-        isMain: isMain,
-      ),
-      onTap: () {
-        if (kDebugMode) {
-          debugPrint('🖼️ DetailScreen画像タップ: index=$index');
-        }
-        
-        // 🎨 Phase 5: 画像URLリスト + 白抜き画像URLリストを構築
-        final imageUrls = <String>[];
-        final whiteImageUrls = <String>[];
-        
-        if (widget.images != null) {
-          for (var img in widget.images!) {
-            if (img.url != null) {
-              imageUrls.add(img.url!);
-              // 白抜き画像URLがあれば追加
-              if (img.whiteUrl != null) {
-                whiteImageUrls.add(img.whiteUrl!);
-              } else {
-                // 白抜き画像がない場合は元画像を使用（インデックス保持）
-                whiteImageUrls.add(img.url!);
-              }
-            }
-          }
-        }
-        
-        if (kDebugMode) {
-          debugPrint('🖼️ 画像URLリスト: ${imageUrls.length}件');
-          debugPrint('🎨 Phase 5: 白抜き画像URLリスト: ${whiteImageUrls.length}件');
-          debugPrint('🖼️ index=$index, imageUrls.isNotEmpty=${imageUrls.isNotEmpty}');
-        }
-        
-        // 画像プレビュー画面を表示
-        if (imageUrls.isNotEmpty && index != null) {
-          if (kDebugMode) {
-            debugPrint('✅ ImagePreviewScreen表示: initialIndex=$index');
-          }
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ImagePreviewScreen(
-                imageUrls: imageUrls,
-                whiteImageUrls: whiteImageUrls.isNotEmpty ? whiteImageUrls : null, // 🎨 Phase 5
-                initialIndex: index,
-                heroTag: 'detail_image_$index',
-              ),
-            ),
-          );
-        } else {
-          if (kDebugMode) {
-            debugPrint('❌ 条件不満: imageUrls.isEmpty=${imageUrls.isEmpty}, index=$index');
-          }
-        }
-      },
+  // ────────────────────────────────────────────────────────
+  // mixin への委譲ラッパー（呼び出し側のコードを変えずに済む）
+  // ────────────────────────────────────────────────────────
+
+  Widget _buildImageItemThumbnail(ImageItem imageItem,
+      {bool isMain = false, int? index}) {
+    return buildImageItemThumbnail(
+      imageItem: imageItem,
+      allImages: widget.images,
+      showWhiteBackground: _showWhiteBackground,
+      isMain: isMain,
+      index: index,
     );
   }
 
-  /// プレースホルダー画像
-  Widget _buildPlaceholder({bool isMain = false}) {
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            width: 100,
-            height: 120,
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              border: Border.all(color: Colors.grey[300]!, width: 2, strokeAlign: BorderSide.strokeAlignInside),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.add_a_photo, size: 32, color: Colors.grey[400]),
-                SizedBox(height: 4),
-                Text(
-                  '写真を追加',
-                  style: TextStyle(fontSize: 10, color: Colors.grey[500]),
-                ),
-              ],
-            ),
-          ),
-        ),
-        if (isMain)
-          Positioned(
-            bottom: 8,
-            left: 8,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.grey[400],
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text("メイン", style: TextStyle(color: Colors.white, fontSize: 10)),
-            ),
-          ),
-      ],
-    );
-  }
+  Widget _buildPlaceholder({bool isMain = false}) =>
+      buildPlaceholder(isMain: isMain);
 
-  /// 採寸カード
-  Widget _buildMeasureCard(String label, String value, bool isVerified) {
-    return Container(
-      width: 110,
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isVerified ? AppConstants.primaryCyan : Colors.grey[300]!,
-          width: isVerified ? 2 : 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: isVerified ? AppConstants.primaryCyan : AppConstants.textDark,
-            ),
-          ),
-          if (isVerified) ...[
-            SizedBox(height: 4),
-            Icon(Icons.check_circle, size: 16, color: AppConstants.primaryCyan),
-          ],
-        ],
-      ),
-    );
-  }
+  Widget _buildMeasureCard(String label, String value, bool isVerified) =>
+      buildMeasureCard(label, value, isVerified);
 
-  /// 素材選択ダイアログ
   void _showMaterialPicker() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('素材を選択'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: _materials.length,
-            itemBuilder: (context, index) {
-              final material = _materials[index];
-              return ListTile(
-                title: Text(material),
-                onTap: () {
-                  setState(() {
-                    _selectedMaterial = material;
-                  });
-                  Navigator.pop(context);
-                },
-              );
-            },
-          ),
-        ),
-      ),
-    );
+    showMaterialPickerDialog(context, _selectedMaterial, (material) {
+      setState(() => _selectedMaterial = material);
+    });
   }
 
-  /// カラー選択ダイアログ
   void _showColorPicker() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('カラーを選択'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: GridView.builder(
-            shrinkWrap: true,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-            ),
-            itemCount: _colorOptions.length,
-            itemBuilder: (context, index) {
-              final colorName = _colorOptions.keys.elementAt(index);
-              final color = _colorOptions[colorName]!;
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedColor = colorName;
-                    _colorPreview = color;
-                  });
-                  Navigator.pop(context);
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: _selectedColor == colorName 
-                          ? AppConstants.primaryCyan 
-                          : Colors.grey[300]!,
-                      width: _selectedColor == colorName ? 3 : 1,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      colorName,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: color.computeLuminance() > 0.5 
-                            ? Colors.black 
-                            : Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
+    showColorPickerDialog(context, _selectedColor, (colorName, color) {
+      setState(() {
+        _selectedColor = colorName;
+        _colorPreview = color;
+      });
+    });
   }
 
-  /// 🌐 外部WEBアプリに商品データを送信
-  String _getConditionGrade(String condition) {
-    switch (condition) {
-      case '新品・未使用':
-        return 'S';
-      case '未使用に近い':
-        return 'A';
-      case '目立った傷や汚れなし':
-        return 'B';
-      case 'やや傷や汚れあり':
-        return 'C';
-      case '傷や汚れあり':
-        return 'D';
-      case '全体的に状態が悪い':
-        return 'E';
-      default:
-        return 'N';
-    }
-  }
+  String _getConditionGrade(String condition) =>
+      getConditionGrade(condition);
 }

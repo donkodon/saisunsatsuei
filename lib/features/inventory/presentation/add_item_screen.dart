@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'dart:io';
 import 'package:measure_master/constants.dart';
@@ -14,6 +13,8 @@ import 'package:measure_master/features/ocr/logic/ocr_service.dart';
 import 'package:measure_master/features/ocr/domain/ocr_result.dart';
 import 'package:image_picker/image_picker.dart';
 
+// 🆕 切り出したピッカー系 mixin と PricePickerDialog
+import 'package:measure_master/features/inventory/presentation/add_item_pickers.dart';
 
 class AddItemScreen extends StatefulWidget {
   final ApiProduct? prefillData; // 🔍 検索結果からの自動入力データ
@@ -26,7 +27,8 @@ class AddItemScreen extends StatefulWidget {
   State<AddItemScreen> createState() => _AddItemScreenState();
 }
 
-class _AddItemScreenState extends State<AddItemScreen> {
+class _AddItemScreenState extends State<AddItemScreen>
+    with AddItemPickerMixin<AddItemScreen> {
   bool _aiMeasure = true;
   
   // 📸 画像アイテムのリスト（UUID管理）
@@ -1284,243 +1286,61 @@ class _AddItemScreenState extends State<AddItemScreen> {
     );
   }
 
-  void _showBrandPicker() {
-    String searchQuery = '';
-    
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final filteredBrands = searchQuery.isEmpty
-                ? _allBrands
-                : _allBrands
-                    .where((brand) => brand.toLowerCase().contains(searchQuery.toLowerCase()))
-                    .toList();
+  // ────────────────────────────────────────────────────────
+  // ピッカー呼び出し（AddItemPickerMixin へ委譲）
+  // ────────────────────────────────────────────────────────
 
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.7,
-              padding: EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  Text("ブランドを選択", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  SizedBox(height: 16),
-                  // Search field
-                  TextField(
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      hintText: 'ブランド名で検索...',
-                      prefixIcon: Icon(Icons.search, color: AppConstants.primaryCyan),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: AppConstants.borderGrey),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: AppConstants.primaryCyan, width: 2),
-                      ),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    ),
-                    onChanged: (value) {
-                      setModalState(() {
-                        searchQuery = value;
-                      });
-                    },
-                  ),
-                  SizedBox(height: 16),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: filteredBrands.length,
-                      itemBuilder: (context, index) {
-                        return ListTile(
-                          title: Text(filteredBrands[index]),
-                          trailing: _brandController.text == filteredBrands[index]
-                              ? Icon(Icons.check, color: AppConstants.primaryCyan)
-                              : null,
-                          onTap: () {
-                            setState(() {
-                              _brandController.text = filteredBrands[index];
-                            });
-                            Navigator.pop(context);
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+  void _showBrandPicker() {
+    showBrandPickerSheet(
+      allBrands: _allBrands,
+      currentBrand: _brandController.text,
+      onSelected: (brand) => setState(() => _brandController.text = brand),
     );
   }
 
   void _showCategoryPicker() {
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              SizedBox(height: 16),
-              Text("カテゴリを選択", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              SizedBox(height: 16),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _categories.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text(_categories[index]),
-                      trailing: _selectedCategory == _categories[index]
-                          ? Icon(Icons.check, color: AppConstants.primaryCyan)
-                          : null,
-                      onTap: () {
-                        setState(() {
-                          _selectedCategory = _categories[index];
-                        });
-                        Navigator.pop(context);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+    showCategoryPickerSheet(
+      categories: _categories,
+      currentCategory: _selectedCategory,
+      onSelected: (v) => setState(() => _selectedCategory = v),
     );
   }
 
   void _showRankPicker() {
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              SizedBox(height: 16),
-              Text("商品ランクを選択", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              SizedBox(height: 8),
-              Text("L列のデータに対応", style: TextStyle(fontSize: 12, color: AppConstants.textGrey)),
-              SizedBox(height: 16),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _ranks.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text(_ranks[index]),
-                      trailing: _selectedRank == _ranks[index]
-                          ? Icon(Icons.check, color: AppConstants.primaryCyan)
-                          : null,
-                      onTap: () {
-                        setState(() {
-                          _selectedRank = _ranks[index];
-                        });
-                        Navigator.pop(context);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+    showRankPickerSheet(
+      ranks: _ranks,
+      currentRank: _selectedRank,
+      onSelected: (v) => setState(() => _selectedRank = v),
     );
   }
 
   void _showConditionPicker() {
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              SizedBox(height: 16),
-              Text("商品の状態を選択", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              SizedBox(height: 16),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _conditions.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text(_conditions[index]),
-                      trailing: _selectedCondition == _conditions[index]
-                          ? Icon(Icons.check, color: AppConstants.primaryCyan)
-                          : null,
-                      onTap: () {
-                        setState(() {
-                          _selectedCondition = _conditions[index];
-                        });
-                        Navigator.pop(context);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+    showConditionPickerSheet(
+      conditions: _conditions,
+      currentCondition: _selectedCondition,
+      onSelected: (v) => setState(() => _selectedCondition = v),
     );
   }
-  
+
+  void _showMaterialPicker() {
+    showMaterialPickerSheet(
+      materials: _materials,
+      currentMaterial: _selectedMaterial,
+      onSelected: (v) => setState(() => _selectedMaterial = v),
+    );
+  }
+
+  void _showColorPicker() {
+    showColorPickerSheet(
+      colorOptions: _colorOptions,
+      currentColor: _selectedColor,
+      onSelected: (colorName, color) => setState(() {
+        _selectedColor = colorName;
+        _colorPreview = color;
+      }),
+    );
+  }
+
   // 🆕 OCR文字認識ボタン
   Widget _buildOcrButton() {
     return Padding(
@@ -1587,317 +1407,4 @@ class _AddItemScreenState extends State<AddItemScreen> {
     );
   }
   
-  // 🆕 素材ピッカー
-  void _showMaterialPicker() {
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              SizedBox(height: 16),
-              Text("素材を選択", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              SizedBox(height: 16),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _materials.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text(_materials[index]),
-                      trailing: _selectedMaterial == _materials[index]
-                          ? Icon(Icons.check, color: AppConstants.primaryCyan)
-                          : null,
-                      onTap: () {
-                        setState(() {
-                          _selectedMaterial = _materials[index];
-                        });
-                        Navigator.pop(context);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-  
-  // 🆕 カラーピッカー
-  void _showColorPicker() {
-    String searchQuery = '';
-    
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final filteredColors = searchQuery.isEmpty
-                ? _colorOptions.entries.toList()
-                : _colorOptions.entries
-                    .where((entry) => entry.key.toLowerCase().contains(searchQuery.toLowerCase()))
-                    .toList();
-
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.7,
-              padding: EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  Text("カラーを選択", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  SizedBox(height: 16),
-                  // Search field
-                  TextField(
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      hintText: 'カラー名で検索 or 自由入力...',
-                      prefixIcon: Icon(Icons.search, color: AppConstants.primaryCyan),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: AppConstants.borderGrey),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: AppConstants.primaryCyan, width: 2),
-                      ),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    ),
-                    onChanged: (value) {
-                      setModalState(() {
-                        searchQuery = value;
-                      });
-                    },
-                    onSubmitted: (value) {
-                      // Free input - use custom color
-                      if (value.isNotEmpty && !_colorOptions.containsKey(value)) {
-                        setState(() {
-                          _selectedColor = value;
-                          _colorPreview = Colors.grey[400]!; // Default color for custom input
-                        });
-                        Navigator.pop(context);
-                      }
-                    },
-                  ),
-                  SizedBox(height: 16),
-                  // Show free input option if search doesn't match
-                  if (searchQuery.isNotEmpty && filteredColors.isEmpty)
-                    Container(
-                      padding: EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppConstants.primaryCyan.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.add_circle_outline, color: AppConstants.primaryCyan),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '"$searchQuery" として追加',
-                                  style: TextStyle(fontWeight: FontWeight.bold, color: AppConstants.primaryCyan),
-                                ),
-                                Text(
-                                  'タップまたはEnterで確定',
-                                  style: TextStyle(fontSize: 12, color: AppConstants.textGrey),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  SizedBox(height: 16),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: filteredColors.length,
-                      itemBuilder: (context, index) {
-                        final entry = filteredColors[index];
-                        return ListTile(
-                          leading: Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: entry.value,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.grey[300]!, width: 2),
-                            ),
-                          ),
-                          title: Text(entry.key),
-                          trailing: _selectedColor == entry.key
-                              ? Icon(Icons.check, color: AppConstants.primaryCyan)
-                              : null,
-                          onTap: () {
-                            setState(() {
-                              _selectedColor = entry.key;
-                              _colorPreview = entry.value;
-                            });
-                            Navigator.pop(context);
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-// 🔧 価格入力ダイアログ（StatefulWidget）
-class _PricePickerDialog extends StatefulWidget {
-  final TextEditingController controller;
-  final TextEditingController tempController;
-  final VoidCallback onConfirm;
-
-  const _PricePickerDialog({
-    required this.controller,
-    required this.tempController,
-    required this.onConfirm,
-  });
-
-  @override
-  _PricePickerDialogState createState() => _PricePickerDialogState();
-}
-
-class _PricePickerDialogState extends State<_PricePickerDialog> {
-  late FocusNode _focusNode;
-  bool _hasFocused = false;  // 🔧 フォーカス済みフラグ
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode = FocusNode();
-    
-    // 🔧 フォーカスリスナーを追加（デバッグ用）
-    _focusNode.addListener(() {
-      if (kDebugMode) {
-        debugPrint('🔍 Price TextField focus: ${_focusNode.hasFocus}');
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // 🔧 ビルド後にフォーカスを設定（1回だけ）
-    if (!_hasFocused) {
-      _hasFocused = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          // 🔧 フォーカスをリクエスト
-          _focusNode.requestFocus();
-          
-          // 🔧 既存のテキストがあれば全選択
-          if (widget.tempController.text.isNotEmpty) {
-            Future.delayed(const Duration(milliseconds: 200), () {
-              if (mounted) {
-                widget.tempController.selection = TextSelection(
-                  baseOffset: 0,
-                  extentOffset: widget.tempController.text.length,
-                );
-              }
-            });
-          }
-        }
-      });
-    }
-    
-    return AlertDialog(
-      title: Text("販売価格を入力"),
-      content: SizedBox(
-        width: 280,  // 🔧 固定幅を設定
-        child: TextFormField(
-          controller: widget.tempController,
-          focusNode: _focusNode,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          autofocus: true,
-          enableInteractiveSelection: true,
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          onChanged: (value) {
-            if (kDebugMode) {
-              debugPrint('💰 Price input changed: $value');
-            }
-          },
-          onTap: () {
-            // タップ時に全選択
-            if (widget.tempController.text.isNotEmpty) {
-              widget.tempController.selection = TextSelection(
-                baseOffset: 0,
-                extentOffset: widget.tempController.text.length,
-              );
-            }
-          },
-          decoration: InputDecoration(
-            prefixText: "¥ ",
-            prefixStyle: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppConstants.textDark),
-            hintText: "0",
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppConstants.primaryCyan, width: 2),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppConstants.primaryCyan, width: 2),
-            ),
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text("キャンセル"),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            widget.onConfirm();
-            Navigator.pop(context);
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppConstants.primaryCyan,
-          ),
-          child: Text("確定", style: TextStyle(color: Colors.white)),
-        ),
-      ],
-    );
-  }
 }
