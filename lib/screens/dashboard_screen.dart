@@ -81,26 +81,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('ログアウト'),
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
             ),
+            child: const Text('ログアウト'),
           ),
         ],
       ),
     );
 
-    if (confirmed == true) {
-      // CompanyServiceからまずログアウト（メモリ・永続化クリア）
+    if (confirmed != true) return;
+
+    try {
+      // ① CompanyService のメモリ・永続化キャッシュをクリア
       await _companyService.logout();
-      
-      // Firebase Authからログアウト
+      debugPrint('✅ CompanyService ログアウト完了');
+
+      // ② Firebase Auth からサインアウト
       // → authStateChanges が null を発火
-      // → main.dart の StreamBuilder が自動的に FirebaseLoginScreen を表示
+      // → AuthGate の StreamBuilder が自動的に FirebaseLoginScreen を表示
       await _authService.signOut();
-      
-      // ⚠️ Navigator不要: StreamBuilderが自動的にログイン画面に切り替える
-      // pushAndRemoveUntil は StreamBuilder と競合するため使わない
+      debugPrint('✅ Firebase サインアウト完了');
+
+      // ③ Web では authStateChanges の伝搬に遅延が生じることがあるため
+      //    少し待機してから状態を確認する
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // ④ まだこの画面が表示されていた場合は Navigator でルートまで戻る
+      //    （StreamBuilder が正常に切り替わっていれば不要だが保険として入れる）
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    } catch (e) {
+      debugPrint('❌ ログアウトエラー: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('ログアウトに失敗しました。再度お試しください。'),
+            backgroundColor: Colors.red[400],
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 

@@ -765,6 +765,8 @@ class _DetailScreenState extends State<DetailScreen> {
       List<String> oldImageUrls = [];
       List<String> oldWhiteUrls = [];
       List<String> oldMaskUrls = [];
+      List<String> oldPImageUrls = [];
+      List<String> oldFImageUrls = [];
       
       if (widget.sku.isNotEmpty) {
         final oldItem = _inventoryProvider.findBySku(widget.sku);
@@ -777,6 +779,48 @@ class _DetailScreenState extends State<DetailScreen> {
           
           debugPrint('📂 DBから取得した古い画像: ${oldImageUrls.length}件');
           debugPrint('   白抜き: ${oldWhiteUrls.length}件, マスク: ${oldMaskUrls.length}件');
+
+          // ──────────────────────────────────────
+          // 🔑 オリジナルURLからP/F画像URLを導出
+          // ─────────────────────────────────────-
+          // measure-master-api D1 の image_urls にはオリジナル画像のみ格納。
+          // P画像 (_p.png) / F画像 (_f.png) は Web アプリが別途 R2 に保存しており
+          // D1 の image_urls には含まれていない。
+          // そのため、オリジナルURLのファイル名から UUID を抽出し
+          // companyId + SKU + UUID で P/F URLを再構築して差分削除対象とする。
+          final companyIdForDerived = (await _companyService.getCompanyId()) ?? '';
+          final skuForDerived = widget.sku;
+
+          // オリジナル画像 URL だけ絞り込み（白抜き・マスク・P/F を除外）
+          final oldOriginalUrls = oldImageUrls.where((url) =>
+              !url.contains('_white.jpg') &&
+              !url.contains('_mask.png') &&
+              !url.contains('_p.png') &&
+              !url.contains('_P.jpg') &&
+              !url.contains('_f.png') &&
+              !url.contains('_F.jpg')).toList();
+
+          oldPImageUrls = ImageDiffManager.buildPUrlsFromOriginals(
+            originalUrls: oldOriginalUrls,
+            companyId: companyIdForDerived,
+            sku: skuForDerived,
+          );
+          oldFImageUrls = ImageDiffManager.buildFUrlsFromOriginals(
+            originalUrls: oldOriginalUrls,
+            companyId: companyIdForDerived,
+            sku: skuForDerived,
+          );
+
+          debugPrint('🔑 導出した古いP画像URL: ${oldPImageUrls.length}件');
+          debugPrint('🔑 導出した古いF画像URL: ${oldFImageUrls.length}件');
+          if (kDebugMode) {
+            for (final url in oldPImageUrls) {
+              debugPrint('   P: $url');
+            }
+            for (final url in oldFImageUrls) {
+              debugPrint('   F: $url');
+            }
+          }
         }
       }
 
@@ -839,11 +883,15 @@ class _DetailScreenState extends State<DetailScreen> {
         newUrls: uploadResult.allUrls,
       );
       
-      // 白抜き・マスク画像の削除対象を検出
+      // 白抜き・マスク・P画像・F画像の削除対象を検出
       final whiteMaskDiff = _diffManager.detectWhiteMaskImagesToDelete(
         allImageUrls: uploadResult.allUrls,
         oldWhiteUrls: oldWhiteUrls,
         oldMaskUrls: oldMaskUrls,
+        oldPImageUrls: oldPImageUrls,   // 🔑 オリジナルURLから導出したP画像URLを渡す
+        oldFImageUrls: oldFImageUrls,   // 🔑 オリジナルURLから導出したF画像URLを渡す
+        companyId: await _companyService.getCompanyId(),
+        sku: widget.sku,
       );
       
       // 削除実行
@@ -852,16 +900,20 @@ class _DetailScreenState extends State<DetailScreen> {
           normalUrls: urlsToDelete,
           whiteUrls: whiteMaskDiff.whiteUrlsToDelete,
           maskUrls: whiteMaskDiff.maskUrlsToDelete,
+          pImageUrls: whiteMaskDiff.pImageUrlsToDelete,  // 🔑 P画像を削除対象に追加
+          fImageUrls: whiteMaskDiff.fImageUrlsToDelete,  // 🔑 F画像を削除対象に追加
           sku: widget.sku,
         );
         
         deleteFailureCount = deleteResult.totalFailed;
         
-        // ローカルキャッシュから削除
+        // ローカルキャッシュから削除（P/F URLも含める）
         final allDeletedUrls = [
           ...urlsToDelete,
           ...whiteMaskDiff.whiteUrlsToDelete,
           ...whiteMaskDiff.maskUrlsToDelete,
+          ...whiteMaskDiff.pImageUrlsToDelete,  // 🔑 P画像キャッシュも削除
+          ...whiteMaskDiff.fImageUrlsToDelete,  // 🔑 F画像キャッシュも削除
         ];
         if (allDeletedUrls.isNotEmpty) {
           await ImageCacheService.invalidateCaches(allDeletedUrls);

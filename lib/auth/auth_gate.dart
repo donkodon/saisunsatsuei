@@ -179,10 +179,23 @@ class _FirestoreProfileLoaderState extends State<_FirestoreProfileLoader> {
   /// Firebase Auth signOut → authStateChanges が null を発火
   /// → StreamBuilder が自動的に FirebaseLoginScreen を表示
   Future<void> _forceSignOut() async {
-    final companyService = Provider.of<CompanyService>(context, listen: false);
-    await companyService.logout();
-    await widget.authService.signOut();
-    // ⚠️ Navigator不要: StreamBuilder が自動的にログイン画面に切り替え
+    try {
+      final companyService = Provider.of<CompanyService>(context, listen: false);
+      await companyService.logout();
+      debugPrint('✅ _forceSignOut: CompanyService クリア完了');
+
+      await widget.authService.signOut();
+      debugPrint('✅ _forceSignOut: Firebase サインアウト完了');
+
+      // Web での authStateChanges 伝搬遅延に対応
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    } catch (e) {
+      debugPrint('❌ _forceSignOut エラー: $e');
+    }
   }
 
   @override

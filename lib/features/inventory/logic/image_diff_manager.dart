@@ -1,19 +1,211 @@
 import 'package:flutter/foundation.dart';
+import 'package:measure_master/models/image_item.dart';
 import 'package:measure_master/services/cloudflare_storage_service.dart';
+import 'package:measure_master/features/inventory/models/image_delete_result.dart';
 
 /// 🗑️ 画像差分削除管理クラス
 /// 
 /// 責任:
 /// - 古い画像と新しい画像を比較
 /// - 削除対象の画像URLを特定
-/// - R2から画像を削除
+/// - R2から画像を削除（Workers経由）
 /// - 白抜き画像・マスク画像も自動削除
+/// - UID + companyId + SKU からP/F画像URLを構築して削除
 class ImageDiffManager {
-  final CloudflareStorageService _storageService;
+  // ✅ CloudflareWorkersStorageServiceを直接使用（静的メソッドのみ）
+  ImageDiffManager();
 
-  ImageDiffManager({
-    CloudflareStorageService? storageService,
-  }) : _storageService = storageService ?? CloudflareStorageService();
+  // ====================================================
+  // 🔑 UID → R2 URL 変換ユーティリティ
+  // ====================================================
+
+  /// R2の公開ベースURL
+  /// 例: https://image-upload-api.jinkedon2.workers.dev
+  static const String _workerBaseUrl =
+      CloudflareWorkersStorageService.workerBaseUrl;
+
+  /// UIDからP画像のR2フルURLを生成
+  ///
+  /// [uid]       - processed_imagesカラムに保存されているUID
+  ///               例: "1025L280001_3f8a1b2c-..."  または  "3f8a1b2c-..."
+  /// [companyId] - 企業ID (例: "relight")
+  /// [sku]       - SKU (例: "1025L280001")
+  ///
+  /// R2パス: companyId/sku/sku_uid_p.png
+  /// 戻り値: https://image-upload-api.jinkedon2.workers.dev/companyId/sku/sku_uid_p.png
+  static String buildPImageUrl({
+    required String uid,
+    required String companyId,
+    required String sku,
+  }) {
+    // UIDがすでに "sku_uuid" 形式なら「sku_」部分を除去してuuidのみ取り出す
+    final uuid = uid.startsWith('${sku}_') ? uid.substring(sku.length + 1) : uid;
+    final fileName = '${sku}_${uuid}_p.png';
+    return '$_workerBaseUrl/$companyId/$sku/$fileName';
+  }
+
+  /// UIDからF画像のR2フルURLを生成
+  ///
+  /// [uid]       - final_imagesカラムに保存されているUID
+  /// [companyId] - 企業ID
+  /// [sku]       - SKU
+  static String buildFImageUrl({
+    required String uid,
+    required String companyId,
+    required String sku,
+  }) {
+    final uuid = uid.startsWith('${sku}_') ? uid.substring(sku.length + 1) : uid;
+    final fileName = '${sku}_${uuid}_f.png';
+    return '$_workerBaseUrl/$companyId/$sku/$fileName';
+  }
+
+  /// UIDリストからP/F画像のURLリストを一括生成
+  ///
+  /// [uids]      - UIDリスト (processed_images または final_images カラムの値)
+  /// [companyId] - 企業ID
+  /// [sku]       - SKU
+  /// [type]      - 'p'（P画像）または 'f'（F画像）
+  static List<String> buildDerivedImageUrls({
+    required List<String> uids,
+    required String companyId,
+    required String sku,
+    required String type, // 'p' or 'f'
+  }) {
+    if (uids.isEmpty || companyId.isEmpty || sku.isEmpty) return [];
+
+    return uids.map((uid) {
+      if (type == 'p') {
+        return buildPImageUrl(uid: uid, companyId: companyId, sku: sku);
+      } else {
+        return buildFImageUrl(uid: uid, companyId: companyId, sku: sku);
+      }
+    }).toList();
+  }
+
+  // ====================================================
+  // 🔗 オリジナルURL → P/F URL 一括変換
+  // ====================================================
+
+  /// オリジナル画像 URL リストから対応する P画像URLリストを生成
+  ///
+  /// ファイル命名規則: {companyId}/{sku}/{sku}_{uuid}.jpg
+  ///   → P画像:        {companyId}/{sku}/{sku}_{uuid}_p.png
+  ///
+  /// [originalUrls] - _white.jpg / _mask.png / _p.png / _f.png を除いた
+  ///                  オリジナル画像 URL リスト
+  /// [companyId]    - 企業ID
+  /// [sku]          - SKU
+  static List<String> buildPUrlsFromOriginals({
+    required List<String> originalUrls,
+    required String companyId,
+    required String sku,
+  }) {
+    return originalUrls
+        .where((url) =>
+            !url.contains('_white.jpg') &&
+            !url.contains('_mask.png') &&
+            !url.contains('_p.png') &&
+            !url.contains('_P.jpg') &&
+            !url.contains('_f.png') &&
+            !url.contains('_F.jpg'))
+        .map((url) {
+      final uuid = ImageItem.extractUuidFromUrl(url);
+      return buildPImageUrl(uid: uuid, companyId: companyId, sku: sku);
+    }).toList();
+  }
+
+  /// オリジナル画像 URL リストから対応する F画像URLリストを生成
+  static List<String> buildFUrlsFromOriginals({
+    required List<String> originalUrls,
+    required String companyId,
+    required String sku,
+  }) {
+    return originalUrls
+        .where((url) =>
+            !url.contains('_white.jpg') &&
+            !url.contains('_mask.png') &&
+            !url.contains('_p.png') &&
+            !url.contains('_P.jpg') &&
+            !url.contains('_f.png') &&
+            !url.contains('_F.jpg'))
+        .map((url) {
+      final uuid = ImageItem.extractUuidFromUrl(url);
+      return buildFImageUrl(uid: uuid, companyId: companyId, sku: sku);
+    }).toList();
+  }
+
+  // ====================================================
+  // 🗑️ UID ベースのP/F画像差分削除
+  // ====================================================
+
+  /// UID + companyId + SKU を使ってP/F画像を差分削除する
+  ///
+  /// [oldPUids]    - 削除前のprocessed_images UID リスト（D1から取得）
+  /// [oldFUids]    - 削除前のfinal_images UID リスト（D1から取得）
+  /// [newPUids]    - 保存後のprocessed_images UID リスト（今回残すもの）
+  /// [newFUids]    - 保存後のfinal_images UID リスト（今回残すもの）
+  /// [companyId]   - 企業ID
+  /// [sku]         - SKU
+  ///
+  /// Returns: 削除されたP/F画像の合計件数
+  Future<CombinedDeleteResult> deleteDerivedImagesByUid({
+    required List<String> oldPUids,
+    required List<String> oldFUids,
+    required List<String> newPUids,
+    required List<String> newFUids,
+    required String companyId,
+    required String sku,
+  }) async {
+    debugPrint('🔑 UID→URL変換によるP/F画像差分削除開始');
+    debugPrint('   企業ID: $companyId, SKU: $sku');
+    debugPrint('   古いP画像UID: ${oldPUids.length}件, 古いF画像UID: ${oldFUids.length}件');
+    debugPrint('   新しいP画像UID: ${newPUids.length}件, 新しいF画像UID: ${newFUids.length}件');
+
+    // 差分: 古いUIDのうち、新しいUIDに含まれないものが削除対象
+    final newPUidSet = newPUids.toSet();
+    final newFUidSet = newFUids.toSet();
+
+    final pUidsToDelete = oldPUids.where((uid) => !newPUidSet.contains(uid)).toList();
+    final fUidsToDelete = oldFUids.where((uid) => !newFUidSet.contains(uid)).toList();
+
+    debugPrint('   削除対象P画像UID: ${pUidsToDelete.length}件');
+    debugPrint('   削除対象F画像UID: ${fUidsToDelete.length}件');
+
+    // UID → URL 変換
+    final pUrlsToDelete = buildDerivedImageUrls(
+      uids: pUidsToDelete, companyId: companyId, sku: sku, type: 'p',
+    );
+    final fUrlsToDelete = buildDerivedImageUrls(
+      uids: fUidsToDelete, companyId: companyId, sku: sku, type: 'f',
+    );
+
+    if (kDebugMode) {
+      for (final url in pUrlsToDelete) {
+        debugPrint('   🗑️ P削除対象URL: $url');
+      }
+      for (final url in fUrlsToDelete) {
+        debugPrint('   🗑️ F削除対象URL: $url');
+      }
+    }
+
+    // R2から削除実行
+    final pResult = await deleteImagesFromR2(urls: pUrlsToDelete, sku: sku);
+    final fResult = await deleteImagesFromR2(urls: fUrlsToDelete, sku: sku);
+
+    final emptyResult = ImageDeleteResult(deletedCount: 0, failedCount: 0);
+
+    debugPrint('🔑 UID→URL変換削除完了: P=${pResult.deletedCount}件, F=${fResult.deletedCount}件');
+
+    return CombinedDeleteResult(
+      normalResult: emptyResult,
+      whiteResult: emptyResult,
+      maskResult: emptyResult,
+      pImageResult: pResult,
+      fImageResult: fResult,
+      totalDeleted: pResult.deletedCount + fResult.deletedCount,
+      totalFailed: pResult.failedCount + fResult.failedCount,
+    );
+  }
 
   /// 🔍 差分削除対象を特定
   /// 
@@ -45,59 +237,137 @@ class ImageDiffManager {
     return urlsToDelete;
   }
 
-  /// 🎨 白抜き画像・マスク画像の差分削除対象を特定
+  /// 🎨 白抜き画像・マスク画像・P画像・F画像の差分削除対象を特定
   /// 
-  /// [allImageUrls] - 全画像URLリスト
+  /// [allImageUrls] - 全画像URLリスト（通常画像+派生画像すべて）
   /// [oldWhiteUrls] - 古い白抜き画像URLリスト
   /// [oldMaskUrls] - 古いマスク画像URLリスト
+  /// [oldPImageUrls] - 古いP画像（採寸用）URLリスト
+  /// [oldFImageUrls] - 古いF画像（平置き）URLリスト
+  /// [companyId] - 企業ID（フィルタリング用）
+  /// [sku] - SKUコード（フィルタリング用）
   /// 
   /// Returns:
   /// - whiteUrlsToDelete: 削除すべき白抜き画像URLリスト
   /// - maskUrlsToDelete: 削除すべきマスク画像URLリスト
+  /// - pImageUrlsToDelete: 削除すべきP画像URLリスト
+  /// - fImageUrlsToDelete: 削除すべきF画像URLリスト
   WhiteMaskDiffResult detectWhiteMaskImagesToDelete({
     required List<String> allImageUrls,
     required List<String> oldWhiteUrls,
     required List<String> oldMaskUrls,
+    List<String>? oldPImageUrls,
+    List<String>? oldFImageUrls,
+    String? companyId,
+    String? sku,
   }) {
-    debugPrint('🎨 Phase 4: 白抜き・マスク画像の差分削除対象を検出');
+    debugPrint('🎨 Phase 4: 白抜き・マスク・P画像・F画像の差分削除対象を検出');
+    debugPrint('   企業ID: $companyId, SKU: $sku');
 
-    // 期待される白抜き画像URL（通常画像のURLから生成）
-    final expectedWhiteUrls = <String>{};
-    for (var url in allImageUrls) {
-      if (!url.contains('_white.jpg') && url.endsWith('.jpg')) {
-        final whiteUrl = url.replaceFirst('.jpg', '_white.jpg');
-        expectedWhiteUrls.add(whiteUrl);
-      }
-    }
+    // ✅ 修正: 実際にアップロードされた派生画像URLを抽出（企業ID/SKUでフィルタリング）
+    final newWhiteUrls = allImageUrls.where((url) {
+      if (!url.contains('_white.jpg')) return false;
+      // 企業ID/SKUチェック
+      if (companyId != null && !url.contains('/$companyId/')) return false;
+      if (sku != null && !url.contains('/$sku/')) return false;
+      return true;
+    }).toSet();
+    
+    final newMaskUrls = allImageUrls.where((url) {
+      if (!url.contains('_mask.png')) return false;
+      if (companyId != null && !url.contains('/$companyId/')) return false;
+      if (sku != null && !url.contains('/$sku/')) return false;
+      return true;
+    }).toSet();
+    
+    final newPImageUrls = allImageUrls.where((url) {
+      // P画像は _p.png または _P.jpg の両方に対応
+      if (!url.contains('_p.png') && !url.contains('_P.jpg')) return false;
+      if (companyId != null && !url.contains('/$companyId/')) return false;
+      if (sku != null && !url.contains('/$sku/')) return false;
+      return true;
+    }).toSet();
+    
+    final newFImageUrls = allImageUrls.where((url) {
+      // F画像は _f.png または _F.jpg の両方に対応
+      if (!url.contains('_f.png') && !url.contains('_F.jpg')) return false;
+      if (companyId != null && !url.contains('/$companyId/')) return false;
+      if (sku != null && !url.contains('/$sku/')) return false;
+      return true;
+    }).toSet();
 
-    // 期待されるマスク画像URL（通常画像のURLから生成）
-    final expectedMaskUrls = <String>{};
-    for (var url in allImageUrls) {
-      if (!url.contains('_mask.png') && (url.endsWith('.jpg') || url.endsWith('.jpeg'))) {
-        final extension = url.endsWith('.jpg') ? '.jpg' : '.jpeg';
-        final maskUrl = url.replaceFirst(extension, '_mask.png');
-        expectedMaskUrls.add(maskUrl);
-      }
-    }
-
-    debugPrint('🎨 Phase 4: 期待される白抜き画像: ${expectedWhiteUrls.length}件');
-    debugPrint('🎭 Phase 4: 期待されるマスク画像: ${expectedMaskUrls.length}件');
+    debugPrint('🎨 Phase 4: 新しい白抜き画像: ${newWhiteUrls.length}件');
+    debugPrint('🎭 Phase 4: 新しいマスク画像: ${newMaskUrls.length}件');
+    debugPrint('📐 Phase 4: 新しいP画像: ${newPImageUrls.length}件');
+    debugPrint('📏 Phase 4: 新しいF画像: ${newFImageUrls.length}件');
     debugPrint('🎨 Phase 4: DBの古い白抜き画像: ${oldWhiteUrls.length}件');
     debugPrint('🎭 Phase 4: DBの古いマスク画像: ${oldMaskUrls.length}件');
+    debugPrint('📐 Phase 4: DBの古いP画像: ${oldPImageUrls?.length ?? 0}件');
+    debugPrint('📏 Phase 4: DBの古いF画像: ${oldFImageUrls?.length ?? 0}件');
+    
+    // 🔍 デバッグ: P画像の詳細チェック
+    if (kDebugMode) {
+      debugPrint('🔍 Phase 4: 全画像URL（allImageUrls）のP画像チェック:');
+      for (var url in allImageUrls) {
+        if (url.contains('_p.png') || url.contains('_P.jpg') || url.contains('_p.') || url.contains('_P.')) {
+          debugPrint('   🔍 P画像候補: $url');
+          debugPrint('      contains(_p.png): ${url.contains('_p.png')}');
+          debugPrint('      contains(_P.jpg): ${url.contains('_P.jpg')}');
+          if (companyId != null) debugPrint('      contains(/$companyId/): ${url.contains('/$companyId/')}');
+          if (sku != null) debugPrint('      contains(/$sku/): ${url.contains('/$sku/')}');
+        }
+      }
+      
+      debugPrint('🔍 Phase 4: DBの古いP画像チェック:');
+      for (var url in oldPImageUrls ?? []) {
+        debugPrint('   📐 古いP画像: $url');
+      }
+    }
 
-    // 削除対象を計算（古いURLで、期待されるURLに含まれないもの）
+    // ✅ 修正: 古いURLで新しいURLに含まれないものを削除対象とする
     final oldWhiteUrlSet = oldWhiteUrls.toSet();
     final oldMaskUrlSet = oldMaskUrls.toSet();
+    final oldPImageUrlSet = (oldPImageUrls ?? []).toSet();
+    final oldFImageUrlSet = (oldFImageUrls ?? []).toSet();
 
-    final whiteUrlsToDelete = oldWhiteUrlSet.difference(expectedWhiteUrls).toList();
-    final maskUrlsToDelete = oldMaskUrlSet.difference(expectedMaskUrls).toList();
+    final whiteUrlsToDelete = oldWhiteUrlSet.difference(newWhiteUrls).toList();
+    final maskUrlsToDelete = oldMaskUrlSet.difference(newMaskUrls).toList();
+    final pImageUrlsToDelete = oldPImageUrlSet.difference(newPImageUrls).toList();
+    final fImageUrlsToDelete = oldFImageUrlSet.difference(newFImageUrls).toList();
 
-    debugPrint('🎨 Phase 4: 削除対象の白抜き画像: ${whiteUrlsToDelete.length}件');
-    debugPrint('🎭 Phase 4: 削除対象のマスク画像: ${maskUrlsToDelete.length}件');
+    debugPrint('🗑️ Phase 4: 削除対象の白抜き画像: ${whiteUrlsToDelete.length}件');
+    if (whiteUrlsToDelete.isNotEmpty && kDebugMode) {
+      for (var url in whiteUrlsToDelete) {
+        debugPrint('   🗑️ $url');
+      }
+    }
+    
+    debugPrint('🗑️ Phase 4: 削除対象のマスク画像: ${maskUrlsToDelete.length}件');
+    if (maskUrlsToDelete.isNotEmpty && kDebugMode) {
+      for (var url in maskUrlsToDelete) {
+        debugPrint('   🗑️ $url');
+      }
+    }
+    
+    debugPrint('🗑️ Phase 4: 削除対象のP画像: ${pImageUrlsToDelete.length}件');
+    if (pImageUrlsToDelete.isNotEmpty && kDebugMode) {
+      for (var url in pImageUrlsToDelete) {
+        debugPrint('   🗑️ $url');
+      }
+    }
+    
+    debugPrint('🗑️ Phase 4: 削除対象のF画像: ${fImageUrlsToDelete.length}件');
+    if (fImageUrlsToDelete.isNotEmpty && kDebugMode) {
+      for (var url in fImageUrlsToDelete) {
+        debugPrint('   🗑️ $url');
+      }
+    }
 
     return WhiteMaskDiffResult(
       whiteUrlsToDelete: whiteUrlsToDelete,
       maskUrlsToDelete: maskUrlsToDelete,
+      pImageUrlsToDelete: pImageUrlsToDelete,
+      fImageUrlsToDelete: fImageUrlsToDelete,
     );
   }
 
@@ -109,13 +379,13 @@ class ImageDiffManager {
   /// Returns:
   /// - deletedCount: 削除成功件数
   /// - failedCount: 削除失敗件数
-  Future<DeleteResult> deleteImagesFromR2({
+  Future<ImageDeleteResult> deleteImagesFromR2({
     required List<String> urls,
     required String sku,
   }) async {
     if (urls.isEmpty) {
       debugPrint('📌 削除対象なし（画像変更なし）');
-      return DeleteResult(deletedCount: 0, failedCount: 0);
+      return ImageDeleteResult(deletedCount: 0, failedCount: 0);
     }
 
     debugPrint('🗑️ R2から画像削除開始: ${urls.length}件');
@@ -128,7 +398,8 @@ class ImageDiffManager {
       final url = urls[i];
       try {
         debugPrint('   🗑️ [$i/${urls.length}] 削除中: $url');
-        await CloudflareStorageService.deleteImage(url);
+        // ✅ Workers経由の削除メソッドを使用
+        await CloudflareWorkersStorageService.deleteImage(url);
         deletedCount++;
         debugPrint('   ✅ 削除成功');
       } catch (e) {
@@ -139,17 +410,19 @@ class ImageDiffManager {
 
     debugPrint('🗑️ R2削除完了: 成功${deletedCount}件、失敗${failedCount}件');
 
-    return DeleteResult(
+    return ImageDeleteResult(
       deletedCount: deletedCount,
       failedCount: failedCount,
     );
   }
 
-  /// 🗑️ 通常画像・白抜き画像・マスク画像を一括削除
+  /// 🗑️ 通常画像・白抜き画像・マスク画像・P画像・F画像を一括削除
   /// 
   /// [normalUrls] - 通常画像URLリスト
   /// [whiteUrls] - 白抜き画像URLリスト
   /// [maskUrls] - マスク画像URLリスト
+  /// [pImageUrls] - P画像（採寸用）URLリスト
+  /// [fImageUrls] - F画像（平置き）URLリスト
   /// [sku] - SKUコード
   /// 
   /// Returns: 削除結果
@@ -157,12 +430,16 @@ class ImageDiffManager {
     required List<String> normalUrls,
     required List<String> whiteUrls,
     required List<String> maskUrls,
+    List<String>? pImageUrls,
+    List<String>? fImageUrls,
     required String sku,
   }) async {
     debugPrint('🗑️ 全種類の画像削除開始');
     debugPrint('   通常画像: ${normalUrls.length}件');
     debugPrint('   白抜き画像: ${whiteUrls.length}件');
     debugPrint('   マスク画像: ${maskUrls.length}件');
+    debugPrint('   📐 P画像: ${pImageUrls?.length ?? 0}件');
+    debugPrint('   📏 F画像: ${fImageUrls?.length ?? 0}件');
 
     // 通常画像削除
     final normalResult = await deleteImagesFromR2(urls: normalUrls, sku: sku);
@@ -173,8 +450,22 @@ class ImageDiffManager {
     // マスク画像削除
     final maskResult = await deleteImagesFromR2(urls: maskUrls, sku: sku);
 
-    final totalDeleted = normalResult.deletedCount + whiteResult.deletedCount + maskResult.deletedCount;
-    final totalFailed = normalResult.failedCount + whiteResult.failedCount + maskResult.failedCount;
+    // P画像削除
+    final pImageResult = await deleteImagesFromR2(urls: pImageUrls ?? [], sku: sku);
+
+    // F画像削除
+    final fImageResult = await deleteImagesFromR2(urls: fImageUrls ?? [], sku: sku);
+
+    final totalDeleted = normalResult.deletedCount + 
+                         whiteResult.deletedCount + 
+                         maskResult.deletedCount +
+                         pImageResult.deletedCount +
+                         fImageResult.deletedCount;
+    final totalFailed = normalResult.failedCount + 
+                        whiteResult.failedCount + 
+                        maskResult.failedCount +
+                        pImageResult.failedCount +
+                        fImageResult.failedCount;
 
     debugPrint('🗑️ 全削除完了: 成功${totalDeleted}件、失敗${totalFailed}件');
 
@@ -182,53 +473,13 @@ class ImageDiffManager {
       normalResult: normalResult,
       whiteResult: whiteResult,
       maskResult: maskResult,
+      pImageResult: pImageResult,
+      fImageResult: fImageResult,
       totalDeleted: totalDeleted,
       totalFailed: totalFailed,
     );
   }
 }
 
-/// 📦 白抜き・マスク画像差分削除結果
-class WhiteMaskDiffResult {
-  final List<String> whiteUrlsToDelete;
-  final List<String> maskUrlsToDelete;
-
-  WhiteMaskDiffResult({
-    required this.whiteUrlsToDelete,
-    required this.maskUrlsToDelete,
-  });
-
-  bool get hasImagesToDelete => whiteUrlsToDelete.isNotEmpty || maskUrlsToDelete.isNotEmpty;
-}
-
-/// 📦 削除結果
-class DeleteResult {
-  final int deletedCount;
-  final int failedCount;
-
-  DeleteResult({
-    required this.deletedCount,
-    required this.failedCount,
-  });
-
-  bool get hasFailures => failedCount > 0;
-}
-
-/// 📦 全種類画像削除結果
-class CombinedDeleteResult {
-  final DeleteResult normalResult;
-  final DeleteResult whiteResult;
-  final DeleteResult maskResult;
-  final int totalDeleted;
-  final int totalFailed;
-
-  CombinedDeleteResult({
-    required this.normalResult,
-    required this.whiteResult,
-    required this.maskResult,
-    required this.totalDeleted,
-    required this.totalFailed,
-  });
-
-  bool get hasFailures => totalFailed > 0;
-}
+// データクラスは features/inventory/models/image_delete_result.dart に移動しました。
+// WhiteMaskDiffResult / ImageDeleteResult / CombinedDeleteResult を参照してください。

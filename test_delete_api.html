@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Delete API Test</title>
+</head>
+<body>
+  <h1>Cloudflare Workers Delete API Test</h1>
+  
+  <div>
+    <label>画像URL:</label>
+    <input type="text" id="imageUrl" style="width: 500px" 
+           value="https://image-upload-api.jinkedon2.workers.dev/relight/1025L280002/1025L280002_test.jpg">
+  </div>
+  
+  <button onclick="testDelete()">削除テスト</button>
+  
+  <div id="result"></div>
+  
+  <script>
+    async function testDelete() {
+      const imageUrl = document.getElementById('imageUrl').value;
+      const resultDiv = document.getElementById('result');
+      
+      resultDiv.innerHTML = '<p>削除中...</p>';
+      
+      try {
+        // URLからファイルパスを抽出
+        const uri = new URL(imageUrl);
+        const pathSegments = uri.pathname.split('/').filter(s => s);
+        
+        let filePath;
+        if (pathSegments.length >= 3) {
+          filePath = pathSegments.slice(-3).join('/');
+        } else if (pathSegments.length === 2) {
+          filePath = pathSegments.join('/');
+        } else {
+          filePath = pathSegments[pathSegments.length - 1];
+        }
+        
+        console.log('FilePath:', filePath);
+        
+        // Workers削除エンドポイント
+        const deleteUrl = `https://image-upload-api.jinkedon2.workers.dev/delete?filename=${encodeURIComponent(filePath)}`;
+        
+        console.log('Delete URL:', deleteUrl);
+        
+        const response = await fetch(deleteUrl, {
+          method: 'DELETE',
+          mode: 'cors',
+        });
+        
+        const text = await response.text();
+        
+        resultDiv.innerHTML = `
+          <h2>結果:</h2>
+          <p>Status: ${response.status} ${response.statusText}</p>
+          <p>Response: ${text}</p>
+          <pre>${JSON.stringify(Object.fromEntries(response.headers), null, 2)}</pre>
+        `;
+        
+      } catch (error) {
+        resultDiv.innerHTML = `<p style="color: red;">エラー: ${error.message}</p>`;
+        console.error(error);
+      }
+    }
+  </script>
+</body>
+</html>

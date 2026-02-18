@@ -76,11 +76,14 @@ class InventorySaver {
     Map<String, dynamic>? additionalData,
     int maxRetries = 3,
   }) async {
+    // ✅ item_code はループ外で1度だけ生成する
+    // リトライのたびに新しい item_code を生成すると、
+    // 1回目の INSERT が成功済みなのに2回目以降で UNIQUE 制約違反になる
+    final itemCode = '${item.sku}_${DateTime.now().millisecondsSinceEpoch}';
+
     for (int retryCount = 0; retryCount < maxRetries; retryCount++) {
       try {
         debugPrint('🌐 D1保存試行 ${retryCount + 1}/$maxRetries');
-
-        final itemCode = '${item.sku}_${DateTime.now().millisecondsSinceEpoch}';
 
         // 🏢 企業IDを取得（null時は空文字）
         final companyId = await _companyService.getCompanyId() ?? '';
@@ -98,6 +101,7 @@ class InventorySaver {
         final itemData = <String, dynamic>{
           'sku': item.sku ?? '',
           'itemCode': itemCode,
+          'upsert': true,  // ✅ 既存レコードがあれば UPDATE、なければ INSERT
           'name': item.name,
           'barcode': item.barcode,
           'brand': item.brand,

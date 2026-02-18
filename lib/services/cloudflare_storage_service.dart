@@ -1,99 +1,13 @@
-import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data'; // Uint8List用
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as path;
 
-/// 📦 Cloudflare R2 ストレージサービス
-/// 無料で画像を保存・共有できる（10GB/月の無料枠）
-class CloudflareStorageService {
-  // 🔧 設定値（実際の値に置き換えてください）
-  static const String accountId = 'YOUR_ACCOUNT_ID';
-  static const String bucketName = 'product-images';
-  static const String apiToken = 'YOUR_API_TOKEN';
-  static const String publicDomain = 'pub-300562464768499b8fcaee903d0f9861.r2.dev'; // R2公開ドメイン
-  
-  /// 📸 画像をCloudflare R2にアップロード
-  /// 
-  /// [imageFile] - アップロードする画像ファイル
-  /// [itemId] - 商品ID（一意な識別子）
-  /// 
-  /// Returns: 画像の公開URL
-  static Future<String> uploadImage(File imageFile, String itemId) async {
-    try {
-      // ファイル名を生成
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = '${itemId}_$timestamp.jpg';
-      
-      // 画像データを読み込み
-      final imageBytes = await imageFile.readAsBytes();
-      
-      // R2 API エンドポイント
-      final url = Uri.parse(
-        'https://api.cloudflare.com/client/v4/accounts/$accountId/r2/buckets/$bucketName/objects/$fileName'
-      );
-      
-      // アップロード
-      final response = await http.put(
-        url,
-        headers: {
-          'Authorization': 'Bearer $apiToken',
-          'Content-Type': 'image/jpeg',
-        },
-        body: imageBytes,
-      );
-      
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        // 成功: 公開URLを返す
-        final imageUrl = 'https://$publicDomain/$fileName';
-        debugPrint('✅ Cloudflare R2にアップロード成功: $imageUrl');
-        return imageUrl;
-      } else {
-        debugPrint('❌ アップロード失敗: ${response.statusCode} ${response.body}');
-        throw Exception('アップロードに失敗しました: ${response.statusCode}');
-      }
-      
-    } catch (e) {
-      debugPrint('❌ Cloudflare R2アップロードエラー: $e');
-      rethrow;
-    }
-  }
-  
-  /// 🗑️ 画像を削除
-  static Future<void> deleteImage(String fileName) async {
-    try {
-      final url = Uri.parse(
-        'https://api.cloudflare.com/client/v4/accounts/$accountId/r2/buckets/$bucketName/objects/$fileName'
-      );
-      
-      final response = await http.delete(
-        url,
-        headers: {
-          'Authorization': 'Bearer $apiToken',
-        },
-      );
-      
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        debugPrint('✅ 画像を削除しました: $fileName');
-      } else {
-        debugPrint('❌ 削除失敗: ${response.statusCode}');
-      }
-      
-    } catch (e) {
-      debugPrint('❌ 画像削除エラー: $e');
-    }
-  }
-  
-  /// 🔍 設定が正しいか確認
-  static bool isConfigured() {
-    return accountId != 'YOUR_ACCOUNT_ID' &&
-           apiToken != 'YOUR_API_TOKEN' &&
-           publicDomain != 'YOUR_R2_PUBLIC_DOMAIN';
-  }
-}
+// レガシーの CloudflareStorageService（直接R2アクセス・CORS問題あり）は
+// services/cloudflare_storage_service_legacy.dart に移動しました。
+// 新規コードでは以下の CloudflareWorkersStorageService を使用してください。
 
-/// 📦 簡易版: Cloudflare Workers経由でアップロード
+/// Workers経由でR2にアクセスするストレージサービス（現行）
 /// Workers経由なら、APIトークンを公開せずに安全にアップロード可能
 /// 
 /// 🔧 v2.0 改善点:
@@ -258,16 +172,56 @@ class CloudflareWorkersStorageService {
         debugPrint('🔄 ファイル名のみ: $filePath');
       }
       
-      // Workers削除エンドポイント
-      final deleteUrl = Uri.parse('$workerBaseUrl/delete?filename=$filePath');
+      // ✅ Workers削除エンドポイント（URLエンコーディング対応）
+      final encodedFilePath = Uri.encodeComponent(filePath);
+      final deleteUrl = Uri.parse('$workerBaseUrl/delete?filename=$encodedFilePath');
       
       debugPrint('🗑️ Cloudflare削除リクエスト: $deleteUrl');
       debugPrint('📁 削除するファイルパス: $filePath');
+      debugPrint('🔒 エンコード後パス: $encodedFilePath');
       
-      final response = await http.delete(deleteUrl).timeout(
-        Duration(seconds: 15),
-        onTimeout: () => http.Response('{"error":"タイムアウト"}', 408),
-      );
+      // 🌐 Web版: CORS問題を回避するため、Workers経由で削除
+      // Workers側で適切なCORSヘッダーが設定されている必要があります
+      http.Response response;
+      
+      if (kIsWeb) {
+        try {
+          // Web版: より柔軟なCORS処理
+          response = await http.delete(
+            deleteUrl,
+            headers: {
+              'Accept': 'application/json',
+            },
+          ).timeout(
+            Duration(seconds: 15),
+            onTimeout: () => http.Response('{"error":"タイムアウト"}', 408),
+          );
+        } catch (e) {
+          debugPrint('⚠️ Web版削除エラー（CORS問題の可能性）: $e');
+          // CORS問題の場合、Workers側の設定を確認する必要があります
+          debugPrint('💡 対処方法:');
+          debugPrint('   1. Workers側で DELETE メソッドのCORSヘッダーを設定');
+          debugPrint('   2. Access-Control-Allow-Origin: * を追加');
+          debugPrint('   3. Access-Control-Allow-Methods: DELETE を追加');
+          
+          return {
+            'success': false,
+            'reason': 'CORS問題: Workers側でDELETEメソッドのCORSヘッダー設定が必要です',
+            'statusCode': null,
+          };
+        }
+      } else {
+        // Android/iOS: 通常のHTTPリクエスト
+        response = await http.delete(
+          deleteUrl,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        ).timeout(
+          Duration(seconds: 15),
+          onTimeout: () => http.Response('{"error":"タイムアウト"}', 408),
+        );
+      }
       
       debugPrint('📨 削除レスポンス: ${response.statusCode}');
       

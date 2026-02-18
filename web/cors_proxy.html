@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>CORS Proxy Helper</title>
+</head>
+<body>
+  <script>
+    // Cloudflare Workers削除APIのCORSプロキシ
+    window.addEventListener('message', async (event) => {
+      if (event.data.type === 'DELETE_IMAGE') {
+        const { url, filename } = event.data;
+        
+        try {
+          const response = await fetch(url, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            mode: 'cors',
+          });
+          
+          const success = response.ok;
+          const statusCode = response.status;
+          
+          // 結果を親ウィンドウに送信
+          event.source.postMessage({
+            type: 'DELETE_RESULT',
+            success: success,
+            statusCode: statusCode,
+            filename: filename,
+          }, event.origin);
+          
+        } catch (error) {
+          event.source.postMessage({
+            type: 'DELETE_RESULT',
+            success: false,
+            error: error.message,
+            filename: filename,
+          }, event.origin);
+        }
+      }
+    });
+    
+    // 準備完了を通知
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: 'PROXY_READY' }, '*');
+    }
+  </script>
+</body>
+</html>
