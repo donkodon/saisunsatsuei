@@ -135,12 +135,12 @@ class InventorySaver {
         final sleeve   = itemData['sleeve']?.toString() ?? '';
 
         // 🔥 強制デバッグログ（リリースビルドでも出力）
-        print('📏 ======== サイズデータ確認 ========');
-        print('📏 additionalData に含まれる値:');
-        print('   length   = "$length"   (isEmpty: ${length.isEmpty})');
-        print('   width    = "$width"    (isEmpty: ${width.isEmpty})');
-        print('   shoulder = "$shoulder" (isEmpty: ${shoulder.isEmpty})');
-        print('   sleeve   = "$sleeve"   (isEmpty: ${sleeve.isEmpty})');
+        debugPrint('📏 ======== サイズデータ確認 ========');
+        debugPrint('📏 additionalData に含まれる値:');
+        debugPrint('   length   = "$length"   (isEmpty: ${length.isEmpty})');
+        debugPrint('   width    = "$width"    (isEmpty: ${width.isEmpty})');
+        debugPrint('   shoulder = "$shoulder" (isEmpty: ${shoulder.isEmpty})');
+        debugPrint('   sleeve   = "$sleeve"   (isEmpty: ${sleeve.isEmpty})');
 
         if (length.isNotEmpty || width.isNotEmpty || shoulder.isNotEmpty || sleeve.isNotEmpty) {
           itemData['actualMeasurements'] = {
@@ -149,11 +149,11 @@ class InventorySaver {
             if (shoulder.isNotEmpty) 'shoulder_width':  double.tryParse(shoulder) ?? shoulder,
             if (sleeve.isNotEmpty)   'sleeve_length':   double.tryParse(sleeve)   ?? sleeve,
           };
-          print('📏 actualMeasurements 変換完了: ${itemData['actualMeasurements']}');
+          debugPrint('📏 actualMeasurements 変換完了: ${itemData['actualMeasurements']}');
         } else {
-          print('⚠️ サイズデータがすべて空のため actualMeasurements は送信しません');
+          debugPrint('⚠️ サイズデータがすべて空のため actualMeasurements は送信しません');
         }
-        print('📏 =====================================');
+        debugPrint('📏 =====================================');
 
         // バラキーは Workers に不要なので除去
         itemData.remove('length');

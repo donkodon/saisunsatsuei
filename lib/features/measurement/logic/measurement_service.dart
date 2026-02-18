@@ -40,17 +40,17 @@ class MeasurementService {
   }) async {
     try {
       // 🔥 強制出力ログ（必ず表示される）
-      print('');
-      print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-      print('🤖 MeasurementService 実行開始');
-      print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-      print('📥 パラメータ:');
-      print('   imageUrl: $imageUrl');
-      print('   sku: $sku');
-      print('   companyId: $companyId');
-      print('   category: $category');
-      print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-      print('');
+      debugPrint('');
+      debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+      debugPrint('🤖 MeasurementService 実行開始');
+      debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+      debugPrint('📥 パラメータ:');
+      debugPrint('   imageUrl: $imageUrl');
+      debugPrint('   sku: $sku');
+      debugPrint('   companyId: $companyId');
+      debugPrint('   category: $category');
+      debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+      debugPrint('');
       
       if (kDebugMode) {
         debugPrint('🔍 ========== MeasurementService デバッグ ==========');
@@ -95,20 +95,20 @@ class MeasurementService {
       );
 
       // 🔥 強制出力ログ（必ず表示される）
-      print('');
-      print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-      print('✅ AI採寸リクエスト送信成功！');
-      print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-      print('📡 prediction_id: ${response.predictionId}');
-      print('💾 ローカルDB記録完了');
-      print('⏳ Webhook経由でD1に以下が保存されます:');
-      print('   - measurements (肩幅/袖丈/着丈/身幅)');
-      print('   - ai_landmarks (ランドマーク座標)');
-      print('   - reference_object (基準物体情報)');
-      print('   - measurement_image_url (採寸画像)');
-      print('   - mask_image_url (マスク画像)');
-      print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-      print('');
+      debugPrint('');
+      debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+      debugPrint('✅ AI採寸リクエスト送信成功！');
+      debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+      debugPrint('📡 prediction_id: ${response.predictionId}');
+      debugPrint('💾 ローカルDB記録完了');
+      debugPrint('⏳ Webhook経由でD1に以下が保存されます:');
+      debugPrint('   - measurements (肩幅/袖丈/着丈/身幅)');
+      debugPrint('   - ai_landmarks (ランドマーク座標)');
+      debugPrint('   - reference_object (基準物体情報)');
+      debugPrint('   - measurement_image_url (採寸画像)');
+      debugPrint('   - mask_image_url (マスク画像)');
+      debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+      debugPrint('');
       
       if (kDebugMode) {
         debugPrint('✅ AI採寸リクエスト完了: prediction_id=${response.predictionId}');
@@ -123,14 +123,14 @@ class MeasurementService {
       }
     } catch (e, stackTrace) {
       // 🔥 強制出力ログ（必ず表示される）
-      print('');
-      print('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
-      print('❌ AI採寸エラー発生！');
-      print('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
-      print('エラー: $e');
-      print('スタックトレース: ${stackTrace.toString().split('\n').take(3).join('\n')}');
-      print('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
-      print('');
+      debugPrint('');
+      debugPrint('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
+      debugPrint('❌ AI採寸エラー発生！');
+      debugPrint('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
+      debugPrint('エラー: $e');
+      debugPrint('スタックトレース: ${stackTrace.toString().split('\n').take(3).join('\n')}');
+      debugPrint('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
+      debugPrint('');
       
       if (kDebugMode) {
         debugPrint('❌ AI採寸エラー発生: $e');

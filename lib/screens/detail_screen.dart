@@ -66,7 +66,7 @@ class DetailScreen extends StatefulWidget {
   // 📏 AI自動採寸フラグ
   final bool aiMeasureEnabled;    // AI自動採寸を実行するかどうか
 
-  DetailScreen({
+  const DetailScreen({super.key, 
     required this.itemName,
     required this.brand,
     required this.category,
@@ -118,8 +118,7 @@ class _DetailScreenState extends State<DetailScreen> {
   // 🚀 文字数カウンター用のValueNotifier（setState不要で効率的）
   final ValueNotifier<int> _charCount = ValueNotifier<int>(0);
   
-  // ✨ 一括アップロードサービス
-  late final BatchImageUploadService _batchUploadService;
+  // ✨ 白抜きサービス
   late final WhiteBackgroundService _whiteBackgroundService;
   late final InventoryProvider _inventoryProvider;
   final CompanyService _companyService = CompanyService();
@@ -136,9 +135,6 @@ class _DetailScreenState extends State<DetailScreen> {
   int _uploadProgress = 0;
   int _uploadTotal = 0;
   
-  // 📸 Phase 4: 白抜き画像ペアリング済みリスト
-  List<ImageItem>? _pairedImages;
-  
   // 🎨 Phase 5: 白抜き画像表示切替状態
   bool _showWhiteBackground = false;
 
@@ -147,7 +143,6 @@ class _DetailScreenState extends State<DetailScreen> {
     super.initState();
     
     // ✨ サービス初期化
-    _batchUploadService = BatchImageUploadService();
     _whiteBackgroundService = WhiteBackgroundService();
     _inventoryProvider = Provider.of<InventoryProvider>(context, listen: false);
     
@@ -264,7 +259,7 @@ class _DetailScreenState extends State<DetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Image Carousel（複数画像対応）
-                Container(
+                SizedBox(
                   height: 120,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
@@ -279,7 +274,7 @@ class _DetailScreenState extends State<DetailScreen> {
                             isMain: index == 0,  // 最初の画像をメインとする
                             index: index,  // タップ時のプレビュー用
                           );
-                        }).toList()
+                        })
                       // プレースホルダー
                       else
                         _buildPlaceholder(isMain: true),
@@ -600,7 +595,7 @@ class _DetailScreenState extends State<DetailScreen> {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppConstants.primaryCyan.withOpacity(0.1),
+                    color: AppConstants.primaryCyan.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -676,11 +671,11 @@ class _DetailScreenState extends State<DetailScreen> {
             CustomButton(
               text: "商品確定", 
               onPressed: () async {
-                print('');
-                print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-                print('🔘 商品確定ボタンがタップされました');
-                print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-                print('');
+                debugPrint('');
+                debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+                debugPrint('🔘 商品確定ボタンがタップされました');
+                debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+                debugPrint('');
                 await _saveProduct();
               }
             ),
@@ -721,10 +716,6 @@ class _DetailScreenState extends State<DetailScreen> {
       // 既存画像に白抜きURLをペアリング
       final pairedImages = await _whiteBackgroundService.pairWhiteImages(widget.images!);
       
-      setState(() {
-        _pairedImages = pairedImages;
-      });
-
       // 統計情報を出力
       final stats = _whiteBackgroundService.getWhiteImageStats(pairedImages);
       if (kDebugMode) {
@@ -735,10 +726,6 @@ class _DetailScreenState extends State<DetailScreen> {
       if (kDebugMode) {
         debugPrint('❌ Phase 4: 白抜き画像の初期化失敗: $e');
       }
-      // エラーでも元の画像リストを使用
-      setState(() {
-        _pairedImages = widget.images;
-      });
     }
   }
 
@@ -752,11 +739,11 @@ class _DetailScreenState extends State<DetailScreen> {
   /// - コード量を約400行 → 約200行に削減
   Future<void> _saveProduct() async {
     // 🔥 関数実行確認ログ（最優先）
-    print('');
-    print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-    print('🚀 _saveProduct() 関数が呼ばれました！');
-    print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-    print('');
+    debugPrint('');
+    debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+    debugPrint('🚀 _saveProduct() 関数が呼ばれました！');
+    debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+    debugPrint('');
     
     try {
       // ========================================
@@ -999,18 +986,18 @@ class _DetailScreenState extends State<DetailScreen> {
       // ========================================
       
       // 🔍 強制デバッグログ（kDebugModeに関係なく必ず出力）
-      print('');
-      print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-      print('✅ 商品確定ボタンが押されました');
-      print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-      print('📏 AI自動採寸トグル: ${widget.aiMeasureEnabled ? "✅ ON" : "❌ OFF"}');
-      print('📸 アップロード済み画像: ${uploadResult.allUrls.isNotEmpty ? "✅ あり" : "❌ なし"}');
-      print('📸 画像数: ${uploadResult.allUrls.length}枚');
+      debugPrint('');
+      debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+      debugPrint('✅ 商品確定ボタンが押されました');
+      debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+      debugPrint('📏 AI自動採寸トグル: ${widget.aiMeasureEnabled ? "✅ ON" : "❌ OFF"}');
+      debugPrint('📸 アップロード済み画像: ${uploadResult.allUrls.isNotEmpty ? "✅ あり" : "❌ なし"}');
+      debugPrint('📸 画像数: ${uploadResult.allUrls.length}枚');
       if (uploadResult.allUrls.isNotEmpty) {
-        print('🎯 最初の画像URL: ${uploadResult.allUrls.first}');
+        debugPrint('🎯 最初の画像URL: ${uploadResult.allUrls.first}');
       }
-      print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-      print('');
+      debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+      debugPrint('');
       
       if (widget.aiMeasureEnabled && uploadResult.allUrls.isNotEmpty) {
         if (kDebugMode) {
@@ -1075,7 +1062,7 @@ class _DetailScreenState extends State<DetailScreen> {
         // 削除失敗がある場合は警告付き通知
         if (deleteFailureCount > 0) {
           _showWarning(
-            '✅ 商品保存は完了しましたが、${deleteFailureCount}件の古い画像削除に失敗しました。\n'
+            '✅ 商品保存は完了しましたが、$deleteFailureCount件の古い画像削除に失敗しました。\n'
             '（画像は正常に保存されています）'
           );
         } else {
@@ -1106,15 +1093,15 @@ class _DetailScreenState extends State<DetailScreen> {
       Navigator.pop(context);
       
       // 🔥 強制エラーログ
-      print('');
-      print('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
-      print('❌ _saveProduct() でエラー発生！');
-      print('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
-      print('エラー: $e');
-      print('スタックトレース:');
-      print('$stackTrace');
-      print('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
-      print('');
+      debugPrint('');
+      debugPrint('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
+      debugPrint('❌ _saveProduct() でエラー発生！');
+      debugPrint('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
+      debugPrint('エラー: $e');
+      debugPrint('スタックトレース:');
+      debugPrint('$stackTrace');
+      debugPrint('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌');
+      debugPrint('');
       
       debugPrint('❌ 保存エラー: $e');
       debugPrint('スタックトレース: $stackTrace');
@@ -1188,42 +1175,6 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  Widget _buildImageThumbnail(String path, {bool isMain = false}) {
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.asset(path, width: 100, height: 120, fit: BoxFit.cover),
-        ),
-        if (isMain)
-          Positioned(
-            bottom: 8,
-            left: 8,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppConstants.primaryCyan,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text("メイン", style: TextStyle(color: Colors.white, fontSize: 10)),
-            ),
-          ),
-      ],
-    );
-  }
-
-  /// 📸 撮影した画像のサムネイルを表示
-  /// 📸 ImageItemからサムネイルを生成
-  /// 
-  /// 🔧 v2.0 改善点:
-  /// - URLからの画像読み込み時にキャッシュバスティングを適用
-  /// 
-  /// 🔧 v3.0 Phase 3 改善点:
-  /// - タップで画像プレビュー表示
-  /// 
-  /// 🎨 Phase 5 改善点:
-  /// - SmartImageViewerに統一
-  /// - 白抜き画像の表示切替機能
   Widget _buildImageItemThumbnail(ImageItem imageItem, {bool isMain = false, int? index}) {
     return TappableSmartImageViewer(
       imageViewer: SmartImageViewer.fromImageItem(
@@ -1287,216 +1238,6 @@ class _DetailScreenState extends State<DetailScreen> {
           }
         }
       },
-    );
-  }
-
-  /// 📸 旧実装（Phase 5で置き換え済み）
-  Widget _buildImageItemThumbnail_Legacy(ImageItem imageItem, {bool isMain = false, int? index}) {
-    // 🎨 Phase 5: 白抜き画像表示モードかつwhiteUrlがある場合は白抜きを表示
-    final displayUrl = _showWhiteBackground && imageItem.whiteUrl != null
-        ? imageItem.whiteUrl
-        : imageItem.url;
-    
-    Widget imageWidget;
-    
-    if (imageItem.bytes != null) {
-      // バイトデータがある場合（最優先）
-      imageWidget = Image.memory(
-        imageItem.bytes!,
-        width: 100,
-        height: 120,
-        fit: BoxFit.cover,
-      );
-    } else if (imageItem.bytes != null) {
-      // ローカルファイル（bytes）がある場合
-      imageWidget = Image.memory(
-        imageItem.bytes!,
-        width: 100,
-        height: 120,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            width: 100,
-            height: 120,
-            color: Colors.grey[200],
-            child: Icon(Icons.image, size: 40, color: Colors.grey[400]),
-          );
-        },
-      );
-    } else if (displayUrl != null) {
-      // 🔧 URLからの読み込み - キャッシュバスティングを適用
-      // 🎨 Phase 5: displayUrl（元画像 or 白抜き画像）を使用
-      final cacheBustedUrl = ImageCacheService.getCacheBustedUrl(displayUrl);
-      imageWidget = Image.network(
-        cacheBustedUrl,
-        width: 100,
-        height: 120,
-        fit: BoxFit.cover,
-        // ✅ Phase 1のUUID形式でキャッシュ衝突は回避済み
-        // ✅ ?t=timestamp パラメータでキャッシュバスティング実現
-        // ❌ Cache-Controlヘッダーは削除（CORS問題回避）
-        errorBuilder: (context, error, stackTrace) {
-          if (kDebugMode) {
-            debugPrint('❌ 画像読み込みエラー: $error');
-            debugPrint('   URL: $displayUrl');
-          }
-          
-          // 🎨 Phase 5: 白抜き画像の読み込み失敗時は元画像にフォールバック
-          if (_showWhiteBackground && imageItem.url != null && displayUrl == imageItem.whiteUrl) {
-            if (kDebugMode) {
-              debugPrint('⚠️ 白抜き画像が存在しません。元画像を表示します。');
-            }
-            final fallbackUrl = ImageCacheService.getCacheBustedUrl(imageItem.url!);
-            return Image.network(
-              fallbackUrl,
-              width: 100,
-              height: 120,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) {
-                return Container(
-                  width: 100,
-                  height: 120,
-                  color: Colors.grey[200],
-                  child: Icon(Icons.broken_image, size: 40, color: Colors.grey[400]),
-                );
-              },
-            );
-          }
-          
-          return Container(
-            width: 100,
-            height: 120,
-            color: Colors.grey[200],
-            child: Icon(Icons.broken_image, size: 40, color: Colors.grey[400]),
-          );
-        },
-      );
-    } else {
-      // 何もない場合
-      imageWidget = Container(
-        width: 100,
-        height: 120,
-        color: Colors.grey[200],
-        child: Icon(Icons.image, size: 40, color: Colors.grey[400]),
-      );
-    }
-    
-    return GestureDetector(
-      // イベント伝播を停止
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        if (kDebugMode) {
-          debugPrint('🖼️ DetailScreen画像タップ: index=$index');
-        }
-        
-        // 🎨 Phase 5: 画像URLリスト + 白抜き画像URLリストを構築
-        final imageUrls = <String>[];
-        final whiteImageUrls = <String>[];
-        
-        if (widget.images != null) {
-          for (var img in widget.images!) {
-            if (img.url != null) {
-              imageUrls.add(img.url!);
-              // 白抜き画像URLがあれば追加
-              if (img.whiteUrl != null) {
-                whiteImageUrls.add(img.whiteUrl!);
-              } else {
-                // 白抜き画像がない場合は元画像を使用（インデックス保持）
-                whiteImageUrls.add(img.url!);
-              }
-            }
-          }
-        }
-        
-        if (kDebugMode) {
-          debugPrint('🖼️ 画像URLリスト: ${imageUrls.length}件');
-          debugPrint('🎨 Phase 5: 白抜き画像URLリスト: ${whiteImageUrls.length}件');
-          debugPrint('🖼️ index=$index, imageUrls.isNotEmpty=${imageUrls.isNotEmpty}');
-        }
-        
-        // 画像プレビュー画面を表示
-        if (imageUrls.isNotEmpty && index != null) {
-          if (kDebugMode) {
-            debugPrint('✅ ImagePreviewScreen表示: initialIndex=$index');
-          }
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ImagePreviewScreen(
-                imageUrls: imageUrls,
-                whiteImageUrls: whiteImageUrls.isNotEmpty ? whiteImageUrls : null, // 🎨 Phase 5
-                initialIndex: index,
-                heroTag: 'detail_image_$index',
-              ),
-            ),
-          );
-        } else {
-          if (kDebugMode) {
-            debugPrint('❌ 条件不満: imageUrls.isEmpty=${imageUrls.isEmpty}, index=$index');
-          }
-        }
-      },
-      child: Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: imageWidget,
-          ),
-          if (isMain)
-            Positioned(
-              bottom: 8,
-              left: 8,
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppConstants.primaryCyan,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text("メイン", style: TextStyle(color: Colors.white, fontSize: 10)),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCapturedImageThumbnail(String imagePath, {bool isMain = false}) {
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.network(
-            imagePath,  // Web環境では blob: URL をそのまま使用
-            width: 100, 
-            height: 120, 
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              if (kDebugMode) {
-                debugPrint('❌ 画像読み込みエラー: $error');
-              }
-              return Container(
-                width: 100,
-                height: 120,
-                color: Colors.grey[200],
-                child: Icon(Icons.image, size: 40, color: Colors.grey[400]),
-              );
-            },
-          ),
-        ),
-        if (isMain)
-          Positioned(
-            bottom: 8,
-            left: 8,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppConstants.primaryCyan,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text("メイン", style: TextStyle(color: Colors.white, fontSize: 10)),
-            ),
-          ),
-      ],
     );
   }
 
@@ -1591,7 +1332,7 @@ class _DetailScreenState extends State<DetailScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('素材を選択'),
-        content: Container(
+        content: SizedBox(
           width: double.maxFinite,
           child: ListView.builder(
             shrinkWrap: true,
@@ -1620,7 +1361,7 @@ class _DetailScreenState extends State<DetailScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('カラーを選択'),
-        content: Container(
+        content: SizedBox(
           width: double.maxFinite,
           child: GridView.builder(
             shrinkWrap: true,

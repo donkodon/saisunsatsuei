@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import '../models/image_item.dart';
-import '../models/product_image.dart';
 
 /// 🎨 白抜き画像管理サービス
 /// 

@@ -63,7 +63,7 @@ class ApiProductProvider with ChangeNotifier {
         final lastUpdate = _lastFetchTime != null 
           ? DateTime.now().difference(_lastFetchTime!).inMinutes
           : 0;
-        print('✅ セッションキャッシュを使用 (最終更新: ${lastUpdate}分前)');
+        print('✅ セッションキャッシュを使用 (最終更新: $lastUpdate分前)');
       }
       return _products;
     }

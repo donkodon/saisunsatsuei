@@ -7,14 +7,14 @@ import 'package:measure_master/providers/api_product_provider.dart';
 import 'package:measure_master/models/item.dart';
 
 class ApiProductsScreen extends StatefulWidget {
-  const ApiProductsScreen({Key? key}) : super(key: key);
+  const ApiProductsScreen({super.key});
 
   @override
   _ApiProductsScreenState createState() => _ApiProductsScreenState();
 }
 
 class _ApiProductsScreenState extends State<ApiProductsScreen> {
-  Set<int> _selectedProductIds = {};
+  final Set<int> _selectedProductIds = {};
 
   @override
   void initState() {

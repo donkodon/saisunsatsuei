@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:typed_data'; // Uint8List用
+// Uint8List用
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 

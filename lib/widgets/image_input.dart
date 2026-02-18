@@ -8,7 +8,7 @@ import 'package:path_provider/path_provider.dart' as syspaths;
 class ImageInput extends StatefulWidget {
   final Function(File) onSelectImage;
 
-  const ImageInput(this.onSelectImage, {Key? key}) : super(key: key);
+  const ImageInput(this.onSelectImage, {super.key});
 
   @override
   _ImageInputState createState() => _ImageInputState();
@@ -52,6 +52,7 @@ class _ImageInputState extends State<ImageInput> {
           decoration: BoxDecoration(
             border: Border.all(width: 1, color: Colors.grey),
           ),
+          alignment: Alignment.center,
           child: _storedImage != null
               ? Image.file(
                   _storedImage!,
@@ -62,7 +63,6 @@ class _ImageInputState extends State<ImageInput> {
                   '写真なし',
                   textAlign: TextAlign.center,
                 ),
-          alignment: Alignment.center,
         ),
         const SizedBox(width: 10),
         Expanded(

@@ -408,7 +408,7 @@ class ImageDiffManager {
       }
     }
 
-    debugPrint('🗑️ R2削除完了: 成功${deletedCount}件、失敗${failedCount}件');
+    debugPrint('🗑️ R2削除完了: 成功$deletedCount件、失敗$failedCount件');
 
     return ImageDeleteResult(
       deletedCount: deletedCount,
@@ -467,7 +467,7 @@ class ImageDiffManager {
                         pImageResult.failedCount +
                         fImageResult.failedCount;
 
-    debugPrint('🗑️ 全削除完了: 成功${totalDeleted}件、失敗${totalFailed}件');
+    debugPrint('🗑️ 全削除完了: 成功$totalDeleted件、失敗$totalFailed件');
 
     return CombinedDeleteResult(
       normalResult: normalResult,

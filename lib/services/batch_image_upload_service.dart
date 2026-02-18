@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart' hide ImageSource;
 import 'dart:io';
@@ -8,7 +7,6 @@ import '../models/product_image.dart';
 import '../models/result.dart';
 import '../models/image_item.dart';
 import '../repositories/image_repository.dart';
-import '../services/cloudflare_storage_service.dart';
 
 /// 📤 一括画像アップロードサービス
 /// 
@@ -276,7 +274,7 @@ class BatchImageUploadService {
             // エラーだが、処理を続行するか判断
             // 現時点では失敗全体を返す
             return Failure(
-              '画像 ${sequence}/${imageFiles.length} のアップロードに失敗しました: ${result.message}',
+              '画像 $sequence/${imageFiles.length} のアップロードに失敗しました: ${result.message}',
               exception: result.exception,
             );
           }

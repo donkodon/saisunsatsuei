@@ -42,9 +42,9 @@ class InventoryProvider with ChangeNotifier {
           return item.companyId == _currentCompanyId;
         }).toList();
         
-        print('📦 Hiveから読み込み完了（企業ID: $_currentCompanyId）: ${filteredItems.length}件');
+        debugPrint('📦 Hiveから読み込み完了（企業ID: $_currentCompanyId）: ${filteredItems.length}件');
       } else {
-        print('📦 Hiveから読み込み完了（全データ）: ${filteredItems.length}件');
+        debugPrint('📦 Hiveから読み込み完了（全データ）: ${filteredItems.length}件');
       }
       
       _items = filteredItems;
@@ -104,9 +104,9 @@ class InventoryProvider with ChangeNotifier {
     
     if (existingItem != null) {
       // 🔄 既存アイテムを更新（SKUが同じ場合）
-      print('🔄 既存のSKU (${itemToSave.sku}) を更新します');
-      print('   古いID: ${existingItem.id}');
-      print('   新しいデータで上書きします');
+      debugPrint('🔄 既存のSKU (${itemToSave.sku}) を更新します');
+      debugPrint('   古いID: ${existingItem.id}');
+      debugPrint('   新しいデータで上書きします');
       
       // Hiveから古いエントリをすべて削除（念のため全検索）
       if (_box != null) {
@@ -120,7 +120,7 @@ class InventoryProvider with ChangeNotifier {
         
         for (var key in keysToDelete) {
           await _box!.delete(key);
-          print('🗑️ 古いHiveエントリを削除: $key');
+          debugPrint('🗑️ 古いHiveエントリを削除: $key');
         }
       }
       
@@ -131,23 +131,23 @@ class InventoryProvider with ChangeNotifier {
       _items.insert(0, itemToSave);
     } else {
       // ✨ 新規アイテムとしてリストの先頭に追加
-      print('✨ 新規アイテムとして追加します（SKU: ${itemToSave.sku}）');
+      debugPrint('✨ 新規アイテムとして追加します（SKU: ${itemToSave.sku}）');
       _items.insert(0, itemToSave);
     }
     
     // ローカル保存 (Hive) - IDをキーとして使用
     if (_box != null) {
       await _box!.put(itemToSave.id, itemToSave);
-      print('✅ Hiveに保存成功: ID=${itemToSave.id}');
-      print('📦 保存データ:');
-      print('   - 商品名: ${itemToSave.name}');
-      print('   - カテゴリ: ${itemToSave.category}');
-      print('   - 商品の状態: ${itemToSave.condition}');
-      print('   - 説明: ${itemToSave.description}');
-      print('   - SKU: ${itemToSave.sku}');
-      print('   - バーコード: ${itemToSave.barcode}');
-      print('   - 企業ID: ${itemToSave.companyId}');  // 🏢 企業ID表示
-      print('   - 画像URL: ${itemToSave.imageUrl}');
+      debugPrint('✅ Hiveに保存成功: ID=${itemToSave.id}');
+      debugPrint('📦 保存データ:');
+      debugPrint('   - 商品名: ${itemToSave.name}');
+      debugPrint('   - カテゴリ: ${itemToSave.category}');
+      debugPrint('   - 商品の状態: ${itemToSave.condition}');
+      debugPrint('   - 説明: ${itemToSave.description}');
+      debugPrint('   - SKU: ${itemToSave.sku}');
+      debugPrint('   - バーコード: ${itemToSave.barcode}');
+      debugPrint('   - 企業ID: ${itemToSave.companyId}');  // 🏢 企業ID表示
+      debugPrint('   - 画像URL: ${itemToSave.imageUrl}');
     }
     
     notifyListeners();
@@ -171,7 +171,7 @@ class InventoryProvider with ChangeNotifier {
     // SKUで既存アイテムを検索
     final index = _items.indexWhere((item) => item.sku == sku);
     if (index == -1) {
-      print('⚠️ 画像更新: SKU $sku が見つかりません');
+      debugPrint('⚠️ 画像更新: SKU $sku が見つかりません');
       return;
     }
     
@@ -208,7 +208,7 @@ class InventoryProvider with ChangeNotifier {
     // Hiveを更新
     if (_box != null) {
       await _box!.put(existingItem.id, updatedItem);
-      print('📸 画像URL更新完了: SKU=$sku, 画像数=${newImageUrls.length}');
+      debugPrint('📸 画像URL更新完了: SKU=$sku, 画像数=${newImageUrls.length}');
     }
     
     notifyListeners();
@@ -220,7 +220,7 @@ class InventoryProvider with ChangeNotifier {
     
     final existingItem = findBySku(sku);
     if (existingItem == null) {
-      print('⚠️ 画像削除: SKU $sku が見つかりません');
+      debugPrint('⚠️ 画像削除: SKU $sku が見つかりません');
       return;
     }
     
@@ -230,6 +230,6 @@ class InventoryProvider with ChangeNotifier {
     
     // 更新
     await updateItemImages(sku, currentImages);
-    print('🗑️ 画像を削除しました: $imageUrl');
+    debugPrint('🗑️ 画像を削除しました: $imageUrl');
   }
 }

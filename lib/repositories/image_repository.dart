@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../models/product_image.dart';
@@ -15,14 +14,8 @@ import '../services/image_cache_service.dart';
 /// - エラーハンドリングの一元化
 class ImageRepository {
   final _uuid = Uuid();
-  final CloudflareWorkersStorageService _cloudflareService;
-  final ImageCacheService _cacheService;
 
-  ImageRepository({
-    CloudflareWorkersStorageService? cloudflareService,
-    ImageCacheService? cacheService,
-  })  : _cloudflareService = cloudflareService ?? CloudflareWorkersStorageService(),
-        _cacheService = cacheService ?? ImageCacheService();
+  ImageRepository();
 
   /// 📸 画像を保存（アップロード + キャッシュ）
   /// 
@@ -183,7 +176,7 @@ class ImageRepository {
       debugPrint('📥 ImageRepository.getImageData: $imageUrl');
 
       // Step 1: キャッシュから取得を試みる
-      final cachedData = await ImageCacheService.getCachedImage(imageUrl);
+      final cachedData = ImageCacheService.getCachedImage(imageUrl);
       if (cachedData != null) {
         debugPrint('  ✅ キャッシュヒット');
         return Success(cachedData);

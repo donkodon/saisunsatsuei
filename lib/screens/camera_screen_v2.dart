@@ -31,7 +31,7 @@ class CameraScreenV2 extends StatefulWidget {
   final bool aiMeasure;  // 📏 AI自動採寸フラグ
 
   const CameraScreenV2({
-    Key? key,
+    super.key,
     required this.itemName,
     required this.brand,
     required this.category,
@@ -46,7 +46,7 @@ class CameraScreenV2 extends StatefulWidget {
     required this.description,
     this.existingImages,
     this.aiMeasure = false,  // 📏 デフォルトはfalse
-  }) : super(key: key);
+  });
 
   @override
   _CameraScreenV2State createState() => _CameraScreenV2State();
@@ -588,7 +588,7 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
       bottom: 160,
       left: 0,
       right: 0,
-      child: Container(
+      child: SizedBox(
         height: 80,
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
@@ -779,7 +779,7 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
 /// グリッドペインター（撮影補助線）
 class GridPainter extends CustomPainter {
   static final Paint _paint = Paint()
-    ..color = Colors.white.withOpacity(0.3)
+    ..color = Colors.white.withValues(alpha: 0.3)
     ..strokeWidth = 1;
 
   @override

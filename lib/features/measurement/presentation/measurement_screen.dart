@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'mock_ar_view.dart';
-import '../domain/measurement_model.dart';
 
 class MeasurementScreen extends ConsumerWidget {
   const MeasurementScreen({super.key});

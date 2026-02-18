@@ -12,10 +12,6 @@ class CacheInspector {
     if (!kDebugMode) return;
     
     final box = await Hive.openBox<String>(_boxName);
-    if (box == null) {
-      debugPrint('⚠️ キャッシュボックスが初期化されていません');
-      return;
-    }
     
     debugPrint('🔍 ========== キャッシュ検査 ==========');
     debugPrint('📊 キャッシュ総数: ${box.length}件');
@@ -56,10 +52,6 @@ class CacheInspector {
     if (!kDebugMode) return;
     
     final box = await Hive.openBox<String>(_boxName);
-    if (box == null) {
-      debugPrint('⚠️ キャッシュボックスが初期化されていません');
-      return;
-    }
     
     debugPrint('🔍 ========== SKU: $sku のキャッシュ ==========');
     
@@ -92,10 +84,6 @@ class CacheInspector {
     if (!kDebugMode) return;
     
     final box = await Hive.openBox<String>(_boxName);
-    if (box == null) {
-      debugPrint('⚠️ キャッシュボックスが初期化されていません');
-      return;
-    }
     
     debugPrint('🎯 ========== Phase 1 実装状況確認 ==========');
     

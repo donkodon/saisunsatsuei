@@ -118,7 +118,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withOpacity(0.7),
+                      Colors.black.withValues(alpha: 0.7),
                       Colors.transparent,
                     ],
                   ),
@@ -169,7 +169,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,
                     colors: [
-                      Colors.black.withOpacity(0.7),
+                      Colors.black.withValues(alpha: 0.7),
                       Colors.transparent,
                     ],
                   ),
@@ -198,13 +198,13 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
                                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                                   decoration: BoxDecoration(
                                     color: _showWhiteBackground 
-                                        ? Colors.cyan.withOpacity(0.2)
-                                        : Colors.white.withOpacity(0.1),
+                                        ? Colors.cyan.withValues(alpha: 0.2)
+                                        : Colors.white.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(24),
                                     border: Border.all(
                                       color: _showWhiteBackground 
                                           ? Colors.cyan 
-                                          : Colors.white.withOpacity(0.5),
+                                          : Colors.white.withValues(alpha: 0.5),
                                       width: 2,
                                     ),
                                   ),
@@ -252,7 +252,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
                                 decoration: BoxDecoration(
                                   color: _currentIndex == index
                                       ? Colors.white
-                                      : Colors.white.withOpacity(0.4),
+                                      : Colors.white.withValues(alpha: 0.4),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                               ),
@@ -356,7 +356,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
           Icon(
             Icons.broken_image,
             size: 64,
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -365,7 +365,7 @@ class _ImagePreviewScreenState extends State<ImagePreviewScreen> {
                 : '画像を読み込めませんでした',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
               fontSize: 14,
             ),
           ),

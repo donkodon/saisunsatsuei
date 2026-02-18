@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:measure_master/constants.dart';
-import 'package:measure_master/screens/detail_screen.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:measure_master/services/cloudflare_storage_service.dart';
 import 'package:measure_master/services/image_cache_service.dart';
@@ -26,7 +24,7 @@ class CameraScreen extends StatefulWidget {
   final String description;
   final List<String>? existingImages;  // 📸 既存の画像リスト（編集時）
 
-  CameraScreen({
+  const CameraScreen({super.key, 
     required this.itemName,
     required this.brand,
     required this.category,
@@ -181,7 +179,7 @@ class _CameraScreenState extends State<CameraScreen> {
         });
       }
     } catch (e) {
-      print('❌ カメラ初期化エラー: $e');
+      debugPrint('❌ カメラ初期化エラー: $e');
       if (mounted) {
         setState(() {
           _isCameraInitialized = false;
@@ -350,7 +348,7 @@ class _CameraScreenState extends State<CameraScreen> {
         // 📸 連続撮影のため、遷移はしない（完了ボタンで遷移）
       }
     } catch (e) {
-      print('❌ 撮影エラー: $e');
+      debugPrint('❌ 撮影エラー: $e');
       if (mounted) {
         setState(() {
           _isCapturing = false;
@@ -518,13 +516,11 @@ class _CameraScreenState extends State<CameraScreen> {
       }
 
       // 📸 選択した画像をリストに追加
-      if (uploadedImageUrl != null) {
-        setState(() {
-          _capturedImages.add(uploadedImageUrl!);
-          _selectedImageIndex = _capturedImages.length - 1; // 最新の画像を選択
-        });
-      }
-      
+      setState(() {
+        _capturedImages.add(uploadedImageUrl!);
+        _selectedImageIndex = _capturedImages.length - 1; // 最新の画像を選択
+      });
+          
     } catch (e, stackTrace) {
       if (kDebugMode) {
         debugPrint('❌ ギャラリー選択エラー: $e');

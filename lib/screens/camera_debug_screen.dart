@@ -4,7 +4,7 @@ import 'package:measure_master/constants.dart';
 import 'package:measure_master/widgets/image_input.dart';
 
 class CameraDebugScreen extends StatefulWidget {
-  const CameraDebugScreen({Key? key}) : super(key: key);
+  const CameraDebugScreen({super.key});
 
   @override
   _CameraDebugScreenState createState() => _CameraDebugScreenState();

@@ -129,16 +129,6 @@ class ImageUploadCoordinator {
     }
   }
 
-  /// 🔍 画像の種類を判定
-  String _getImageType(String url) {
-    if (url.contains('_white.jpg')) {
-      return '白抜き';
-    } else if (url.contains('_mask.png')) {
-      return 'マスク';
-    } else {
-      return '通常';
-    }
-  }
 }
 
 /// 📦 画像アップロード結果

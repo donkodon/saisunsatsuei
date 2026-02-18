@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'dart:io';
-import 'dart:developer' as developer;
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/screens/camera_screen_v2.dart';
 import 'package:measure_master/screens/detail_screen.dart';
@@ -10,22 +9,17 @@ import 'package:measure_master/widgets/custom_button.dart';
 import 'package:measure_master/models/api_product.dart';
 import 'package:measure_master/models/item.dart';
 import 'package:measure_master/models/image_item.dart';
-import 'package:measure_master/providers/inventory_provider.dart';
-import 'package:measure_master/services/cloudflare_storage_service.dart';
 import 'package:measure_master/services/image_cache_service.dart';
 import 'package:measure_master/features/ocr/logic/ocr_service.dart';
 import 'package:measure_master/features/ocr/domain/ocr_result.dart';
-import 'package:measure_master/widgets/smart_image_viewer.dart';
-import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
-import 'dart:typed_data';
 
 class AddItemScreen extends StatefulWidget {
   final ApiProduct? prefillData; // 🔍 検索結果からの自動入力データ
   final InventoryItem? existingItem; // 📝 既存商品データ（編集用）
   
-  const AddItemScreen({Key? key, this.prefillData, this.existingItem}) : super(key: key);
+  const AddItemScreen({super.key, this.prefillData, this.existingItem});
   
   @override
   _AddItemScreenState createState() => _AddItemScreenState();
@@ -111,10 +105,10 @@ class _AddItemScreenState extends State<AddItemScreen> {
     super.initState();
     
     // 🔍 初期化時の強制ログ
-    print('========================================');
-    print('AddItemScreen 初期化');
-    print('AI自動採寸トグル初期値: $_aiMeasure');
-    print('========================================');
+    debugPrint('========================================');
+    debugPrint('AddItemScreen 初期化');
+    debugPrint('AI自動採寸トグル初期値: $_aiMeasure');
+    debugPrint('========================================');
     
     // 📝 既存商品データから読み込み（編集モード）
     if (widget.existingItem != null) {
@@ -292,14 +286,14 @@ class _AddItemScreenState extends State<AddItemScreen> {
         if (cachedFile != null) {
           xFiles.add(XFile(cachedFile.path));
           if (kDebugMode) {
-            print('✅ キャッシュから取得 (${i + 1}/${urls.length}): ${cachedFile.path}');
+            debugPrint('✅ キャッシュから取得 (${i + 1}/${urls.length}): ${cachedFile.path}');
           }
           continue;
         }
         
         // 🎯 ステップ2: URLから画像をダウンロード
         if (kDebugMode) {
-          print('⬇️ ダウンロード中 (${i + 1}/${urls.length}): $url');
+          debugPrint('⬇️ ダウンロード中 (${i + 1}/${urls.length}): $url');
         }
         
         final response = await http.get(Uri.parse(url));
@@ -317,16 +311,16 @@ class _AddItemScreenState extends State<AddItemScreen> {
           await ImageCacheService.cacheImage(url, response.bodyBytes);
           
           if (kDebugMode) {
-            print('✅ 既存画像変換成功 (${i + 1}/${urls.length}): $fileName');
+            debugPrint('✅ 既存画像変換成功 (${i + 1}/${urls.length}): $fileName');
           }
         } else {
           if (kDebugMode) {
-            print('❌ 画像ダウンロード失敗 (${i + 1}/${urls.length}): $url - Status ${response.statusCode}');
+            debugPrint('❌ 画像ダウンロード失敗 (${i + 1}/${urls.length}): $url - Status ${response.statusCode}');
           }
         }
       } catch (e) {
         if (kDebugMode) {
-          print('❌ 既存画像変換エラー (${i + 1}/${urls.length}): $e');
+          debugPrint('❌ 既存画像変換エラー (${i + 1}/${urls.length}): $e');
         }
       }
     }
@@ -590,100 +584,6 @@ class _AddItemScreenState extends State<AddItemScreen> {
     );
   }
   
-  /// OCR文字認識処理（旧トグル方式 - 後方互換性のため残す）
-  /// 
-  /// タグ画像から素材・ブランド情報を自動抽出
-  Future<void> _performOcrAnalysis(ImageItem imageItem) async {
-    try {
-      if (kDebugMode) {
-        debugPrint('🔍 OCR解析開始: ${imageItem.id}');
-      }
-      
-      // ローディング表示
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-              SizedBox(width: 16),
-              Text('🔍 タグを解析中...'),
-            ],
-          ),
-          duration: Duration(seconds: 30),
-        ),
-      );
-      
-      // 画像データを取得
-      final imageBytes = await _getImageBytes(imageItem);
-      if (imageBytes == null) {
-        throw Exception('画像データの取得に失敗しました');
-      }
-      
-      // OCR解析実行
-      final ocrService = OcrService();
-      final result = await ocrService.analyzeTag(imageBytes);
-      
-      // ローディングを閉じる
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      
-      if (result.hasValidData) {
-        // 結果を入力欄に反映
-        setState(() {
-          if (result.brand != null && result.brand!.isNotEmpty) {
-            _brandController.text = result.brand!;
-          }
-          if (result.material != null && result.material!.isNotEmpty) {
-            _selectedMaterial = result.material!;
-          }
-          if (result.size != null && result.size!.isNotEmpty) {
-            _sizeController.text = result.size!;
-          }
-        });
-        
-        // 成功メッセージ
-        String successMessage = '✅ タグ情報を自動入力しました';
-        if (result.confidence < 0.7) {
-          successMessage += '\n（信頼度: ${(result.confidence * 100).toStringAsFixed(0)}% - 内容を確認してください）';
-        }
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(successMessage),
-            backgroundColor: AppConstants.successGreen,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-        
-        if (kDebugMode) {
-          debugPrint('✅ OCR解析成功: $result');
-        }
-      } else {
-        // データが抽出できなかった
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('⚠️ タグ情報を読み取れませんでした\n手動で入力してください'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      // エラー処理
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ OCR解析エラー: $e\n手動で入力してください'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
-        ),
-      );
-      
-      if (kDebugMode) {
-        debugPrint('❌ OCR解析エラー: $e');
-      }
-    }
-  }
-  
   /// 画像データをバイト配列で取得
   Future<Uint8List?> _getImageBytes(ImageItem imageItem) async {
     try {
@@ -852,7 +752,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                     children: [
                       // 📸 画像サムネイル表示（UUID方式）
                       if (_images.isNotEmpty) ...[
-                        Container(
+                        SizedBox(
                           height: 120,
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
@@ -1033,9 +933,9 @@ class _AddItemScreenState extends State<AddItemScreen> {
                         Divider(),
                         _buildSwitchTile("AI自動採寸", "撮影時に自動でサイズを計測します", _aiMeasure, (v) {
                           setState(() => _aiMeasure = v);
-                          print('========================================');
-                          print('AI自動採寸トグル変更: ${v ? "ON" : "OFF"}');
-                          print('========================================');
+                          debugPrint('========================================');
+                          debugPrint('AI自動採寸トグル変更: ${v ? "ON" : "OFF"}');
+                          debugPrint('========================================');
                         }),
                         Divider(),
                         _buildOcrButton(),
@@ -1094,7 +994,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                       Container(
                         padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppConstants.primaryCyan.withOpacity(0.1),
+                          color: AppConstants.primaryCyan.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -1175,17 +1075,17 @@ class _AddItemScreenState extends State<AddItemScreen> {
                 }
                 
                 // 🔍 AI自動採寸トグルの状態をデバッグ出力（強制出力）
-                print('');
-                print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-                print('📱 商品詳細画面への遷移');
-                print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-                print('📏 AI自動採寸トグル: ${_aiMeasure ? "✅ ON" : "❌ OFF"}');
-                print('📸 画像数: ${_images.length}枚');
-                print('📦 商品名: ${_nameController.text}');
-                print('🏷️  SKU: ${_skuController.text}');
-                print('→ DetailScreen に aiMeasureEnabled=${_aiMeasure} を渡す');
-                print('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
-                print('');
+                debugPrint('');
+                debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+                debugPrint('📱 商品詳細画面への遷移');
+                debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+                debugPrint('📏 AI自動採寸トグル: ${_aiMeasure ? "✅ ON" : "❌ OFF"}');
+                debugPrint('📸 画像数: ${_images.length}枚');
+                debugPrint('📦 商品名: ${_nameController.text}');
+                debugPrint('🏷️  SKU: ${_skuController.text}');
+                debugPrint('→ DetailScreen に aiMeasureEnabled=$_aiMeasure を渡す');
+                debugPrint('🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥');
+                debugPrint('');
                 
                 // 🚀 商品詳細画面へ直接遷移
                 Navigator.push(
@@ -1358,73 +1258,6 @@ class _AddItemScreenState extends State<AddItemScreen> {
     );
   }
 
-  // 🔧 v4.0: _buildInputField と同じ TextFormField パターンに統一（Web互換性）
-  Widget _buildPriceField(String label, TextEditingController controller) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: TextStyle(fontSize: 12, color: AppConstants.textGrey)),
-        SizedBox(height: 8),
-        Container(
-          padding: EdgeInsets.symmetric(vertical: 4),
-          child: TextFormField(
-            controller: controller,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppConstants.textDark,
-            ),
-            enableInteractiveSelection: true,
-            decoration: InputDecoration(
-              prefixText: "¥ ",
-              prefixStyle: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppConstants.textDark,
-              ),
-              hintText: "0",
-              hintStyle: TextStyle(color: AppConstants.textGrey, fontSize: 18),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
-              isDense: true,
-            ),
-            onChanged: (value) {
-              developer.log('[PRICE] $label onChanged raw=$value');
-              // 数字のみ抽出してセット
-              final digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
-              if (digitsOnly != value) {
-                controller.text = digitsOnly;
-                controller.selection = TextSelection.fromPosition(
-                  TextPosition(offset: digitsOnly.length),
-                );
-              }
-              setState(() {});
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _showPricePicker(TextEditingController controller) {
-    final TextEditingController tempController = TextEditingController(text: controller.text);
-    
-    showDialog(
-      context: context,
-      builder: (context) {
-        return _PricePickerDialog(
-          controller: controller,
-          tempController: tempController,
-          onConfirm: () {
-            setState(() {
-              controller.text = tempController.text;
-            });
-          },
-        );
-      },
-    );
-  }
-
   Widget _buildSelectTile(String label, String value, VoidCallback onTap, {bool isPlaceholder = false}) {
     return InkWell(
       onTap: onTap,
@@ -1472,80 +1305,8 @@ class _AddItemScreenState extends State<AddItemScreen> {
             value: value,
             onChanged: onChanged,
             activeTrackColor: AppConstants.primaryCyan.withValues(alpha: 0.5),
-            activeColor: AppConstants.primaryCyan,
+            activeThumbColor: AppConstants.primaryCyan,
           ),
-        ],
-      ),
-    );
-  }
-
-  // 📏 実寸入力フィールド
-  // 🔧 v4.0: _buildInputField と同じ TextFormField パターンに統一（Web互換性）
-  Widget _buildMeasurementField(String label, TextEditingController controller) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: controller.text.isNotEmpty 
-              ? AppConstants.primaryCyan 
-              : Colors.grey[300]!,
-          width: controller.text.isNotEmpty ? 2 : 1,
-        ),
-      ),
-      padding: EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: AppConstants.textGrey,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          SizedBox(height: 8),
-          Container(
-            padding: EdgeInsets.symmetric(vertical: 4),
-            child: TextFormField(
-              controller: controller,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppConstants.primaryCyan,
-              ),
-              enableInteractiveSelection: true,
-              decoration: InputDecoration(
-                hintText: "0",
-                hintStyle: TextStyle(color: Colors.grey[400], fontSize: 24),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-                isDense: true,
-              ),
-              onChanged: (value) {
-                developer.log('[MEASURE] $label onChanged raw=$value');
-                // 数字のみ抽出してセット（3桁まで）
-                final digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
-                final truncated = digitsOnly.length > 3 ? digitsOnly.substring(0, 3) : digitsOnly;
-                if (truncated != value) {
-                  controller.text = truncated;
-                  controller.selection = TextSelection.fromPosition(
-                    TextPosition(offset: truncated.length),
-                  );
-                }
-                setState(() {}); // 枠線の色を更新
-              },
-            ),
-          ),
-          SizedBox(height: 4),
-          if (controller.text.isNotEmpty)
-            Icon(
-              Icons.check_circle,
-              size: 16,
-              color: AppConstants.primaryCyan,
-            ),
         ],
       ),
     );

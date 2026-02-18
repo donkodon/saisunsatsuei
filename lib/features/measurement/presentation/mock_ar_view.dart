@@ -77,7 +77,7 @@ class _MockARViewState extends ConsumerState<MockARView> {
                          height: 120,
                          decoration: BoxDecoration(
                            border: Border.all(color: Colors.yellow, width: 2),
-                           color: Colors.yellow.withOpacity(0.1),
+                           color: Colors.yellow.withValues(alpha: 0.1),
                          ),
                          child: Center(child: Text("Reference Object\n(A4 Paper / Card)", textAlign: TextAlign.center, style: TextStyle(color: Colors.yellow))),
                        ),
@@ -95,7 +95,7 @@ class _MockARViewState extends ConsumerState<MockARView> {
             height: _height * 5,
             decoration: BoxDecoration(
               border: Border.all(color: Colors.blueAccent, width: 3),
-              color: Colors.blueAccent.withOpacity(0.1),
+              color: Colors.blueAccent.withValues(alpha: 0.1),
             ),
             child: Stack(
               children: [

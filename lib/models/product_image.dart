@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 
 /// 📸 商品画像モデル（統一データ構造）
 /// 

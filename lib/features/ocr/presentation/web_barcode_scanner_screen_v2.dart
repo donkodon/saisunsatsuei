@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:html' as html;
 import 'dart:typed_data';
 // ignore: avoid_web_libraries_in_flutter
-import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:image_picker/image_picker.dart';
@@ -13,7 +12,7 @@ import 'package:measure_master/screens/add_item_screen.dart';
 
 /// 静止画ベースのWeb版バーコードスキャナー（image_picker + Html5-QRCode）
 class WebBarcodeScannerScreenV2 extends StatefulWidget {
-  const WebBarcodeScannerScreenV2({Key? key}) : super(key: key);
+  const WebBarcodeScannerScreenV2({super.key});
 
   @override
   State<WebBarcodeScannerScreenV2> createState() => _WebBarcodeScannerScreenV2State();

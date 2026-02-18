@@ -8,7 +8,7 @@ import 'package:measure_master/screens/add_item_screen.dart';
 import 'package:measure_master/features/ocr/presentation/web_barcode_scanner_screen_v2.dart';
 
 class BarcodeScannerScreen extends StatefulWidget {
-  const BarcodeScannerScreen({Key? key}) : super(key: key);
+  const BarcodeScannerScreen({super.key});
 
   @override
   State<BarcodeScannerScreen> createState() => _BarcodeScannerScreenState();
@@ -158,98 +158,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
         ),
         child: CustomPaint(
           painter: ScannerOverlayPainter(),
-        ),
-      ),
-    );
-  }
-
-  /// 手動入力専用画面（Web版 & カメラエラー時）
-  Widget _buildManualInputScreen() {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('バーコード検索'),
-        backgroundColor: const Color(0xFF1A2A3A),
-        foregroundColor: Colors.white,
-      ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.search, size: 80, color: Color(0xFF1A2A3A)),
-              const SizedBox(height: 24),
-              const Text(
-                'バーコード・SKU検索',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                kIsWeb 
-                  ? 'Web版では手動入力で商品を検索できます。\nスマートフォンアプリ版ではカメラスキャンが利用可能です。'
-                  : 'バーコードまたはSKUを入力して商品を検索',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _showManualInputDialog,
-                  icon: const Icon(Icons.search),
-                  label: const Text('バーコード・SKUで検索'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A2A3A),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.arrow_back),
-                  label: const Text('戻る'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.info_outline, size: 20, color: Colors.blue.shade700),
-                        const SizedBox(width: 8),
-                        Text(
-                          '検索のヒント',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _buildInfoItem('• バーコード番号（13桁）で検索'),
-                    _buildInfoItem('• SKU（商品管理コード）で検索'),
-                    _buildInfoItem('• 登録済み商品のみ検索可能'),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

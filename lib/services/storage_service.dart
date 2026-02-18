@@ -1,13 +1,11 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:hive/hive.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
 /// 📷 画像ストレージサービス
 /// ローカルストレージに画像を永続保存し、他のデバイスでも共有可能
 class StorageService {
-  static const String _imageBoxName = 'image_storage';
   
   /// 📸 撮影した画像をローカルストレージに永続保存
   /// 
@@ -77,7 +75,7 @@ class StorageService {
       
       final files = await imagesDir.list().toList();
       return files
-          .where((file) => file is File)
+          .whereType<File>()
           .map((file) => file.path)
           .toList();
           

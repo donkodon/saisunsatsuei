@@ -7,7 +7,7 @@ import 'package:measure_master/services/api_service.dart';
 import 'package:measure_master/screens/detail_screen.dart';
 
 class WebBarcodeScannerScreen extends StatefulWidget {
-  const WebBarcodeScannerScreen({Key? key}) : super(key: key);
+  const WebBarcodeScannerScreen({super.key});
 
   @override
   State<WebBarcodeScannerScreen> createState() => _WebBarcodeScannerScreenState();
@@ -31,7 +31,7 @@ class _WebBarcodeScannerScreenState extends State<WebBarcodeScannerScreen> {
 
   Future<void> _initializeScanner() async {
     try {
-      print('🎥 カメラ初期化開始...');
+      debugPrint('🎥 カメラ初期化開始...');
       
       // カメラストリームを取得
       final constraints = {
@@ -43,7 +43,7 @@ class _WebBarcodeScannerScreenState extends State<WebBarcodeScannerScreen> {
       };
 
       _mediaStream = await html.window.navigator.mediaDevices!.getUserMedia(constraints);
-      print('✅ カメラストリーム取得成功');
+      debugPrint('✅ カメラストリーム取得成功');
 
       // Video要素を作成してDOMに追加
       _videoElement = html.VideoElement()
@@ -64,7 +64,7 @@ class _WebBarcodeScannerScreenState extends State<WebBarcodeScannerScreen> {
 
       // Video要素が再生開始されるまで待機
       await _videoElement!.play();
-      print('✅ Video要素再生開始');
+      debugPrint('✅ Video要素再生開始');
 
       // 少し待ってからスキャン開始（Video要素が完全に準備されるまで）
       await Future.delayed(const Duration(milliseconds: 500));
@@ -78,7 +78,7 @@ class _WebBarcodeScannerScreenState extends State<WebBarcodeScannerScreen> {
       _startBarcodeDetection();
       
     } catch (e) {
-      print('❌ カメラ初期化エラー: $e');
+      debugPrint('❌ カメラ初期化エラー: $e');
       if (mounted) {
         _showError('カメラの初期化に失敗しました: $e');
       }
@@ -86,7 +86,7 @@ class _WebBarcodeScannerScreenState extends State<WebBarcodeScannerScreen> {
   }
 
   void _startBarcodeDetection() {
-    print('🔍 バーコード検出開始...');
+    debugPrint('🔍 バーコード検出開始...');
     
     // ZXingが読み込まれているか確認
     final checkZXing = '''
@@ -108,13 +108,13 @@ class _WebBarcodeScannerScreenState extends State<WebBarcodeScannerScreen> {
     // ZXingエラーイベントをリッスン
     html.window.addEventListener('zxing-error', (event) {
       final customEvent = event as html.CustomEvent;
-      print('❌ ZXingエラー: ${customEvent.detail['message']}');
+      debugPrint('❌ ZXingエラー: ${customEvent.detail['message']}');
       _showError('バーコードライブラリの初期化に失敗しました');
     });
 
     // ZXing準備完了後にスキャン開始
     html.window.addEventListener('zxing-ready', (event) {
-      print('✅ ZXing準備完了、スキャン開始');
+      debugPrint('✅ ZXing準備完了、スキャン開始');
       _startContinuousScanning();
     });
     
@@ -205,7 +205,7 @@ class _WebBarcodeScannerScreenState extends State<WebBarcodeScannerScreen> {
     // エラーイベントをリッスン
     html.window.addEventListener('barcode-error', (event) {
       final customEvent = event as html.CustomEvent;
-      print('❌ バーコードエラー: ${customEvent.detail['message']}');
+      debugPrint('❌ バーコードエラー: ${customEvent.detail['message']}');
     });
   }
 
@@ -214,11 +214,11 @@ class _WebBarcodeScannerScreenState extends State<WebBarcodeScannerScreen> {
     final barcode = customEvent.detail['text'] as String;
     final format = customEvent.detail['format'] as String?;
 
-    print('📊 Flutter側でバーコード受信: $barcode (形式: $format)');
+    debugPrint('📊 Flutter側でバーコード受信: $barcode (形式: $format)');
 
     // 重複検出を防止
     if (barcode == _lastScannedCode || _isSearching) {
-      print('⏭️ スキップ（重複またはスキャン中）');
+      debugPrint('⏭️ スキップ（重複またはスキャン中）');
       return;
     }
 
@@ -229,7 +229,7 @@ class _WebBarcodeScannerScreenState extends State<WebBarcodeScannerScreen> {
   Future<void> _onBarcodeDetected(String barcode) async {
     if (_isSearching) return;
 
-    print('🔍 商品検索開始: $barcode');
+    debugPrint('🔍 商品検索開始: $barcode');
 
     setState(() {
       _isScanning = false;
@@ -242,7 +242,7 @@ class _WebBarcodeScannerScreenState extends State<WebBarcodeScannerScreen> {
       if (!mounted) return;
 
       if (product != null) {
-        print('✅ 商品発見: ${product.name}');
+        debugPrint('✅ 商品発見: ${product.name}');
         // 商品が見つかった
         _stopCamera();
         Navigator.pushReplacement(
@@ -266,12 +266,12 @@ class _WebBarcodeScannerScreenState extends State<WebBarcodeScannerScreen> {
           ),
         );
       } else {
-        print('⚠️ 商品未登録: $barcode');
+        debugPrint('⚠️ 商品未登録: $barcode');
         // 商品が見つからない
         _showProductNotFoundDialog(barcode);
       }
     } catch (e) {
-      print('❌ 検索エラー: $e');
+      debugPrint('❌ 検索エラー: $e');
       if (!mounted) return;
       _showError('検索エラー: $e');
       setState(() {
@@ -414,7 +414,7 @@ class _WebBarcodeScannerScreenState extends State<WebBarcodeScannerScreen> {
   }
 
   void _stopCamera() {
-    print('🛑 カメラ停止');
+    debugPrint('🛑 カメラ停止');
     
     // スキャン停止イベントを送信
     html.window.dispatchEvent(html.CustomEvent('stop-scanning'));
