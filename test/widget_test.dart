@@ -1,30 +1,16 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// このファイルはプレースホルダーです。
+// web_barcode_scanner_screen_v2.dart が dart:html を使用しているため、
+// テスト環境（VM）では MyApp 全体のウィジェットテストは実行できません。
+// ユニットテストは test/logic/ test/domain/ test/presentation/ に配置してください。
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:measure_master/main.dart';
-
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  test('placeholder: widget_test はスキップ', () {
+    // dart:html を使用する Web 専用ウィジェットを含む MyApp 全体の
+    // ウィジェットテストは、VM テスト環境では実行できないため
+    // このテストはプレースホルダーとして機能します。
+    // 実際のテストは test/logic/ / test/domain/ / test/presentation/ を参照してください。
+    expect(true, isTrue);
   });
 }
