@@ -1,5 +1,6 @@
 // src/index.js
 // v2: Webhook outputパース修正 + WHERE条件安定化 + アプリ側描画対応
+// v3: JST タイムスタンプ対応（photographed_at, created_at, updated_at）
 
 /**
  * データベース初期化関数
@@ -560,7 +561,7 @@ function extractSkuAndCompany(webhookData, requestUrl) {
  * メインハンドラー
  */
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
     
@@ -729,7 +730,7 @@ export default {
       // 商品実物データ (product_items) エンドポイント
       // ==========================================
 
-      // 🔧 POST /api/products/items - 新規作成 or UPSERT（企業ID考慮）
+      // 🔧 POST /api/products/items - 新規作成 or UPSERT（企業ID考慮 + JST対応）
       if (path === "/api/products/items" && request.method === "POST") {
         try {
           const data = await request.json();
@@ -773,7 +774,7 @@ export default {
                 photographed_at = COALESCE(?, photographed_at),
                 photographed_by = COALESCE(?, photographed_by),
                 status = COALESCE(?, status),
-                updated_at = CURRENT_TIMESTAMP
+                updated_at = COALESCE(?, updated_at)
               WHERE company_id = ? AND sku = ?
             `).bind(
               data.name || null,
@@ -792,6 +793,7 @@ export default {
               data.photographedAt || null,
               data.photographedBy || data.photographed_by || null,
               data.status || null,
+              data.updated_at || null,
               companyId,
               data.sku
             ).run();
@@ -807,10 +809,13 @@ export default {
             }, { headers: corsHeaders });
             
           } else {
-            console.log('➕ INSERT処理実行（company_id付き）');
+            console.log('➕ INSERT処理実行（company_id付き + JST対応）');
             
             const itemCode = data.item_code || data.itemCode || `${data.sku}_${Date.now()}`;
             console.log('📋 INSERT用item_code:', itemCode);
+            console.log('📅 photographedAt:', data.photographedAt);
+            console.log('📅 created_at:', data.created_at);
+            console.log('📅 updated_at:', data.updated_at);
 
             const insertResult = await env.DB.prepare(`
               INSERT INTO product_items (
@@ -820,7 +825,7 @@ export default {
                 image_urls, actual_measurements, inspection_notes,
                 photographed_at, photographed_by, status,
                 created_at, updated_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).bind(
               companyId,
               data.sku,
@@ -838,9 +843,11 @@ export default {
               data.imageUrls ? JSON.stringify(data.imageUrls) : null,
               data.actualMeasurements ? JSON.stringify(data.actualMeasurements) : null,
               data.inspectionNotes || data.inspection_notes || null,
-              data.photographedAt || new Date().toISOString(),
+              data.photographedAt || null,
               data.photographedBy || data.photographed_by || 'mobile_app_user',
-              data.status || "Ready"
+              data.status || "Ready",
+              data.created_at || null,
+              data.updated_at || null
             ).run();
 
             console.log('✅ INSERT完了:', insertResult);
@@ -1025,10 +1032,10 @@ export default {
         // 1. product_items から検索（企業ID + SKU or item_code）
         const item = await env.DB.prepare(`
           SELECT * FROM product_items 
-          WHERE company_id = ? AND (sku = ? OR item_code = ?)
+          WHERE company_id = ? AND (sku = ? OR item_code = ? OR barcode = ?)
           ORDER BY photographed_at DESC
           LIMIT 1
-        `).bind(companyId, query, query).first();
+        `).bind(companyId, query, query, query).first();
 
         if (item) {
           console.log('✅ product_items で発見:', item.sku);
@@ -1295,7 +1302,7 @@ export default {
       }
 
       // ==========================================
-      // 📏 AI自動採寸エンドポイント（v2: Webhook非同期方式）
+      // 📏 AI自動採寸エンドポイント（v2: SKUをinputに含める）
       // ==========================================
 
       if (path === "/api/measure" && request.method === "POST") {
@@ -1320,10 +1327,12 @@ export default {
 
           console.log('🔑 APIキー確認: あり (長さ:', replicateApiKey.length, ')');
 
+          // 🚀 v2.1: base64変換スキップ + Prefer:wait削除
           // Replicateに画像URLを直接渡す（Replicate側がダウンロード）
+          // base64変換もPrefer:waitも不要（webhookで結果を受け取る）
           const imageInput = data.image_url;
 
-          console.log('🚀 Replicate API呼び出し（Webhook非同期モード）...');
+          console.log('🚀 Replicate API呼び出し（非同期モード）...');
           console.log('   画像形式: URL直接渡し');
           
           const replicateResponse = await fetch('https://api.replicate.com/v1/predictions', {
@@ -1333,7 +1342,7 @@ export default {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              version: 'cae92e11d94e550f65219633c0bfc0b10db1e290a417001a81ec6a3da66f3216',  // mask対応の最新バージョン
+              version: 'cae92e11d94e550f65219633c0bfc0b10db1e290a417001a81ec6a3da66f3216',  // 🆕 mask対応の最新バージョン
               input: {
                 image: imageInput,
                 garment_class: data.garment_class || 'long sleeve top'
@@ -1348,11 +1357,11 @@ export default {
           console.log('📏 prediction_id:', replicateData.id);
           console.log('📏 status:', replicateData.status);
 
-          // Flutter にすぐにレスポンスを返す（Webhookで結果はD1に自動保存される）
+          // Flutter にすぐにレスポンスを返す
           return Response.json({
             success: true,
             status: 'processing',
-            message: 'AI採寸処理を開始しました。結果はWebhook経由でD1に自動保存されます。',
+            message: 'AI採寸処理を開始しました。完了まで30秒〜3分かかります。',
             prediction_id: replicateData.id,
             sku: data.sku,
             company_id: data.company_id || 'test_company'
@@ -1366,6 +1375,105 @@ export default {
             success: false,
             error: `AI採寸エラー: ${measureError.message}`,
             errorType: measureError.constructor.name
+          }, { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // ============================================
+      // 📊 ダッシュボード統計API
+      // ============================================
+
+      // 📊 ユーザーの当日登録商品統計（カテゴリ別）
+      if (path === '/api/dashboard/user-stats' && request.method === 'GET') {
+        const companyId = getCompanyId(request, url) || '';
+        const date = url.searchParams.get('date') || '';
+        const photographedBy = url.searchParams.get('photographed_by') || '';
+
+        if (!date || !photographedBy) {
+          return Response.json({
+            success: false,
+            error: 'dateとphotographed_byパラメータが必要です'
+          }, { status: 400, headers: corsHeaders });
+        }
+
+        console.log('📊 ユーザー統計取得:', { companyId, date, photographedBy });
+
+        try {
+          // created_atがdateで始まる（例: "2026-02-20"で始まる）レコードを取得
+          const results = await env.DB.prepare(`
+            SELECT category, COUNT(*) as count
+            FROM product_items
+            WHERE company_id = ? 
+              AND photographed_by = ?
+              AND created_at LIKE ?
+            GROUP BY category
+          `).bind(companyId, photographedBy, `${date}%`).all();
+
+          const categoryStats = {};
+          results.results.forEach(row => {
+            const category = row.category || '未分類';
+            categoryStats[category] = row.count;
+          });
+
+          return Response.json({
+            success: true,
+            date,
+            photographedBy,
+            categoryStats,
+            companyId
+          }, { headers: corsHeaders });
+
+        } catch (error) {
+          console.error('📊 ユーザー統計エラー:', error);
+          return Response.json({
+            success: false,
+            error: error.message
+          }, { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // 📊 チーム全体の当日登録商品総数
+      if (path === '/api/dashboard/team-stats' && request.method === 'GET') {
+        const companyId = getCompanyId(request, url) || '';
+        const date = url.searchParams.get('date') || '';
+
+        if (!date) {
+          return Response.json({
+            success: false,
+            error: 'dateパラメータが必要です'
+          }, { status: 400, headers: corsHeaders });
+        }
+
+        console.log('📊 チーム統計取得:', { companyId, date });
+
+        try {
+          // created_atがdateで始まるレコードをカテゴリ別に集計
+          const results = await env.DB.prepare(`
+            SELECT category, COUNT(*) as count
+            FROM product_items
+            WHERE company_id = ? 
+              AND created_at LIKE ?
+            GROUP BY category
+          `).bind(companyId, `${date}%`).all();
+
+          const categoryStats = {};
+          results.results.forEach(row => {
+            const category = row.category || '未分類';
+            categoryStats[category] = row.count;
+          });
+
+          return Response.json({
+            success: true,
+            date,
+            categoryStats,
+            companyId
+          }, { headers: corsHeaders });
+
+        } catch (error) {
+          console.error('📊 チーム統計エラー:', error);
+          return Response.json({
+            success: false,
+            error: error.message
           }, { status: 500, headers: corsHeaders });
         }
       }
