@@ -48,6 +48,7 @@ mixin DetailSaveMixin<T extends StatefulWidget> on State<T> {
   String? get widgetSleeve;
   bool get widgetAiMeasureEnabled;
   List<ImageItem>? get widgetImages;
+  String? get widgetUserDisplayName;  // 👤 ユーザー表示名
 
   // コントローラ
   TextEditingController get skuController;
@@ -239,6 +240,7 @@ mixin DetailSaveMixin<T extends StatefulWidget> on State<T> {
       final saveResult = await inventorySaver.saveToHiveAndD1(
         item: newItem,
         imageUrls: allImageUrlsWithDerived,
+        userDisplayName: widgetUserDisplayName,  // 👤 ユーザー名を渡す
         additionalData: {
           'length': widgetLength,
           'width': widgetWidth,
@@ -300,6 +302,7 @@ mixin DetailSaveMixin<T extends StatefulWidget> on State<T> {
     final saveResult = await inventorySaver.saveToHiveAndD1(
       item: item,
       imageUrls: item.imageUrls ?? [],
+      userDisplayName: widgetUserDisplayName,  // 👤 ユーザー名を渡す
       additionalData: {},
     );
 

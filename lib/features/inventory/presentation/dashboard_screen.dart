@@ -11,6 +11,7 @@ import 'package:measure_master/features/auth/logic/company_service.dart';
 import 'package:measure_master/features/auth/logic/auth_service.dart';
 import 'package:measure_master/features/inventory/domain/api_product.dart';
 import 'package:measure_master/core/utils/app_feedback.dart';
+import 'package:measure_master/features/inventory/presentation/widgets/dashboard_pie_charts.dart';
 
 
 class DashboardScreen extends StatefulWidget {
@@ -30,6 +31,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _companyId = '';
   String _companyName = '';
   String _displayName = '';
+  
+  // 📊 ダッシュボード統計
+  Map<String, int> _userCategoryData = {};
+  int _userTotal = 0;
+  Map<String, int> _teamCategoryData = {};
+  int _teamTotal = 0;
+  bool _statsLoading = true;
 
   @override
   void initState() {
@@ -86,11 +94,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ? displayName.split(' ').first
         : null;
 
+    // 👤 表示名の決定ロジック
+    // 1. Firebase Auth の displayName から名前を取得
+    // 2. なければ企業名を使用（ただし企業IDは除外）
+    // 3. 最終的には「スタッフ」をデフォルトとして使用
+    String finalDisplayName = 'スタッフ';  // デフォルト値
+    
+    if (firstName != null && firstName.isNotEmpty) {
+      finalDisplayName = firstName;
+    } else if (companyName != null && 
+               companyName.isNotEmpty && 
+               companyName != companyId) {  // 企業IDと同じ場合は使わない
+      finalDisplayName = companyName;
+    }
+
     if (!mounted) return;
     setState(() {
       _companyId = companyId ?? '';
       _companyName = companyName ?? '';
-      _displayName = firstName ?? companyName ?? 'ユーザー';
+      _displayName = finalDisplayName;
     });
 
     // 🏢 InventoryProvider に企業IDを設定（変更があった場合のみ再読み込み）
@@ -98,6 +120,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final inventoryProvider =
           Provider.of<InventoryProvider>(context, listen: false);
       inventoryProvider.setCompanyIdIfChanged(companyId);
+    }
+    
+    // 📊 ダッシュボード統計を読み込み
+    if (companyId != null && companyId.isNotEmpty) {
+      _loadDashboardStats();
+    }
+  }
+
+  /// 📊 ダッシュボード統計を読み込む
+  Future<void> _loadDashboardStats() async {
+    if (_companyId.isEmpty || _displayName.isEmpty) return;
+    
+    setState(() {
+      _statsLoading = true;
+    });
+
+    try {
+      // 並列で2つのAPIを呼び出し
+      final results = await Future.wait([
+        _apiService.getUserTodayStatsByCategory(
+          companyId: _companyId,
+          photographedBy: _displayName,
+        ),
+        _apiService.getTeamTodayStatsByCategory(companyId: _companyId),
+      ]);
+
+      final userCategoryData = results[0];
+      final teamCategoryData = results[1];
+      
+      // 総数を計算
+      final userTotal = userCategoryData.values.fold<int>(0, (sum, count) => sum + count);
+      final teamTotal = teamCategoryData.values.fold<int>(0, (sum, count) => sum + count);
+
+      if (!mounted) return;
+      setState(() {
+        _userCategoryData = userCategoryData;
+        _userTotal = userTotal;
+        _teamCategoryData = teamCategoryData;
+        _teamTotal = teamTotal;
+        _statsLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _statsLoading = false;
+      });
     }
   }
 
@@ -165,6 +233,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) => AddItemScreen(
               existingItem: savedItem,
+              userDisplayName: _displayName,  // 👤 ユーザー名を渡す
             ),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
@@ -245,6 +314,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) => AddItemScreen(
               prefillData: product,
+              userDisplayName: _displayName,  // 👤 ユーザー名を渡す
             ),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
@@ -277,6 +347,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) => AddItemScreen(
               prefillData: dummyProduct,
+              userDisplayName: _displayName,  // 👤 ユーザー名を渡す
             ),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
@@ -377,17 +448,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Stats Cards
-              // 🚀 Consumer で必要な部分だけ再描画
-              Consumer<InventoryProvider>(
-                builder: (context, inventory, _) => Row(
-                  children: [
-                    Expanded(child: _buildStatCard("Ready", inventory.readyCount.toString(), "出品待ちアイテム", AppConstants.successGreen, Icons.check_circle)),
-                    const SizedBox(width: 16),
-                    Expanded(child: _buildStatCard("Draft", inventory.draftCount.toString(), "下書き保存中", AppConstants.warningOrange, Icons.edit_document)),
-                  ],
-                ),
-              ),
+              // 📊 ダッシュボード円グラフ
+              _statsLoading
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  : DashboardPieCharts(
+                      userCategoryData: _userCategoryData,
+                      userTotal: _userTotal,
+                      teamCategoryData: _teamCategoryData,
+                      teamTotal: _teamTotal,
+                    ),
               const SizedBox(height: 24),
 
               // Big CTA
@@ -396,11 +470,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 height: 80,
                 child: ElevatedButton(
                   onPressed: () {
-                    // 🚀 高速遷移
+                    // 🚀 高速遷移（ユーザー名を渡す）
                     Navigator.push(
                       context, 
                       PageRouteBuilder(
-                        pageBuilder: (context, animation, secondaryAnimation) => AddItemScreen(),
+                        pageBuilder: (context, animation, secondaryAnimation) => AddItemScreen(
+                          userDisplayName: _displayName,  // 👤 ユーザー名を渡す
+                        ),
                         transitionsBuilder: (context, animation, secondaryAnimation, child) {
                           return FadeTransition(opacity: animation, child: child);
                         },
@@ -552,46 +628,4 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
-
-  Widget _buildStatCard(String badge, String count, String label, Color color, IconData icon) {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppConstants.borderGrey),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(badge, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-          SizedBox(height: 12),
-          Text(count, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppConstants.textDark)),
-          Text(label, style: AppConstants.captionStyle),
-        ],
-      ),
-    );
-  }
-
-
 }

@@ -337,4 +337,76 @@ class ApiService {
       throw Exception('検索API通信エラー: $e');
     }
   }
+
+  // ============================================
+  // 📊 ダッシュボード統計API
+  // ============================================
+
+  /// 📊 ユーザーの当日登録商品統計を取得（カテゴリ別）
+  /// 
+  /// [companyId] 企業ID
+  /// [photographedBy] ユーザー名（例：「スタッフ」）
+  /// 
+  /// Returns: {category: count} 形式のMap
+  Future<Map<String, int>> getUserTodayStatsByCategory({
+    required String companyId,
+    required String photographedBy,
+  }) async {
+    try {
+      // 今日の日付（JST）
+      final now = DateTime.now();
+      final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      
+      final response = await http.get(
+        Uri.parse('$d1ApiUrl/api/dashboard/user-stats?date=$today&photographed_by=$photographedBy'),
+        headers: _d1Headers(companyId: companyId),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true && data['categoryStats'] != null) {
+          final Map<String, dynamic> categoryStats = data['categoryStats'];
+          return categoryStats.map((key, value) => MapEntry(key, value as int));
+        }
+        return {};
+      }
+      
+      return {};
+    } catch (e) {
+      // エラー時は空のMapを返す
+      return {};
+    }
+  }
+
+  /// 📊 チーム全体の当日登録商品統計を取得（カテゴリ別）
+  /// 
+  /// [companyId] 企業ID
+  /// 
+  /// Returns: {category: count} 形式のMap
+  Future<Map<String, int>> getTeamTodayStatsByCategory({required String companyId}) async {
+    try {
+      // 今日の日付（JST）
+      final now = DateTime.now();
+      final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      
+      final response = await http.get(
+        Uri.parse('$d1ApiUrl/api/dashboard/team-stats?date=$today'),
+        headers: _d1Headers(companyId: companyId),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true && data['categoryStats'] != null) {
+          final Map<String, dynamic> categoryStats = data['categoryStats'];
+          return categoryStats.map((key, value) => MapEntry(key, value as int));
+        }
+        return {};
+      }
+      
+      return {};
+    } catch (e) {
+      // エラー時は空のMapを返す
+      return {};
+    }
+  }
 }

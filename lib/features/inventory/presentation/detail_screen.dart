@@ -63,6 +63,9 @@ class DetailScreen extends StatefulWidget {
   // 📏 AI自動採寸フラグ
   final bool aiMeasureEnabled;
 
+  // 👤 ユーザー表示名（photographed_by用）
+  final String? userDisplayName;
+
   const DetailScreen({
     super.key,
     required this.itemName,
@@ -95,6 +98,7 @@ class DetailScreen extends StatefulWidget {
     this.shoulder,
     this.sleeve,
     this.aiMeasureEnabled = false,
+    this.userDisplayName,
   });
 
   @override
@@ -184,6 +188,7 @@ class _DetailScreenState extends State<DetailScreen>
   @override String? get widgetSleeve => widget.sleeve;
   @override bool get widgetAiMeasureEnabled => widget.aiMeasureEnabled;
   @override List<ImageItem>? get widgetImages => _currentImages; // 🆕 並び替え後の画像を使用
+  @override String? get widgetUserDisplayName => widget.userDisplayName;  // 👤 ユーザー表示名
 
   @override TextEditingController get skuController => _skuController;
   @override TextEditingController get sizeController => _sizeController;

@@ -22,8 +22,14 @@ import 'package:measure_master/core/utils/app_feedback.dart';
 class AddItemScreen extends StatefulWidget {
   final ApiProduct? prefillData;    // 🔍 検索結果からの自動入力データ
   final InventoryItem? existingItem; // 📝 既存商品データ（編集用）
+  final String? userDisplayName;    // 👤 ユーザー表示名（photographed_by 用）
 
-  const AddItemScreen({super.key, this.prefillData, this.existingItem});
+  const AddItemScreen({
+    super.key,
+    this.prefillData,
+    this.existingItem,
+    this.userDisplayName,
+  });
 
   @override
   State<AddItemScreen> createState() => _AddItemScreenState();
@@ -403,8 +409,6 @@ class _AddItemScreenState extends State<AddItemScreen>
                   _buildSectionLabel('価格と配送'),
                   _buildCard([
                     buildInputField('販売価格', _priceController, '¥ 販売価格を入力'),
-                    const Divider(),
-                    buildSelectTile('配送料の負担', '送料込み(出品者負担)', () {}),
                   ]),
                 ],
               ),
@@ -689,6 +693,7 @@ class _AddItemScreenState extends State<AddItemScreen>
                 shoulder:    _shoulderController.text,
                 sleeve:      _sleeveController.text,
                 aiMeasureEnabled: _aiMeasure,
+                userDisplayName: widget.userDisplayName,  // 👤 ユーザー名を渡す
               ),
               transitionsBuilder: (_, animation, __, child) =>
                   FadeTransition(opacity: animation, child: child),

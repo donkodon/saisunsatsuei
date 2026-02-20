@@ -57,6 +57,7 @@ dependencies:
   url_launcher: ^6.3.1
   photo_view: ^0.15.0
   mobile_scanner: ^6.0.2
+  fl_chart: 0.69.2  # 📊 円グラフ表示用
   
   # Firebase packages (LOCKED versions for stability)
   firebase_core: 3.6.0               # Firebase Core SDK

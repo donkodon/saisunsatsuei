@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:measure_master/features/inventory/domain/item.dart';
 import 'package:measure_master/features/inventory/logic/inventory_provider.dart';
 import 'package:measure_master/core/services/api_service.dart';
 import 'package:measure_master/features/auth/logic/company_service.dart';
+import 'package:measure_master/core/utils/date_utils.dart';
 
 /// 💾 在庫保存クラス
 /// 
@@ -45,6 +47,7 @@ class InventorySaver {
   /// 
   /// [item] - 保存するInventoryItem
   /// [imageUrls] - 画像URLリスト
+  /// [userDisplayName] - ユーザー表示名（photographed_by用）
   /// [additionalData] - 追加データ（実寸データなど）
   /// [maxRetries] - 最大リトライ回数（デフォルト: 3回）
   /// 
@@ -52,6 +55,7 @@ class InventorySaver {
   Future<SaveToD1Result> saveToD1WithRetry({
     required InventoryItem item,
     required List<String> imageUrls,
+    String? userDisplayName,
     Map<String, dynamic>? additionalData,
     int maxRetries = 3,
   }) async {
@@ -67,6 +71,8 @@ class InventorySaver {
         final companyId = await _companyService.getCompanyId() ?? '';
 
         // ベースデータ
+        final photographedByValue = userDisplayName ?? (companyId.isNotEmpty ? companyId : 'unknown');
+        
         final itemData = <String, dynamic>{
           'sku': item.sku ?? '',
           'itemCode': itemCode,
@@ -84,8 +90,7 @@ class InventorySaver {
           'imageUrls': imageUrls,
           'description': item.description,
           'photographed': 1,
-          'photographedBy': companyId.isNotEmpty ? companyId : 'unknown',
-          'photographedAt': DateTime.now().toIso8601String(),
+          'photographedBy': photographedByValue,  // 👤 ユーザー名優先
           'status': 'available',
           'company_id': companyId.isNotEmpty ? companyId : 'unknown',  // 🔥 company_id を追加
         };
@@ -94,6 +99,11 @@ class InventorySaver {
         if (additionalData != null) {
           itemData.addAll(additionalData);
         }
+        
+        // ✅ タイムスタンプは最後に設定（additionalDataで上書きされないように）
+        itemData['photographedAt'] = DateTimeUtils.getJstNow();
+        itemData['created_at'] = DateTimeUtils.getJstNow();
+        itemData['updated_at'] = DateTimeUtils.getJstNow();
 
         // 📏 実寸データ（length/width/shoulder/sleeve）を
         // actual_measurements JSON に変換して Workers に渡す
@@ -117,6 +127,14 @@ class InventorySaver {
         itemData.remove('width');
         itemData.remove('shoulder');
         itemData.remove('sleeve');
+
+        // 🔍 デバッグ: 送信データの確認
+        if (kDebugMode) {
+          debugPrint('📤 D1送信データ:');
+          debugPrint('   photographedAt: ${itemData['photographedAt']}');
+          debugPrint('   created_at: ${itemData['created_at']}');
+          debugPrint('   updated_at: ${itemData['updated_at']}');
+        }
 
         // D1保存API呼び出し
         final success = await _apiService.saveProductItemToD1(itemData);
@@ -155,12 +173,14 @@ class InventorySaver {
   /// 
   /// [item] - 保存するInventoryItem
   /// [imageUrls] - 画像URLリスト
+  /// [userDisplayName] - ユーザー表示名（photographed_by用）
   /// [additionalData] - 追加データ
   /// 
   /// Returns: CombinedSaveResult
   Future<CombinedSaveResult> saveToHiveAndD1({
     required InventoryItem item,
     required List<String> imageUrls,
+    String? userDisplayName,
     Map<String, dynamic>? additionalData,
   }) async {
     // 1. Hive保存
@@ -177,6 +197,7 @@ class InventorySaver {
     final d1Result = await saveToD1WithRetry(
       item: item,
       imageUrls: imageUrls,
+      userDisplayName: userDisplayName,  // 👤 ユーザー名を渡す
       additionalData: additionalData,
     );
 
