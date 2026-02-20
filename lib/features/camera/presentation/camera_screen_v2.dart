@@ -238,10 +238,12 @@ class _CameraScreenV2State extends State<CameraScreenV2> {
 
 
       if (mounted) {
-        // ✅ ローカルファイルリストに追加
+        // ✅ Web環境対応: バイトデータを読み込んで保持
+        final imageBytes = await pickedFile.readAsBytes();
+        
         setState(() {
-          final newItem = ImageItem.fromFile(
-            file: pickedFile,
+          final newItem = ImageItem.fromBytes(
+            bytes: imageBytes,
             sequence: _images.length + 1,
             isMain: _images.isEmpty,
           );
