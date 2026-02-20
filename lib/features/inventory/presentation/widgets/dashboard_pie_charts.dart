@@ -30,10 +30,11 @@ class DashboardPieCharts extends StatelessWidget {
   ];
 
   // 📐 共通定数
-  static const _chartHeight = 150.0;
-  static const _chartRadius = 55.0;
-  static const _centerSpaceRadius = 40.0;
+  static const _chartHeight = 120.0;  // 150 → 120に縮小
+  static const _chartRadius = 45.0;   // 55 → 45に縮小
+  static const _centerSpaceRadius = 32.0;  // 40 → 32に縮小
   static const _sectionSpacing = 2.0;
+  static const _maxLegendItems = 3;  // 凡例は上位3つまで
 
   @override
   Widget build(BuildContext context) {
@@ -117,13 +118,20 @@ class DashboardPieCharts extends StatelessWidget {
     }).toList();
   }
 
-  /// 🏷️ 凡例生成（共通化）
+  /// 🏷️ 凡例生成（共通化 - 上位3つまで）
   Widget _buildLegend(Map<String, int> categoryData) {
+    // カテゴリを件数降順でソート
+    final sortedEntries = categoryData.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    
+    // 上位3つまで取得
+    final topEntries = sortedEntries.take(_maxLegendItems).toList();
+    
     return Wrap(
       spacing: 8,
       runSpacing: 4,
-      children: categoryData.entries.toList().asMap().entries.map((entry) {
-        final index = entry.key;
+      children: topEntries.asMap().entries.map((entry) {
+        final index = sortedEntries.indexOf(entry.value);  // 元のインデックスを保持（色の一貫性）
         final category = entry.value;
         final color = _chartColors[index % _chartColors.length];
 
