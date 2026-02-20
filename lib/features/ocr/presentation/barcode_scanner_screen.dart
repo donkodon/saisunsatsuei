@@ -218,9 +218,13 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       
       // D1 API で商品検索（企業IDを渡す）
       if (kDebugMode) {
-        print('🔍 BarcodeScannerScreen: Calling searchByBarcode');
+        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        print('🔍 BarcodeScannerScreen._onBarcodeDetected');
         print('   - Barcode: $barcode');
         print('   - CompanyId: $companyId');
+        print('   - CompanyId is null: ${companyId == null}');
+        print('   - CompanyId is empty: ${companyId?.isEmpty ?? true}');
+        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       }
       
       final product = await ApiService.searchByBarcode(barcode, companyId: companyId);
@@ -235,25 +239,12 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       // 商品が見つかった場合はデータを引っ張る、見つからない場合はブランクで遷移
       // DashboardScreenと同じ動作: AddItemScreenに遷移
       if (product != null) {
-        // ApiProduct形式に変換してAddItemScreenへ遷移
-        final apiProduct = ApiProduct(
-          id: 0,
-          sku: product.sku,
-          name: product.name,
-          brand: product.brand,
-          category: product.category,
-          size: product.size,
-          color: product.color,
-          priceSale: product.priceSale,
-          createdAt: DateTime.now(),
-          barcode: product.barcode,
-        );
-
+        // ✅ ApiService.searchByBarcodeが既に完全なApiProductを返すので、そのまま使用
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) => AddItemScreen(
-              prefillData: apiProduct,
+              prefillData: product,  // 🔧 直接使用（重複ラッピング削除）
             ),
           ),
         );

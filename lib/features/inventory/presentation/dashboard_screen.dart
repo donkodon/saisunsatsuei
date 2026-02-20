@@ -290,23 +290,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
         AppFeedback.showSuccess(context, message);
 
         // ApiProduct形式に変換してAddItemScreenへ遷移
+        // 🔧 masterフィールドからマスタデータを取得（フォールバック用）
+        final master = data['master'];
+        
         final product = ApiProduct(
           id: data['id'] ?? 0,
           sku: data['sku'] ?? query,
-          name: data['name'] ?? '',
-          brand: data['brand'],
-          category: data['category'],
-          size: data['size'],
-          color: data['color'],
-          priceSale: data['price'] ?? data['price_sale'],
+          // 📋 基本情報: product_items優先、なければmaster
+          name: data['name'] ?? master?['name'] ?? '',
+          brand: data['brand'] ?? master?['brand'],
+          category: data['category'] ?? master?['category'],
+          size: data['size'] ?? master?['size'],
+          color: data['color'] ?? master?['color'],
+          priceSale: data['price'] ?? data['price_sale'] ?? master?['price_sale'],
           createdAt: DateTime.now(),
+          barcode: data['barcode'] ?? master?['barcode'],
+          // 📸 画像: product_items優先（撮影済み実物画像）
           imageUrls: data['imageUrls'],
-          barcode: data['barcode'],
-          // 🔧 product_items の情報を追加
+          // 🏷️ product_items固有の情報（実物データのみ）
           condition: data['condition'],
-          material: data['material'],
           productRank: data['product_rank'],
           description: data['inspection_notes'],
+          // 📦 product_master由来の情報: product_items優先、なければmaster
+          material: data['material'] ?? master?['material'],
+          brandKana: data['brand_kana'] ?? master?['brand_kana'],
+          categorySub: data['category_sub'] ?? master?['category_sub'],
+          priceCost: data['price_cost'] ?? master?['price_cost'],
+          season: data['season'] ?? master?['season'],
+          releaseDate: data['release_date'] ?? master?['release_date'],
+          buyer: data['buyer'] ?? master?['buyer'],
+          storeName: data['store_name'] ?? master?['store_name'],
+          priceRef: data['price_ref'] ?? master?['price_ref'],
+          priceList: data['price_list'] ?? master?['price_list'],
+          location: data['location'] ?? master?['location'],
         );
 
         Navigator.push(
