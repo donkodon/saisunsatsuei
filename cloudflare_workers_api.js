@@ -518,9 +518,8 @@ function extractSkuAndCompany(webhookData, requestUrl) {
   // 方法0.5（新規追加）: measurement_image_url からSKUを抽出
   // ファイル名パターン: 1025L190001_1770561189941_measurement.png
   if (sku === 'UNKNOWN' || sku.length < 5) {
-    const measurementUrl = webhookData.output?.find(item => 
-      typeof item === 'string' && item.includes('measurement')
-    ) || '';
+    // 🔧 修正: output がオブジェクト形式の場合に対応
+    const measurementUrl = (typeof webhookData.output === 'object' && webhookData.output?.image) || '';
     
     if (measurementUrl) {
       // ファイル名からSKUを抽出（アンダースコアの前の部分）
