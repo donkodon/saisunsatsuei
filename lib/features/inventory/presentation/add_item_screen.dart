@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/features/camera/presentation/camera_screen_v2.dart';
@@ -173,13 +174,27 @@ class _AddItemScreenState extends State<AddItemScreen>
   // ─────────────────────────────────────────────
 
   void _autofillFromApiProduct(ApiProduct product) {
+    if (kDebugMode) {
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      print('🔧 AddItemScreen._autofillFromApiProduct');
+      print('   - SKU: ${product.sku}');
+      print('   - Name: ${product.name}');
+      print('   - Price (priceSale): ${product.priceSale}');
+      print('   - Brand: ${product.brand}');
+      print('   - Material: ${product.material}');
+      print('   - Condition: ${product.condition}');
+      print('   - ImageUrls: ${product.imageUrls?.length ?? 0} images');
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    }
+    
     setState(() {
       _isAutofilled = true;
       _skuController.text  = product.sku;
       _nameController.text = product.name;
       if (product.brand?.isNotEmpty == true)    _brandController.text  = product.brand!;
       if (product.size?.isNotEmpty  == true)    _sizeController.text   = product.size!;
-      if ((product.priceSale ?? 0) > 0)          _priceController.text  = product.priceSale.toString();
+      // 🔧 価格: null でなければ設定（0でも設定）
+      if (product.priceSale != null)             _priceController.text  = product.priceSale.toString();
       if (product.barcode?.isNotEmpty == true)  _barcodeController.text = product.barcode!;
       if (product.productRank != null && _ranks.contains(product.productRank!.toUpperCase())) {
         _selectedRank = product.productRank!.toUpperCase();
