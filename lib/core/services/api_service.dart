@@ -319,6 +319,17 @@ class ApiService {
           debugPrint('   - Source: ${result['source']}');
         }
         
+        // 🔧 価格の型変換処理（文字列 → int）
+        int? parsedPrice;
+        final priceValue = data['price'] ?? data['price_sale'] ?? master?['price_sale'];
+        if (priceValue != null) {
+          if (priceValue is String) {
+            parsedPrice = double.tryParse(priceValue)?.toInt();
+          } else if (priceValue is num) {
+            parsedPrice = priceValue.toInt();
+          }
+        }
+        
         return ApiProduct(
           id: 0,
           sku: data['sku'] ?? '',
@@ -329,7 +340,7 @@ class ApiService {
           category: data['category'] ?? master?['category'],
           size: data['size'] ?? master?['size'],
           color: data['color'] ?? master?['color'],
-          priceSale: data['price'] ?? data['price_sale'] ?? master?['price_sale'],
+          priceSale: parsedPrice,
           createdAt: DateTime.now(),
           // 📸 画像: product_items優先（撮影済み実物画像）
           imageUrls: data['imageUrls'],

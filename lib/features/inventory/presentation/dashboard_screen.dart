@@ -293,6 +293,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         // 🔧 masterフィールドからマスタデータを取得（フォールバック用）
         final master = data['master'];
         
+        // 🔧 価格の型変換処理（文字列 → int）
+        int? parsedPrice;
+        final priceValue = data['price'] ?? data['price_sale'] ?? master?['price_sale'];
+        if (priceValue != null) {
+          if (priceValue is String) {
+            parsedPrice = double.tryParse(priceValue)?.toInt();
+          } else if (priceValue is num) {
+            parsedPrice = priceValue.toInt();
+          }
+        }
+        
         final product = ApiProduct(
           id: data['id'] ?? 0,
           sku: data['sku'] ?? query,
@@ -302,7 +313,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           category: data['category'] ?? master?['category'],
           size: data['size'] ?? master?['size'],
           color: data['color'] ?? master?['color'],
-          priceSale: data['price'] ?? data['price_sale'] ?? master?['price_sale'],
+          priceSale: parsedPrice,
           createdAt: DateTime.now(),
           barcode: data['barcode'] ?? master?['barcode'],
           // 📸 画像: product_items優先（撮影済み実物画像）
