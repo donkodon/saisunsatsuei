@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:measure_master/constants.dart';
 import 'package:measure_master/features/inventory/logic/inventory_provider.dart';
@@ -395,30 +394,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   /// 📸 バーコードスキャン実行
-  Future<void> _scanBarcode() async {
-    if (kIsWeb) {
-      AppFeedback.showInfo(context, 'Web版ではバーコードスキャンはサポートされていません');
-      return;
-    }
-
-    try {
-      final result = await Navigator.push<String>(
-        context,
-        MaterialPageRoute(builder: (context) => const BarcodeScannerScreen()),
-      );
-
-      if (!mounted) return;
-      if (result != null && result.isNotEmpty) {
-        // スキャン結果を使って検索を実行
-        _searchController.text = result;
-        _searchProduct(result);
-      }
-    } catch (e) {
-      if (!mounted) return;
-      AppFeedback.showError(context, 'バーコードスキャンに失敗しました: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     // 🚀 listen: false で不要な再描画を防止（パフォーマンス最適化）
@@ -492,92 +467,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 24),
 
               // Big CTA
-              SizedBox(
-                width: double.infinity,
-                height: 80,
-                child: ElevatedButton(
-                  onPressed: () {
-                    // 🚀 高速遷移（ユーザー名を渡す）
-                    Navigator.push(
-                      context, 
-                      PageRouteBuilder(
-                        pageBuilder: (context, animation, secondaryAnimation) => AddItemScreen(
-                          userDisplayName: _displayName,  // 👤 ユーザー名を渡す
-                        ),
-                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                          return FadeTransition(opacity: animation, child: child);
-                        },
-                        transitionDuration: const Duration(milliseconds: 200),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppConstants.primaryCyan,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 4,
-                    shadowColor: AppConstants.primaryCyan.withValues(alpha: 0.4),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.add_a_photo, size: 32, color: Colors.white),
-                      const SizedBox(width: 16),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("新規アイテムを撮影", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                          Text("採寸・撮影を開始する", style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.9))),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              // API連携ボタン (バーコードスキャンに変更)
-              SizedBox(
-                width: double.infinity,
-                height: 60,
-                child: OutlinedButton(
-                  onPressed: _scanBarcode,
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: AppConstants.primaryCyan, width: 2),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.qr_code_scanner, size: 28, color: AppConstants.primaryCyan),
-                      const SizedBox(width: 12),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "バーコードを読み取る",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppConstants.primaryCyan,
-                            ),
-                          ),
-                          Text(
-                            "商品情報を自動取得",
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppConstants.textGrey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
               // 🔍 Search Bar (商品ID/バーコード検索)
               TextField(
                 controller: _searchController,
