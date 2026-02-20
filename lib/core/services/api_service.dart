@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:measure_master/features/inventory/domain/api_product.dart';
 
@@ -278,27 +279,57 @@ class ApiService {
   
   /// 🔍 バーコードで商品検索（静的メソッド）
   static Future<ApiProduct?> searchByBarcode(String barcode, {String? companyId}) async {
-    final apiService = ApiService();
-    final result = await apiService.searchByBarcodeOrSku(barcode, companyId: companyId);
-    
-    if (result != null && result['success'] == true && result['data'] != null) {
-      final data = result['data'];
-      return ApiProduct(
-        id: 0,
-        sku: data['sku'] ?? '',
-        barcode: data['barcode'],
-        name: data['name'] ?? '',
-        brand: data['brand'],
-        category: data['category'],
-        size: data['size'],
-        color: data['color'],
-        priceSale: data['price'],
-        createdAt: DateTime.now(),
-        imageUrls: null,
-      );
+    try {
+      final apiService = ApiService();
+      final result = await apiService.searchByBarcodeOrSku(barcode, companyId: companyId);
+      
+      if (kDebugMode) {
+        debugPrint('🔍 searchByBarcode called');
+        debugPrint('🔍 Query: $barcode');
+        debugPrint('🔍 CompanyId: $companyId');
+        debugPrint('🔍 Result: $result');
+      }
+      
+      if (result != null && result['success'] == true && result['data'] != null) {
+        final data = result['data'];
+        
+        if (kDebugMode) {
+          debugPrint('✅ データ取得成功');
+          debugPrint('   - SKU: ${data['sku']}');
+          debugPrint('   - Name: ${data['name']}');
+          debugPrint('   - Barcode: ${data['barcode']}');
+          debugPrint('   - Price: ${data['price']}');
+          debugPrint('   - Source: ${result['source']}');
+        }
+        
+        return ApiProduct(
+          id: 0,
+          sku: data['sku'] ?? '',
+          barcode: data['barcode'],
+          name: data['name'] ?? '',
+          brand: data['brand'],
+          category: data['category'],
+          size: data['size'],
+          color: data['color'],
+          priceSale: data['price'],
+          createdAt: DateTime.now(),
+          imageUrls: null,
+        );
+      }
+      
+      if (kDebugMode) {
+        debugPrint('❌ searchByBarcode: result is null or invalid');
+        debugPrint('   - result: $result');
+      }
+      
+      return null;
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('💥 searchByBarcode Exception: $e');
+        debugPrint('Stack trace: $stackTrace');
+      }
+      rethrow;
     }
-    
-    return null;
   }
   
   /// 🔍 統合検索: バーコードまたはSKUで検索

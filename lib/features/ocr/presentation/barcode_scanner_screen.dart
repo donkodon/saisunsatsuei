@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
@@ -217,7 +217,18 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       final companyId = await companyService.getCompanyId();
       
       // D1 API で商品検索（企業IDを渡す）
+      if (kDebugMode) {
+        print('🔍 BarcodeScannerScreen: Calling searchByBarcode');
+        print('   - Barcode: $barcode');
+        print('   - CompanyId: $companyId');
+      }
+      
       final product = await ApiService.searchByBarcode(barcode, companyId: companyId);
+
+      if (kDebugMode) {
+        print('🔍 BarcodeScannerScreen: searchByBarcode returned');
+        print('   - Product: ${product != null ? product.sku : 'null'}');
+      }
 
       if (!mounted) return;
 
@@ -268,8 +279,12 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
           ),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (!mounted) return;
+      if (kDebugMode) {
+        print('💥 BarcodeScannerScreen Error: $e');
+        print('Stack trace: $stackTrace');
+      }
       AppFeedback.showError(context, 'エラーが発生しました: $e');
       setState(() {
         _isSearching = false;

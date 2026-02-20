@@ -5,8 +5,11 @@ import 'dart:html' as html;
 import 'dart:typed_data';
 // ignore: avoid_web_libraries_in_flutter
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'package:measure_master/core/services/api_service.dart';
+import 'package:measure_master/features/auth/logic/company_service.dart';
 import 'package:measure_master/features/inventory/domain/api_product.dart';
 import 'package:measure_master/features/inventory/presentation/add_item_screen.dart';
 import 'package:measure_master/core/utils/app_feedback.dart';
@@ -275,9 +278,27 @@ class _WebBarcodeScannerScreenV2State extends State<WebBarcodeScannerScreenV2> {
     });
 
     try {
+      // 🏢 企業IDを取得
+      final companyService = Provider.of<CompanyService>(context, listen: false);
+      final companyId = await companyService.getCompanyId();
+      
+      if (kDebugMode) {
+        print('🔍 WebBarcodeScannerV2: Searching barcode');
+        print('   - Barcode: $barcode');
+        print('   - CompanyId: $companyId');
+      }
 
-      // D1 API で商品検索
-      final product = await ApiService.searchByBarcode(barcode);
+      // D1 API で商品検索（企業IDを渡す）
+      final product = await ApiService.searchByBarcode(barcode, companyId: companyId);
+
+      if (kDebugMode) {
+        print('🔍 WebBarcodeScannerV2: Search result');
+        print('   - Product found: ${product != null}');
+        if (product != null) {
+          print('   - SKU: ${product.sku}');
+          print('   - Name: ${product.name}');
+        }
+      }
 
       if (!mounted) return;
 
