@@ -57,6 +57,8 @@ class _AddItemScreenState extends State<AddItemScreen>
   final TextEditingController _barcodeController    = TextEditingController();
   final TextEditingController _skuController        = TextEditingController();
   final TextEditingController _sizeController       = TextEditingController();
+  final TextEditingController _conditionController    = TextEditingController(); // 🆕 商品の状態フリー入力
+  final TextEditingController _materialController   = TextEditingController(); // 🆕 素材フリー入力
 
   // 📏 実寸入力用コントローラー
   final TextEditingController _lengthController   = TextEditingController();
@@ -66,9 +68,7 @@ class _AddItemScreenState extends State<AddItemScreen>
 
   // 選択値
   String _selectedCategory  = '選択してください';
-  String _selectedCondition = '選択してください';
   String _selectedRank      = '選択してください';
-  String _selectedMaterial  = '選択してください';
   String _selectedColor     = '選択してください';
   Color  _colorPreview      = Colors.grey[400]!;
 
@@ -81,11 +81,7 @@ class _AddItemScreenState extends State<AddItemScreen>
 
   final List<String> _ranks = ['選択してください', 'S', 'A', 'B', 'C', 'D', 'E', 'N'];
 
-  final List<String> _materials = [
-    '選択してください', 'コットン 100%', 'ポリエステル 100%',
-    'コットン 80% / ポリエステル 20%', 'ウール 100%',
-    'ナイロン 100%', 'レザー', 'デニム', 'リネン 100%', 'シルク 100%', 'その他',
-  ];
+  // 🗑️ 素材のドロップダウンリストを削除（フリー入力に変更）
 
   final Map<String, Color> _colorOptions = {
     '選択してください': Colors.grey[400]!,
@@ -113,18 +109,7 @@ class _AddItemScreenState extends State<AddItemScreen>
     'シューズ', 'バッグ', 'アクセサリー', 'その他',
   ];
 
-  final List<String> _conditions = [
-    '選択してください', '新品・未使用', '未使用に近い',
-    '目立った傷や汚れなし', 'やや傷や汚れあり', '傷や汚れあり', '全体的に状態が悪い',
-  ];
-
-  final List<String> _allBrands = [
-    'Uniqlo', 'GU', 'ZARA', 'H&M', 'Nike', 'Adidas', 'Levi\'s', 'Gap',
-    'Muji', 'Beams', 'United Arrows', 'Gucci', 'Louis Vuitton', 'Prada',
-    'Chanel', 'Hermès', 'Burberry', 'Ralph Lauren', 'Tommy Hilfiger',
-    'Calvin Klein', 'The North Face', 'Patagonia', 'Columbia', 'Champion',
-    'New Balance', 'Converse', 'Vans', 'Supreme', 'Stussy', 'Carhartt',
-  ];
+  // 🗑️ ブランド・商品の状態のリストを削除（フリー入力化により不要）
 
   // ─────────────────────────────────────────────
   // AddItemOcrMixin への委譲（抽象ゲッター実装）
@@ -134,9 +119,7 @@ class _AddItemScreenState extends State<AddItemScreen>
   @override
   TextEditingController get ocrSizeController  => _sizeController;
   @override
-  String get ocrSelectedMaterial => _selectedMaterial;
-  @override
-  set ocrSelectedMaterial(String v) => _selectedMaterial = v;
+  TextEditingController get ocrMaterialController => _materialController; // 🆕 フリー入力対応
 
   // ─────────────────────────────────────────────
   // ライフサイクル
@@ -162,6 +145,7 @@ class _AddItemScreenState extends State<AddItemScreen>
       _descriptionController, _barcodeController, _skuController,
       _sizeController, _lengthController, _widthController,
       _shoulderController, _sleeveController,
+      _conditionController, _materialController, // 🆕 フリー入力コントローラー
     ]) {
       c.dispose();
     }
@@ -202,11 +186,11 @@ class _AddItemScreenState extends State<AddItemScreen>
       if (product.category?.isNotEmpty == true && _categories.contains(product.category!)) {
         _selectedCategory = product.category!;
       }
-      if (product.condition?.isNotEmpty == true && _conditions.contains(product.condition!)) {
-        _selectedCondition = product.condition!;
+      if (product.condition?.isNotEmpty == true) {
+        _conditionController.text = product.condition!; // 🆕 フリー入力
       }
-      if (product.material?.isNotEmpty == true && _materials.contains(product.material!)) {
-        _selectedMaterial = product.material!;
+      if (product.material?.isNotEmpty == true) {
+        _materialController.text = product.material!; // 🆕 フリー入力
       }
       if (product.color?.isNotEmpty == true) {
         _selectedColor = product.color!;
@@ -238,9 +222,9 @@ class _AddItemScreenState extends State<AddItemScreen>
       if (item.category.isNotEmpty && _categories.contains(item.category)) {
         _selectedCategory = item.category;
       }
-      if (item.condition?.isNotEmpty == true) _selectedCondition = item.condition!;
+      if (item.condition?.isNotEmpty == true) _conditionController.text = item.condition!; // 🆕 フリー入力
       if (item.productRank != null && _ranks.contains(item.productRank))     _selectedRank    = item.productRank!;
-      if (item.material    != null && _materials.contains(item.material))    _selectedMaterial = item.material!;
+      if (item.material    != null) _materialController.text = item.material!; // 🆕 フリー入力
       if (item.color != null) {
         _selectedColor = item.color!;
         if (_colorOptions.containsKey(item.color!)) _colorPreview = _colorOptions[item.color!]!;
@@ -271,14 +255,14 @@ class _AddItemScreenState extends State<AddItemScreen>
           itemName:    _nameController.text,
           brand:       _brandController.text,
           category:    _selectedCategory,
-          condition:   _selectedCondition,
+          condition:   _conditionController.text, // 🆕 フリー入力
           price:       _priceController.text,
           barcode:     _barcodeController.text,
           sku:         _skuController.text,
           size:        _sizeController.text,
           color:       _selectedColor,
           productRank: _selectedRank,
-          material:    _selectedMaterial,
+          material:    _materialController.text, // 🆕 フリー入力
           description: _descriptionController.text,
           existingImages: _images.isNotEmpty ? _images : null,
           aiMeasure:   _aiMeasure,
@@ -299,11 +283,9 @@ class _AddItemScreenState extends State<AddItemScreen>
   // ピッカー呼び出し（AddItemPickerMixin へ委譲）
   // ─────────────────────────────────────────────
 
-  void _showBrandPicker()     => showBrandPickerSheet(allBrands: _allBrands,      currentBrand: _brandController.text, onSelected: (v) => setState(() => _brandController.text = v));
+  // 🗑️ ブランド・商品の状態・素材のピッカーを削除（フリー入力化）
   void _showCategoryPicker()  => showCategoryPickerSheet(categories: _categories,  currentCategory: _selectedCategory,  onSelected: (v) => setState(() => _selectedCategory = v));
   void _showRankPicker()      => showRankPickerSheet(ranks: _ranks,               currentRank: _selectedRank,          onSelected: (v) => setState(() => _selectedRank = v));
-  void _showConditionPicker() => showConditionPickerSheet(conditions: _conditions, currentCondition: _selectedCondition, onSelected: (v) => setState(() => _selectedCondition = v));
-  void _showMaterialPicker()  => showMaterialPickerSheet(materials: _materials,    currentMaterial: _selectedMaterial,   onSelected: (v) => setState(() => _selectedMaterial = v));
   void _showColorPicker()     => showColorPickerSheet(colorOptions: _colorOptions, currentColor: _selectedColor,         onSelected: (name, color) => setState(() { _selectedColor = name; _colorPreview = color; }));
 
   // ─────────────────────────────────────────────
@@ -377,7 +359,7 @@ class _AddItemScreenState extends State<AddItemScreen>
                     const Divider(),
                     buildInputField('SKU (商品管理ID)', _skuController, 'SKUを入力してください'),
                     const Divider(),
-                    buildBrandField(brandController: _brandController, onTap: _showBrandPicker),
+                    buildInputField('ブランド', _brandController, 'ブランドを入力してください'), // 🆕 フリー入力化
                     const Divider(),
                     buildInputField('商品名', _nameController, '商品名を入力してください'),
                     const Divider(),
@@ -391,10 +373,9 @@ class _AddItemScreenState extends State<AddItemScreen>
                   _buildCard([
                     buildSelectTile('カテゴリ', _selectedCategory, _showCategoryPicker),
                     const Divider(),
-                    buildSelectTile('商品の状態', _selectedCondition, _showConditionPicker,
-                        isPlaceholder: _selectedCondition == '選択してください'),
+                    buildInputField('商品の状態', _conditionController, '商品の状態を入力してください (例: 新品、未使用、中古)'), // 🆕 フリー入力化
                     const Divider(),
-                    buildSelectTile('素材', _selectedMaterial, _showMaterialPicker),
+                    buildInputField('素材', _materialController, '素材を入力してください (例: コットン 100%)'), // 🆕 フリー入力化
                     const Divider(),
                     buildColorSelectTile(
                       selectedColor: _selectedColor,
@@ -670,8 +651,8 @@ class _AddItemScreenState extends State<AddItemScreen>
             AppFeedback.showInfo(context, '商品名を入力してください');
             return;
           }
-          if (_selectedCondition == '選択してください') {
-            AppFeedback.showInfo(context, '商品の状態を選択してください');
+          if (_conditionController.text.isEmpty) {
+            AppFeedback.showInfo(context, '商品の状態を入力してください');
             return;
           }
           Navigator.push(
@@ -681,14 +662,14 @@ class _AddItemScreenState extends State<AddItemScreen>
                 itemName:    _nameController.text,
                 brand:       _brandController.text.isEmpty ? '' : _brandController.text,
                 category:    _selectedCategory,
-                condition:   _selectedCondition,
+                condition:   _conditionController.text,
                 price:       _priceController.text,
                 barcode:     _barcodeController.text,
                 sku:         _skuController.text,
                 size:        _sizeController.text,
                 color:       _selectedColor,
                 productRank: _selectedRank,
-                material:    _selectedMaterial,
+                material:    _materialController.text,
                 description: _descriptionController.text,
                 images:      _images.isEmpty ? null : _images,
                 brandKana:   widget.prefillData?.brandKana,

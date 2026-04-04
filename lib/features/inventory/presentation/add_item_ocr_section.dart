@@ -18,8 +18,7 @@ mixin AddItemOcrMixin<T extends StatefulWidget> on State<T> {
   // ── 実装クラスが提供するフィールドへの参照 ──────────────
   TextEditingController get ocrBrandController;
   TextEditingController get ocrSizeController;
-  String get ocrSelectedMaterial;
-  set ocrSelectedMaterial(String v);
+  TextEditingController get ocrMaterialController; // 🆕 フリー入力対応
   // ────────────────────────────────────────────────────────
 
   // ─────────────────────────────────────────────
@@ -151,7 +150,7 @@ mixin AddItemOcrMixin<T extends StatefulWidget> on State<T> {
               // 結果をフォームに反映（setState は呼び出し元 State が行う）
               setState(() {
                 if (brand.isNotEmpty) ocrBrandController.text = brand;
-                if (material.isNotEmpty) ocrSelectedMaterial = material;
+                if (material.isNotEmpty) ocrMaterialController.text = material; // 🆕 フリー入力対応
                 if (size.isNotEmpty) ocrSizeController.text = size;
               });
               Navigator.pop(ctx);
